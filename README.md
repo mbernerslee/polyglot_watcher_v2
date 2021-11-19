@@ -1,6 +1,6 @@
 # PolyglotWatcherV2
 
-**TODO: Add description**
+A software development tool that runs tests triggered when files are saved.
 
 ## Installation
 

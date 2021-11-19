@@ -1,0 +1,121 @@
+#!/bin/bash
+
+spinner()
+{
+  while true; do
+    log_success "."
+    sleep 0.5
+  done
+}
+
+get_time() {
+  echo $(python3 -c "import time; print(int(time.time()*1000))")
+}
+
+show_result() {
+  if [[ $result != 0 ]]; then
+    log_failure "failed :*(\n"
+    echo -e "$output"
+    log_failure "************************************************\n"
+    log_failure "*** At least one thing in \"$action\" is broken ***\n"
+    log_failure "************************************************\n"
+    exit -1
+  else
+    log_success "ok!"
+    seconds=$(printf "%.2f" $duration)
+    log_success " ($seconds seconds)\n"
+  fi
+}
+
+run_clean() {
+  log_info "Running \"$action\""
+  spinner&
+  spinner_pid=$!
+  output=$(eval $action 2>&1)
+  result=$?
+  kill $spinner_pid
+  wait $spinner_pid 2>/dev/null
+}
+
+run_verbose() {
+  echo ""
+  log_info "------------------------------------------------\n"
+  log_info "Running \"$action\"\n"
+  log_info "------------------------------------------------\n"
+  eval $action
+  result=$?
+  output=""
+}
+
+run_action() {
+  action=$1
+  start_time=$(get_time)
+  if [[ $VERBOSE ]]; then
+    run_verbose
+  else
+    run_clean
+  fi
+  end_time=$(get_time)
+  duration=$(echo "scale=2; ($end_time - $start_time) /1000" | bc)
+  show_result
+}
+
+log_failure() {
+  [[ $COLOUR ]] && printf -- "\e[31m$1\e[39m" || boring_log "$1"
+}
+
+log_success() {
+  [[ $COLOUR ]] && printf -- "\e[32m$1\e[39m" || boring_log "$1"
+}
+
+log_info() {
+  [[ $COLOUR ]] && printf -- "\e[35m$1\e[39m" || boring_log "$1"
+}
+
+log_banner(){
+  [[ $COLOUR ]]&& printf -- "\e[36m$1\e[39m" || boring_log "$1"
+}
+
+boring_log() {
+  printf -- "$1"
+}
+
+function finish {
+  exit_code=$?
+  SCRIPT_END=$(get_time)
+  duration=$(echo "scale=2; ($SCRIPT_END - $SCRIPT_START) /1000" | bc)
+  seconds=$(printf "%.2f" $duration)
+  if [ $exit_code -eq 0 ]; then
+    log_success "\n******************************"
+    log_success "\n*** All Actions Succeeded! ***"
+    log_success "\n******************************\n"
+    log_success "Total time:: ($seconds seconds)\n"
+  fi
+}
+
+SCRIPT_START=$(get_time)
+trap finish EXIT
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case "$key" in
+    -v|--verbose)
+      VERBOSE=true
+      shift
+      ;;
+    -fc|--force-colour)
+      FORCE_COLOUR=true
+      shift
+      ;;
+    *)
+      log_failure "unknown argument: $key\n"
+      shift
+      ;;
+  esac
+done
+
+if [[ $TERM != "dumb" || $FORCE_COLOUR = true ]]
+then
+  COLOUR=true
+fi
+
