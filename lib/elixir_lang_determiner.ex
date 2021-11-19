@@ -29,11 +29,12 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
     end
   end
 
+  # TODO make mix_test_if_file_exists an action in itself so that this module can be pure and not hit the file system
   defp equivalent_test_file_path(file_path, server_state) do
     case String.split(file_path.path, "lib") do
       ["", middle_part_of_path] ->
         {:ok, test_file_path} =
-          FilePath.build("test#{middle_part_of_path}_test.exs", server_state.starting_dir)
+          FilePath.build("test#{middle_part_of_path}_test.#{@exs}", server_state.starting_dir)
 
         if FilePath.exists?(test_file_path) do
           {:ok, test_file_path}
