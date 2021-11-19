@@ -1,0 +1,47 @@
+#!/bin/bash
+
+check_brew_is_installed() {
+  command -v brew >/dev/null
+  brew_exists_result=$?
+  if [[ $brew_exists_result -eq 0 ]]; then
+    echo "brew is already installed"
+  else
+    echo "I require homebrew to be installed first. Do that, then try again"
+    exit 1
+  fi
+}
+
+install_fswatch() {
+  command -v fswatch >/dev/null
+  fswatch_exists_result=$?
+  if [[ $fswatch_exists_result -eq 0 ]]; then
+    echo "fswatch is already installed"
+  else
+    echo "About to install fswatch..."
+    brew install fswatch
+    install_fswach_result=$?
+
+    if [[ $install_fswach_result -eq 0 ]]; then
+      echo "Installed fswatch OK"
+    else
+      echo "Failed to install fswatch :-( fail. You're on your own now :-("
+      exit 1
+    fi
+  fi
+}
+
+install_for_mac() {
+  check_brew_is_installed
+  install_fswatch
+  echo "Everything installed OK"
+}
+
+case $OSTYPE in
+  'darwin20')
+    install_for_mac
+    ;;
+  *)
+    echo "Installing on your OS $OSTYPE is not yet supported :-("
+    exit 1
+    ;;
+esac
