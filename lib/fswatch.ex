@@ -1,7 +1,7 @@
 defmodule PolyglotWatcherV2.FSWatch do
   alias PolyglotWatcherV2.FilePath
 
-  def startup_command, do: "fswatch ."
+  def startup_command, do: ["fswatch", "."]
   def startup_message, do: "Starting fswatch..."
 
   def parse_std_out(std_out, working_dir) do

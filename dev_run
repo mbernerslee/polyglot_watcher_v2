@@ -1,0 +1,4 @@
+#!/bin/bash
+
+MIX_ENV=dev mix escript.build
+./polyglot_watcher_v2_dev
