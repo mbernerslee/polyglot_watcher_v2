@@ -20,6 +20,8 @@ defmodule PolyglotWatcherV2.Server do
 
   @os_watchers %{linux: Inotifywait, mac: FSWatch}
 
+  @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
+
   def child_spec(command_line_args \\ []) do
     %{
       id: __MODULE__,
@@ -42,7 +44,7 @@ defmodule PolyglotWatcherV2.Server do
   defp init_for_os(os) do
     watcher = Map.fetch!(@os_watchers, os)
     Puts.on_new_line(watcher.startup_message, :magenta)
-    port = Port.open({:spawn, watcher.startup_command}, [:binary, :exit_status])
+    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
     state_additions = %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
     {:ok, Map.merge(@initial_state, state_additions)}
   end
@@ -53,6 +55,7 @@ defmodule PolyglotWatcherV2.Server do
 
     state =
       std_out
+      |> to_string()
       |> state.watcher.parse_std_out(state.starting_dir)
       |> Determine.actions()
       |> TraverseActionsTree.execute_all(state)
