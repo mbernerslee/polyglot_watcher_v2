@@ -4,28 +4,17 @@ defmodule PolyglotWatcherV2.FilePathTest do
 
   describe "build/2" do
     test "works with legit looking file paths with extensions and a relative path" do
-      file_path = "/Users/bernersiscool/src/polyglot_watcher_v2/lib/server.ex"
-
-      relative_path = "/Users/bernersiscool/src/polyglot_watcher_v2"
-
-      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} =
-               FilePath.build(file_path, relative_path)
+      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
+               FilePath.build("lib/server.ex")
     end
 
     test "ignores paths without a file extension" do
-      file_path = "too/cool/for/a/file/extension"
-      relative_path = "doesnt/matter"
-
-      assert :ignore == FilePath.build(file_path, relative_path)
+      assert :ignore == FilePath.build("lib/no_extension")
     end
 
     test "trims trailing tildas ~" do
-      file_path = "/Users/bernersiscool/src/polyglot_watcher_v2/lib/server.ex~"
-
-      relative_path = "/Users/bernersiscool/src/polyglot_watcher_v2"
-
-      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} =
-               FilePath.build(file_path, relative_path)
+      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
+               FilePath.build("lib/server.ex~")
     end
   end
 end

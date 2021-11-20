@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Server do
   use GenServer
-  alias PolyglotWatcherV2.{Determine, FSWatch, Puts}
+  alias PolyglotWatcherV2.{TraverseActionsTree, Determine, FSWatch, Inotifywait, Puts}
 
   @process_name :server
 
@@ -13,7 +13,12 @@ defmodule PolyglotWatcherV2.Server do
     elixir: %{mode: :default}
   }
 
-  @supported_operating_systems %{{:unix, :darwin} => :mac}
+  @supported_oss %{
+    {:unix, :darwin} => :mac,
+    {:unix, :linux} => :linux
+  }
+
+  @os_watchers %{linux: Inotifywait, mac: FSWatch}
 
   def child_spec(command_line_args \\ []) do
     %{
@@ -28,15 +33,17 @@ defmodule PolyglotWatcherV2.Server do
 
   @impl true
   def init(_command_line_args) do
-    case determine_operating_system() do
-      :mac -> init_mac()
+    case determine_os() do
+      {:stop, reason} -> {:stop, reason}
+      os -> init_for_os(os)
     end
   end
 
-  defp init_mac do
-    Puts.on_new_line("Starting fswatch...", :magenta)
-    port = Port.open({:spawn, "fswatch ."}, [:binary, :exit_status])
-    state_additions = %{os: :mac, port: port, starting_dir: File.cwd!()}
+  defp init_for_os(os) do
+    watcher = Map.fetch!(@os_watchers, os)
+    Puts.on_new_line(watcher.startup_message, :magenta)
+    port = Port.open({:spawn, watcher.startup_command}, [:binary, :exit_status])
+    state_additions = %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
     {:ok, Map.merge(@initial_state, state_additions)}
   end
 
@@ -44,9 +51,11 @@ defmodule PolyglotWatcherV2.Server do
   def handle_info({_port, {:data, std_out}}, %{ignore_file_changes: false} = state) do
     set_ignore_file_changes(true)
 
-    std_out
-    |> FSWatch.parse_std_out(state.starting_dir)
-    |> Determine.actions(state)
+    state =
+      std_out
+      |> state.watcher.parse_std_out(state.starting_dir)
+      |> Determine.actions()
+      |> TraverseActionsTree.execute_all(state)
 
     set_ignore_file_changes(false)
     {:noreply, state}
@@ -61,16 +70,12 @@ defmodule PolyglotWatcherV2.Server do
     {:noreply, %{state | ignore_file_changes: ignore_file_changes?}}
   end
 
-  defp determine_operating_system do
+  defp determine_os do
     os = :os.type()
 
-    case Map.get(@supported_operating_systems, os) do
-      nil ->
-        IO.inspect("I don't support your operating system '#{os}', so I'm exiting")
-        System.stop(1)
-
-      supported_os ->
-        supported_os
+    case Map.get(@supported_oss, os) do
+      nil -> {:stop, "I don't support your operating system '#{inspect(os)}', so I'm exiting"}
+      supported_os -> supported_os
     end
   end
 
