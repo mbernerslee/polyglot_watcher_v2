@@ -1,49 +1,41 @@
 defmodule PolyglotWatcherV2.ElixirLangDeterminer do
-  alias PolyglotWatcherV2.FilePath
+  alias PolyglotWatcherV2.{Action, FilePath}
   @ex "ex"
   @exs "exs"
   @extensions [@ex, @exs]
 
-  def determine_actions(file_path, server_state) do
+  def determine_actions(%FilePath{} = file_path) do
     if file_path.extension in @extensions do
-      do_determine_actions(file_path, server_state)
+      do_determine_actions(file_path)
     else
       :none
     end
   end
 
-  defp do_determine_actions(%{extension: @exs} = file_path, server_state) do
+  defp do_determine_actions(%FilePath{extension: @exs} = file_path) do
     test_path = FilePath.stringify(file_path)
-    IO.inspect("I will run mix test #{test_path}")
-    {%{}, server_state}
+
+    %{
+      entry_point: :clear_screen,
+      actions_tree: %{
+        clear_screen: %Action{
+          runnable: {:run_sys_cmd, "tput", ["reset"]},
+          next_action: :put_intent_msg
+        },
+        put_intent_msg: %Action{
+          runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+          next_action: :mix_test
+        },
+        mix_test: %Action{
+          runnable: {:mix_test, test_path},
+          next_action: %{0 => :exit, :fallback => :put_failure_msg}
+        },
+        put_failure_msg: %Action{runnable: :put_insult, next_action: :exit}
+      }
+    }
   end
 
-  defp do_determine_actions(%{extension: @ex} = file_path, server_state) do
-    case equivalent_test_file_path(file_path, server_state) do
-      :doesnt_exist ->
-        IO.inspect("You don't have tests for #{FilePath.stringify(file_path)} do you?")
-        {%{}, server_state}
-
-      {:ok, test_file_path} ->
-        do_determine_actions(test_file_path, server_state)
-    end
-  end
-
-  # TODO make mix_test_if_file_exists an action in itself so that this module can be pure and not hit the file system
-  defp equivalent_test_file_path(file_path, server_state) do
-    case String.split(file_path.path, "lib") do
-      ["", middle_part_of_path] ->
-        {:ok, test_file_path} =
-          FilePath.build("test#{middle_part_of_path}_test.#{@exs}", server_state.starting_dir)
-
-        if FilePath.exists?(test_file_path) do
-          {:ok, test_file_path}
-        else
-          :doesnt_exist
-        end
-
-      _ ->
-        :doesnt_exist
-    end
+  defp do_determine_actions(%FilePath{extension: @ex}) do
+    :none
   end
 end
