@@ -1,11 +1,11 @@
 defmodule PolyglotWatcherV2.TraverseActionsTree do
   alias PolyglotWatcherV2.{Action, ActionsExecutor}
 
-  def execute_all(:none, server_state) do
+  def execute_all({:none, server_state}) do
     server_state
   end
 
-  def execute_all(%{entry_point: entry_point, actions_tree: actions_tree}, server_state) do
+  def execute_all({%{entry_point: entry_point, actions_tree: actions_tree}, server_state}) do
     execute_all(entry_point, actions_tree, server_state)
   end
 
