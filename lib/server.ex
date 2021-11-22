@@ -10,7 +10,7 @@ defmodule PolyglotWatcherV2.Server do
     port: nil,
     ignore_file_changes: false,
     starting_dir: nil,
-    elixir: %{mode: :default}
+    elixir: %{mode: :default, failures: []}
   }
 
   @supported_oss %{

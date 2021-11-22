@@ -36,9 +36,40 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
     }
   end
 
-  defp do_determine_actions(%FilePath{extension: @ex} = file_path) do
-    test_path = determine_equivalent_test_path(file_path)
+  defp do_determine_actions(%FilePath{extension: @ex} = lib_path) do
+    lib_path_string = FilePath.stringify(lib_path)
 
+    case determine_equivalent_test_path(lib_path) do
+      {:ok, test_path} ->
+        mix_test_with_file_exists_check(lib_path_string, test_path)
+
+      :error ->
+        no_idea_what_to_run(lib_path_string)
+    end
+  end
+
+  defp no_idea_what_to_run(lib_path) do
+    %{
+      entry_point: :cannot_find_msg,
+      actions_tree: %{
+        cannot_find_msg: %Action{
+          runnable:
+            {:puts, :magenta,
+             """
+             You saved this file, but I can't work out what I should try and run:
+
+               #{lib_path}
+
+             Hmmmmm...
+
+             """},
+          next_action: :exit
+        }
+      }
+    }
+  end
+
+  defp mix_test_with_file_exists_check(lib_path, test_path) do
     %{
       entry_point: :clear_screen,
       actions_tree: %{
@@ -67,10 +98,10 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
             """
             You saved the former, but the latter doesn't exist:
 
-              #{FilePath.stringify(file_path)}
+              #{FilePath.stringify(lib_path)}
               #{test_path}
 
-            That's a bit naughty! You naughty little fellow...
+            That's a bit naughty! You cheeky little fellow...
             """
           },
           next_action: :exit
@@ -83,7 +114,10 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
   defp determine_equivalent_test_path(%FilePath{path: path, extension: @ex}) do
     case String.split(path, "lib/") do
       ["", middle_bit_of_file_path] ->
-        "test/" <> middle_bit_of_file_path <> "_test.#{@exs}"
+        {:ok, "test/" <> middle_bit_of_file_path <> "_test.#{@exs}"}
+
+      _ ->
+        :error
     end
   end
 end
