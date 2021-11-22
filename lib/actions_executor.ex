@@ -1,8 +1,19 @@
 defmodule PolyglotWatcherV2.ActionsExecutor do
+  @module Application.compile_env(:polyglot_watcher_v2, :actions_executor_module)
+  def execute(runnable, server_state), do: @module.execute(runnable, server_state)
+end
+
+defmodule PolyglotWatcherV2.ActionsExecutorFake do
+  def execute(_runnable, server_state), do: {0, server_state}
+end
+
+defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{Puts, ShellCommandRunner}
 
+  @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
+
   def execute(:clear_screen, server_state) do
-    if Application.get_env(:polyglot_watcher_v2, :actually_clear_screen) do
+    if @actually_clear_screen do
       execute({:run_sys_cmd, "tput", ["reset"]}, server_state)
     else
       {0, server_state}
@@ -53,7 +64,7 @@ defmodule PolyglotWatcherV2.ActionsExecutor do
       "OOOPPPPSIE - Somewhat predictably, you've broken something",
       "What is this? Amateur hour?",
       "Oh no, you've broken something... what a surprise...... to nobody",
-      "Pretty sure there's an uragutan out that with better software than you... better looking too",
+      "Pretty sure there's an uragutan out that with better software writing skills than you... better looking too",
       "Looks like you wrecked it mate",
       "We're going to lose a $10M deal because of this embarassing failure... unbelievable"
     ]

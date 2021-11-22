@@ -16,5 +16,10 @@ defmodule PolyglotWatcherV2.FilePathTest do
       assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
                FilePath.build("lib/server.ex~")
     end
+
+    test "handles paths with multiple ." do
+      assert {:ok, %FilePath{path: ".lib/server", extension: "ex"}} ==
+               FilePath.build(".lib/server.ex")
+    end
   end
 end
