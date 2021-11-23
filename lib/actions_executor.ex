@@ -50,6 +50,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {File.exists?(file_path), server_state}
   end
 
+  def execute(:noop, server_state) do
+    {0, server_state}
+  end
+
   def execute(unknown, server_state) do
     Puts.on_new_line(
       "Unknown runnable action given to ActionsExecutor. It was #{inspect(unknown)}, can't do it",
