@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Server do
   use GenServer
-  alias PolyglotWatcherV2.{TraverseActionsTree, Determine, FSWatch, Inotifywait, Puts}
+  alias PolyglotWatcherV2.{TraverseActionsTree, Determine, FSWatch, Inotifywait, Puts, UserInput}
 
   @process_name :server
 
@@ -46,6 +46,7 @@ defmodule PolyglotWatcherV2.Server do
     Puts.on_new_line(watcher.startup_message, :magenta)
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
     state_additions = %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
+    listen_for_user_input()
     {:ok, Map.merge(@initial_state, state_additions)}
   end
 
@@ -73,6 +74,17 @@ defmodule PolyglotWatcherV2.Server do
     {:noreply, %{state | ignore_file_changes: ignore_file_changes?}}
   end
 
+  @impl true
+  def handle_call({:user_input, user_input}, _from, state) do
+    state =
+      user_input
+      |> UserInput.determine_actions(state)
+      |> TraverseActionsTree.execute_all()
+
+    listen_for_user_input()
+    {:noreply, state}
+  end
+
   defp determine_os do
     os = :os.type()
 
@@ -85,5 +97,20 @@ defmodule PolyglotWatcherV2.Server do
   defp set_ignore_file_changes(true_or_false) do
     pid = self()
     spawn_link(fn -> GenServer.cast(pid, {:ignore_file_changes, true_or_false}) end)
+  end
+
+  defp listen_for_user_input do
+    if should_listen_for_user_input?() do
+      pid = self()
+
+      spawn_link(fn ->
+        user_input = IO.gets("")
+        GenServer.call(pid, {:user_input, user_input}, :infinity)
+      end)
+    end
+  end
+
+  defp should_listen_for_user_input? do
+    Application.get_env(:polyglot_watcher_v2, :listen_for_user_input, true)
   end
 end

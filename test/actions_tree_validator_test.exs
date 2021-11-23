@@ -18,7 +18,11 @@ defmodule PolyglotWatcherV2.ActionsTreeValidatorTest do
         actions_tree: %{
           start: %Action{
             runnable: :clear_screen,
-            next_action: %{0 => :clear_screen, :fallback => :exit}
+            next_action: %{0 => :other_action, :fallback => :exit}
+          },
+          other_action: %Action{
+            runnable: :clear_screen,
+            next_action: :exit
           }
         }
       }
@@ -72,6 +76,22 @@ defmodule PolyglotWatcherV2.ActionsTreeValidatorTest do
 
       msg =
         "I require at least one exit point from the actions tree, but found none in #{inspect(actions_tree)}"
+
+      assert_raise InvalidActionsTreeError, msg, fn -> ActionsTreeValidator.validate(tree) end
+    end
+
+    test "when next_actions don't exist in the tree" do
+      actions_tree = %{
+        start: %Action{
+          runnable: :clear_screen,
+          next_action: %{0 => :non_existant, :fallback => :exit}
+        }
+      }
+
+      tree = %{entry_point: :start, actions_tree: actions_tree}
+
+      msg =
+        "I require all 'next_actions' in the tree to exist within it, but at least one didn't in #{inspect(actions_tree)}"
 
       assert_raise InvalidActionsTreeError, msg, fn -> ActionsTreeValidator.validate(tree) end
     end
