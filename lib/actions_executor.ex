@@ -77,9 +77,9 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   defp sarcastic_sucesses do
     [
       "Much like 1000 monkeys could eventually write Shakespeare... you've managed to make some tests pass...",
-      "I guess you fluked a test to pass... it's definitily still flakey I bet...",
+      "I guess you fluked a test to pass... it's definitely still flakey I bet...",
       "Wow, it actually passed... and with you at the helm... incredible",
-      "Congratulations... this particular set of tests... at this particlar time... are not broken (yet)"
+      "Congratulations... this particular set of tests... at this particular time... are not broken (yet)"
     ]
   end
 end
