@@ -147,5 +147,26 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       assert {:none, ^server_state} =
                ElixirLangDeterminer.user_input_actions("ex xxxxx", server_state)
     end
+
+    test "switching to fixed_last mode returns the expected functioning actions tree" do
+      server_state = ServerStateBuilder.build()
+
+      assert {tree, ^server_state} =
+               ElixirLangDeterminer.user_input_actions("ex fl", server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :switch_mode,
+        :put_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+
+      assert %Action{runnable: {:switch_mode, :elixir, :fixed_last}} =
+               tree.actions_tree.switch_mode
+    end
   end
 end
