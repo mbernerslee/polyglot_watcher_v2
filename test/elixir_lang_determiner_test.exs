@@ -90,14 +90,34 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
         :clear_screen,
         :check_file_exists,
         :switch_mode,
+        :put_no_file_msg,
+        :put_switch_success_msg,
+        :put_intent_msg,
+        :mix_test,
         :put_success_msg,
-        :put_no_file_msg
+        :put_failure_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
 
       assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, "test/cool_test.exs"}}} =
+               tree.actions_tree.switch_mode
+    end
+
+    test "switching to fixed_file, specifying a line number works" do
+      server_state = ServerStateBuilder.build()
+
+      assert {tree, _server_state} =
+               ElixirLangDeterminer.user_input_actions(
+                 "ex f test/cool_test.exs:100",
+                 server_state
+               )
+
+      assert %Action{runnable: {:file_exists, "test/cool_test.exs"}} =
+               tree.actions_tree.check_file_exists
+
+      assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, "test/cool_test.exs:100"}}} =
                tree.actions_tree.switch_mode
     end
 
