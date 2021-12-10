@@ -17,11 +17,11 @@ defmodule PolyglotWatcherV2.ServerTest do
   end
 
   describe "child_spec/0" do
-    test "returns the default genserver options" do
-      assert Server.child_spec() == %{
+    test "returns the default genserver options, with the callers pid" do
+      assert %{
                id: Server,
                start: {Server, :start_link, [[], [name: :server]]}
-             }
+             } == Server.child_spec()
     end
   end
 
