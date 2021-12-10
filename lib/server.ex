@@ -43,11 +43,18 @@ defmodule PolyglotWatcherV2.Server do
 
   defp init_for_os(os, command_line_args) do
     watcher = Map.fetch!(@os_watchers, os)
-    Puts.on_new_line(watcher.startup_message, :magenta)
+
+    if Application.get_env(:polyglot_watcher_v2, :put_watcher_startup_message) do
+      Puts.on_new_line(watcher.startup_message, :magenta)
+    end
+
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
 
     server_state =
-      Map.merge(@initial_state, %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher})
+      Map.merge(
+        @initial_state,
+        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
+      )
 
     server_state =
       command_line_args

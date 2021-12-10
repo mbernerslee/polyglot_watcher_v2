@@ -25,6 +25,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {exit_code, server_state}
   end
 
+  def execute({:puts, messages}, server_state) do
+    {Puts.on_new_line(messages), server_state}
+  end
+
   def execute({:puts, colour, message}, server_state) do
     {Puts.on_new_line(message, colour), server_state}
   end
