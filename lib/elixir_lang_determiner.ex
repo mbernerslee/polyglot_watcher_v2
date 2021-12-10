@@ -145,22 +145,31 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
   end
 
   defp switch_to_fixed_last_mode(server_state) do
+    {%{actions_tree: fixed_last_actions_tree}, _} =
+      ElixirLangFixedLastMode.determine_actions(%{
+        elixir: %{failures: server_state.elixir.failures}
+      })
+
+    fixed_last_actions_tree = Map.delete(fixed_last_actions_tree, :clear_screen)
+
+    switch_mode_actions_tree = %{
+      clear_screen: %Action{
+        runnable: :clear_screen,
+        next_action: :switch_mode
+      },
+      switch_mode: %Action{
+        runnable: {:switch_mode, :elixir, :fixed_last},
+        next_action: :put_switch_msg
+      },
+      put_switch_msg: %Action{
+        runnable: {:puts, :magenta, "Switching to Elixir fixed_last mode"},
+        next_action: :put_intent_msg
+      }
+    }
+
     {%{
        entry_point: :clear_screen,
-       actions_tree: %{
-         clear_screen: %Action{
-           runnable: :clear_screen,
-           next_action: :switch_mode
-         },
-         switch_mode: %Action{
-           runnable: {:switch_mode, :elixir, :fixed_last},
-           next_action: :put_msg
-         },
-         put_msg: %Action{
-           runnable: {:puts, :magenta, "Switching to Elixir fixed_last mode"},
-           next_action: :exit
-         }
-       }
+       actions_tree: Map.merge(switch_mode_actions_tree, fixed_last_actions_tree)
      }, server_state}
   end
 
