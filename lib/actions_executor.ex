@@ -40,6 +40,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {exit_code, server_state}
   end
 
+  def execute(:mix_test, server_state) do
+    {_mix_test_output, exit_code} = ShellCommandRunner.run("mix test --color")
+    {exit_code, server_state}
+  end
+
   def execute(:put_insult, server_state) do
     insult = Enum.random(insulting_failure_messages())
     {Puts.on_new_line(insult, :red), server_state}

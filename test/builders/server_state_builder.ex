@@ -11,4 +11,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       starting_dir: "./"
     }
   end
+
+  def with_elixir_mode(server_state, mode) do
+    put_in(server_state, [:elixir, :mode], mode)
+  end
 end
