@@ -104,7 +104,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
       :default ->
         ElixirLangDefaultMode.determine_actions(file_path, server_state)
 
-      {:fixed_file, file} ->
+      {:fixed_file, _file} ->
         ElixirLangFixedFileMode.determine_actions(server_state)
     end
   end
