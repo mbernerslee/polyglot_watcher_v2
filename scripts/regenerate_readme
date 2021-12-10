@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+watcher_usages_and_modes_section=$(./polyglot_watcher_v2 help_and_quit)
+static_readme=$(cat STATIC_README.md)
+echo -e "$static_readme\n\n## Watcher usage and modes\n\nThis section of the readme is the output of running 'help' on the application itself\n$watcher_usages_and_modes_section" | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" > README.md
