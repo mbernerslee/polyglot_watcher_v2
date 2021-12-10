@@ -37,6 +37,36 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
     end
   end
 
+  def usage_puts do
+    [
+      {:magenta, "Elixir\n"},
+      {:light_magenta, "ex d\n"},
+      {:white, "  Default Mode\n"},
+      {:white, "  Will run the equivalently pathed test only\n"},
+      {:white,
+       "  In other words... mix test/x_test.exs when lib/x.ex or test/x_test.exs itself is saved\n"},
+      {:light_magenta, "ex ra\n"},
+      {:white, "  Run All Mode\n"},
+      {:white, "  Runs 'mix test' whenever any .ex or .exs file is saved\n"},
+      {:light_magenta, "ex f [path]\n"},
+      {:white, "  Fixed Mode\n"},
+      {:white, "  Runs 'mix test [path]' whenever any .ex or .exs file is saved\n"},
+      {:white,
+       "  You can specify an exact line number e.g. test/cool_test.exs:100, if you want\n"},
+      {:light_magenta, "ex fl\n"},
+      {:white, "  Fixed Last Mode\n"},
+      {:white,
+       "  Only runs the most recently failed test when any .ex or .exs files are saved\n"},
+      {:white, "  I do this by keeping track of which tests have failed as I go\n"},
+      {:white,
+       "  This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.\n"},
+      {:white,
+       "  Initialising in this mode isn't reccommended because on startup my memory of failing tests is empty...\n"},
+      {:white,
+       "  So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one\n"}
+    ]
+  end
+
   defp input_to_actions_mapping(user_input) do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)

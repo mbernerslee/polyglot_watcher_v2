@@ -15,6 +15,7 @@ defmodule PolyglotWatcherV2.TraverseActionsTree do
 
     case next_action_name do
       :exit -> server_state
+      :quit_the_program -> System.stop(0)
       next_action_name -> execute_all(next_action_name, actions_tree, server_state)
     end
   end
