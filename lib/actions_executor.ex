@@ -8,7 +8,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
-  alias PolyglotWatcherV2.{Puts, ShellCommandRunner}
+  alias PolyglotWatcherV2.{Puts, ShellCommandRunner, ElixirLangMixTest}
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
 
@@ -34,15 +34,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   def execute({:mix_test, test_path}, server_state) do
-    {_mix_test_output, exit_code} = ShellCommandRunner.run("mix test #{test_path} --color")
-
-    # {exit_code, Language.add_mix_test_history(server_state, mix_test_output)}
-    {exit_code, server_state}
+    mix_test(test_path, server_state)
   end
 
   def execute(:mix_test, server_state) do
-    {_mix_test_output, exit_code} = ShellCommandRunner.run("mix test --color")
-    {exit_code, server_state}
+    mix_test(:all, server_state)
   end
 
   def execute(:put_insult, server_state) do
@@ -70,6 +66,24 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     )
 
     {1, server_state}
+  end
+
+  defp mix_test(test_path, server_state) do
+    {mix_test_output, exit_code} =
+      case test_path do
+        :all -> ShellCommandRunner.run("mix test --color")
+        path -> ShellCommandRunner.run("mix test #{path} --color")
+      end
+
+    failures =
+      ElixirLangMixTest.update_failures(
+        server_state.elixir.failures,
+        test_path,
+        mix_test_output,
+        exit_code
+      )
+
+    {exit_code, put_in(server_state, [:elixir, :failures], failures)}
   end
 
   defp insulting_failure_messages do
