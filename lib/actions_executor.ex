@@ -29,6 +29,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {Puts.on_new_line(message, colour), server_state}
   end
 
+  def execute({:switch_mode, language, mode}, server_state) do
+    {0, put_in(server_state, [language, :mode], mode)}
+  end
+
   def execute({:mix_test, test_path}, server_state) do
     {_mix_test_output, exit_code} = ShellCommandRunner.run("mix test #{test_path} --color")
 
