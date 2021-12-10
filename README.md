@@ -3,8 +3,6 @@
 A software development tool that runs tests triggered when files are saved, usinga number of different user-specified modes
 See the section 'Watcher usage and modes' below.
 
-## Installation
-
 ## Quick guide to the codebase
 
 * The entrypoint for the codebase is polyglot_watcher_v2.ex, def main
