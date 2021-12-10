@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
   alias PolyglotWatcherV2.{
     Action,
     ElixirLangDefaultMode,
+    ElixirLangFixedLastMode,
     ElixirLangFixedFileMode,
     ElixirLangRunAllMode,
     FilePath
@@ -41,6 +42,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
       ["d"] -> &switch_to_default_mode(&1)
       ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
       ["ra"] -> &switch_to_run_all_mode(&1)
+      ["fl"] -> &switch_to_fixed_last_mode(&1)
       _ -> nil
     end
   end
@@ -142,6 +144,26 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
      }, server_state}
   end
 
+  defp switch_to_fixed_last_mode(server_state) do
+    {%{
+       entry_point: :clear_screen,
+       actions_tree: %{
+         clear_screen: %Action{
+           runnable: :clear_screen,
+           next_action: :switch_mode
+         },
+         switch_mode: %Action{
+           runnable: {:switch_mode, :elixir, :fixed_last},
+           next_action: :put_msg
+         },
+         put_msg: %Action{
+           runnable: {:puts, :magenta, "Switching to Elixir fixed_last mode"},
+           next_action: :exit
+         }
+       }
+     }, server_state}
+  end
+
   defp dont_undstand_user_input(server_state) do
     {:none, server_state}
   end
@@ -156,6 +178,9 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
 
       :run_all ->
         ElixirLangRunAllMode.determine_actions(server_state)
+
+      :fixed_last ->
+        ElixirLangFixedLastMode.determine_actions(server_state)
     end
   end
 end
