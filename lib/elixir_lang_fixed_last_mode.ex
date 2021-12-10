@@ -33,9 +33,9 @@ defmodule PolyglotWatcherV2.ElixirLangFixedLastMode do
        actions_tree: %{
          clear_screen: %Action{
            runnable: :clear_screen,
-           next_action: :put_no_test_failures_msg
+           next_action: :put_intent_msg
          },
-         put_no_test_failures_msg: %Action{
+         put_intent_msg: %Action{
            runnable:
              {:puts, :magenta,
               "You asked me to run the latest, most recently failed test case\nbut my memory of failed test cases is empty...\nSo everything is fine (probably, maybe?)"},
