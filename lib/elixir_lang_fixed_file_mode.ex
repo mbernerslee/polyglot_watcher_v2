@@ -1,8 +1,5 @@
 defmodule PolyglotWatcherV2.ElixirLangFixedFileMode do
-  alias PolyglotWatcherV2.{Action, ElixirLangDeterminer, FilePath}
-
-  @ex ElixirLangDeterminer.ex()
-  @exs ElixirLangDeterminer.exs()
+  alias PolyglotWatcherV2.Action
 
   def determine_actions(%{elixir: %{mode: {:fixed_file, test_path}}} = server_state) do
     {%{
