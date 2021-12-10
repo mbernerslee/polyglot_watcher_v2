@@ -34,20 +34,29 @@ defmodule PolyglotWatcherV2.Server do
   end
 
   @impl true
-  def init(_command_line_args) do
+  def init(command_line_args) do
     case determine_os() do
       {:stop, reason} -> {:stop, reason}
-      os -> init_for_os(os)
+      os -> init_for_os(os, command_line_args)
     end
   end
 
-  defp init_for_os(os) do
+  defp init_for_os(os, command_line_args) do
     watcher = Map.fetch!(@os_watchers, os)
     Puts.on_new_line(watcher.startup_message, :magenta)
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
-    state_additions = %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
+
+    server_state =
+      Map.merge(@initial_state, %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher})
+
+    server_state =
+      command_line_args
+      |> Enum.join(" ")
+      |> UserInput.determine_actions(server_state)
+      |> TraverseActionsTree.execute_all()
+
     listen_for_user_input()
-    {:ok, Map.merge(@initial_state, state_additions)}
+    {:ok, server_state}
   end
 
   @impl true
