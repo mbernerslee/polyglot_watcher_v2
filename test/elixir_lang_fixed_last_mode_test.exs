@@ -38,7 +38,7 @@ defmodule PolyglotWatcherV2.ElixirLangFixedLastModeTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :put_no_test_failures_msg
+        :put_intent_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)

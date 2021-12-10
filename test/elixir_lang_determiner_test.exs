@@ -142,14 +142,18 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
     end
 
     test "given nonsense user input, doesn't do anything" do
-      server_state = ServerStateBuilder.build()
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
       assert {:none, ^server_state} =
                ElixirLangDeterminer.user_input_actions("ex xxxxx", server_state)
     end
 
     test "switching to fixed_last mode returns the expected functioning actions tree" do
-      server_state = ServerStateBuilder.build()
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
       assert {tree, ^server_state} =
                ElixirLangDeterminer.user_input_actions("ex fl", server_state)
@@ -159,7 +163,11 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       expected_action_tree_keys = [
         :clear_screen,
         :switch_mode,
-        :put_msg
+        :put_switch_msg,
+        :put_intent_msg,
+        :mix_test,
+        :put_success_msg,
+        :put_failure_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
