@@ -12,16 +12,14 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
   }
 
   @ex ElixirLangDeterminer.ex()
+  @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
 
   describe "determine_actions/2" do
     test "can find the expected normal mode actions" do
       server_state = ServerStateBuilder.build()
 
       assert {tree, ^server_state} =
-               ElixirLangDeterminer.determine_actions(
-                 %FilePath{path: "lib/cool", extension: @ex},
-                 server_state
-               )
+               ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -33,6 +31,28 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
         :put_success_msg,
         :put_failure_msg,
         :no_test_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
+
+    test "returns the run_all actions when in that mode" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:run_all)
+
+      assert {tree, ^server_state} =
+               ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_intent_msg,
+        :mix_test,
+        :put_success_msg,
+        :put_failure_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -79,6 +99,26 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
 
       assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, "test/cool_test.exs"}}} =
                tree.actions_tree.switch_mode
+    end
+
+    test "switching to run_all mode returns the expected functioning actions" do
+      server_state = ServerStateBuilder.build()
+
+      assert {tree, ^server_state} =
+               ElixirLangDeterminer.user_input_actions("ex ra", server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :switch_mode,
+        :put_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+
+      assert %Action{runnable: {:switch_mode, :elixir, :run_all}} = tree.actions_tree.switch_mode
     end
 
     test "given nonsense user input, doesn't do anything" do
