@@ -161,4 +161,35 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
                ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
   end
+
+  test "failures_for_file/2 given a test_file_path & a list of failures, returns the ordered failures for that file path only" do
+    assert [] == ElixirLangMixTest.failures_for_file([], "test/x_test.exs")
+
+    assert [{"test/x_test.exs", 10}] ==
+             ElixirLangMixTest.failures_for_file([{"test/x_test.exs", 10}], "test/x_test.exs")
+
+    assert [
+             {"test/x_test.exs", 10},
+             {"test/x_test.exs", 20},
+             {"test/x_test.exs", 30},
+             {"test/x_test.exs", 40},
+             {"test/x_test.exs", 50}
+           ] ==
+             ElixirLangMixTest.failures_for_file(
+               [
+                 {"test/x_test.exs", 10},
+                 {"test/x_test.exs", 20},
+                 {"test/x_test.exs", 30},
+                 {"test/other_test.exs", 10},
+                 {"test/other_test.exs", 20},
+                 {"test/other_test.exs", 30},
+                 {"test/x_test.exs", 40},
+                 {"test/yet_another_test.exs", 10},
+                 {"test/yet_another_test.exs", 20},
+                 {"test/yet_another_test.exs", 30},
+                 {"test/x_test.exs", 50}
+               ],
+               "test/x_test.exs"
+             )
+  end
 end
