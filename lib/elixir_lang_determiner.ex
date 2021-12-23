@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
   alias PolyglotWatcherV2.{
     Action,
     ElixirLangDefaultMode,
+    ElixirLangFixAllForFileMode,
     ElixirLangFixedLastMode,
     ElixirLangFixedFileMode,
     ElixirLangRunAllMode,
@@ -71,6 +72,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)
       ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
+      ["faff", test_file] -> &ElixirLangFixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &switch_to_run_all_mode(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
       _ -> nil
@@ -214,6 +216,9 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
 
       {:fixed_file, _file} ->
         ElixirLangFixedFileMode.determine_actions(server_state)
+
+      {:fix_all_for_file, _file} ->
+        ElixirLangFixAllForFileMode.determine_actions(server_state)
 
       :run_all ->
         ElixirLangRunAllMode.determine_actions(server_state)

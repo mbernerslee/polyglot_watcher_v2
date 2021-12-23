@@ -18,6 +18,10 @@ defmodule PolyglotWatcherV2.ElixirLangMixTest do
     add_new_failures(failures, new_failures)
   end
 
+  def failures_for_file(failures, file_path) do
+    Enum.filter(failures, fn {path, _} -> path == file_path end)
+  end
+
   defp parse_test_path(test_path) do
     case String.split(test_path, ":") do
       [test_path] -> {test_path, :all}
