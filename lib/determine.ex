@@ -1,8 +1,8 @@
 defmodule PolyglotWatcherV2.Determine do
-  alias PolyglotWatcherV2.ElixirLangDeterminer
+  alias PolyglotWatcherV2.Elixir.Determiner, as: ElixirDeterminer
 
   defp languages do
-    [ElixirLangDeterminer]
+    [ElixirDeterminer]
   end
 
   def actions({:ok, file_path}, server_state) do

@@ -1,12 +1,12 @@
-defmodule PolyglotWatcherV2.ElixirLangDeterminer do
-  alias PolyglotWatcherV2.{
-    Action,
-    ElixirLangDefaultMode,
-    ElixirLangFixAllForFileMode,
-    ElixirLangFixedLastMode,
-    ElixirLangFixedFileMode,
-    ElixirLangRunAllMode,
-    FilePath
+defmodule PolyglotWatcherV2.Elixir.Determiner do
+  alias PolyglotWatcherV2.{Action, FilePath}
+
+  alias PolyglotWatcherV2.Elixir.{
+    DefaultMode,
+    FixAllForFileMode,
+    FixedLastMode,
+    FixedFileMode,
+    RunAllMode
   }
 
   @ex "ex"
@@ -78,7 +78,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)
       ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
-      ["faff", test_file] -> &ElixirLangFixAllForFileMode.switch(&1, test_file)
+      ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &switch_to_run_all_mode(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
       _ -> nil
@@ -116,7 +116,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
     test_path = parse_test_path(test_path)
 
     {%{actions_tree: fixed_file_actions_tree}, _} =
-      ElixirLangFixedFileMode.determine_actions(%{
+      FixedFileMode.determine_actions(%{
         elixir: %{mode: {:fixed_file, test_path.with_line_number}}
       })
 
@@ -184,7 +184,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
 
   defp switch_to_fixed_last_mode(server_state) do
     {%{actions_tree: fixed_last_actions_tree}, _} =
-      ElixirLangFixedLastMode.determine_actions(%{
+      FixedLastMode.determine_actions(%{
         elixir: %{failures: server_state.elixir.failures}
       })
 
@@ -218,19 +218,19 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminer do
   defp by_mode(file_path, server_state) do
     case server_state.elixir.mode do
       :default ->
-        ElixirLangDefaultMode.determine_actions(file_path, server_state)
+        DefaultMode.determine_actions(file_path, server_state)
 
       {:fixed_file, _file} ->
-        ElixirLangFixedFileMode.determine_actions(server_state)
+        FixedFileMode.determine_actions(server_state)
 
       {:fix_all_for_file, _file} ->
-        ElixirLangFixAllForFileMode.determine_actions(server_state)
+        FixAllForFileMode.determine_actions(server_state)
 
       :run_all ->
-        ElixirLangRunAllMode.determine_actions(server_state)
+        RunAllMode.determine_actions(server_state)
 
       :fixed_last ->
-        ElixirLangFixedLastMode.determine_actions(server_state)
+        FixedLastMode.determine_actions(server_state)
     end
   end
 end

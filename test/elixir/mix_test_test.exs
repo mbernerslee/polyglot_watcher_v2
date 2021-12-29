@@ -1,16 +1,16 @@
-defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
+defmodule PolyglotWatcherV2.Elixir.MixTestTest do
   use ExUnit.Case, async: true
-  alias PolyglotWatcherV2.ElixirLangMixTest
+  alias PolyglotWatcherV2.Elixir.MixTest
 
   describe "update_failures/4" do
     test "parses mix test output, adding failures to the list" do
       mix_test_output = """
-        1) test update_failures/2 parses mix test output, adding failures to the list (PolyglotWatcherV2.ElixirLangMixTestTest)
+        1) test update_failures/2 parses mix test output, adding failures to the list (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:6
-           ** (UndefinedFunctionError) function PolyglotWatcherV2.ElixirLangMixTest.update_failures/2 is undefined (module PolyglotWatcherV2.ElixirLangMixTest is not available)
-           code: ElixirLangMixTest.update_failures([], "hi")
+           ** (UndefinedFunctionError) function PolyglotWatcherV2.MixTest.update_failures/2 is undefined (module PolyglotWatcherV2.MixTest is not available)
+           code: MixTest.update_failures([], "hi")
            stacktrace:
-             PolyglotWatcherV2.ElixirLangMixTest.update_failures([], "hi")
+             PolyglotWatcherV2.MixTest.update_failures([], "hi")
              test/elixir_lang_mix_test_test.exs:7: (test)
 
 
@@ -25,12 +25,12 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
       test_path = "test/elixir_lang_mix_test_test.exs:6"
 
       assert [{"test/elixir_lang_mix_test_test.exs", 6}] ==
-               ElixirLangMixTest.update_failures([], test_path, mix_test_output, exit_code)
+               MixTest.update_failures([], test_path, mix_test_output, exit_code)
     end
 
     test "puts multiple failes in the list in the correct order, last first" do
       mix_test_output = """
-        1) test update_failures/4 parses mix test output, adding failures to the list (PolyglotWatcherV2.ElixirLangMixTestTest)
+        1) test update_failures/4 parses mix test output, adding failures to the list (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:6
            ** (RuntimeError) no
            code:
@@ -39,7 +39,7 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
 
 
 
-        2) test update_failures/4 x (PolyglotWatcherV2.ElixirLangMixTestTest)
+        2) test update_failures/4 x (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:32
            ** (RuntimeError) no
            code: test "x" do
@@ -61,7 +61,7 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
                {"test/elixir_lang_mix_test_test.exs", 32},
                {"test/elixir_lang_mix_test_test.exs", 6}
              ] ==
-               ElixirLangMixTest.update_failures([], test_path, mix_test_output, exit_code)
+               MixTest.update_failures([], test_path, mix_test_output, exit_code)
     end
 
     test "clears failures from the list if the test passed" do
@@ -84,7 +84,7 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
       ]
 
       assert [] ==
-               ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
+               MixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
 
     test "clears failures from the list if the test (for a specific line only) passed" do
@@ -107,7 +107,7 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
       ]
 
       assert [{"test/elixir_lang_mix_test_test.exs", 6}] ==
-               ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
+               MixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
 
     test "clears failures from the list if 'mix test' passed" do
@@ -132,12 +132,12 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
       ]
 
       assert [] ==
-               ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
+               MixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
 
     test "running a failing 'mix test' wipes historical test failures that didn't come up this time" do
       mix_test_output = """
-        1) test update_failures/4 parses mix test output, adding failures to the list (PolyglotWatcherV2.ElixirLangMixTestTest)
+        1) test update_failures/4 parses mix test output, adding failures to the list (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:6
            ** (RuntimeError) no
            code:
@@ -146,7 +146,7 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
 
 
 
-        2) test update_failures/4 x (PolyglotWatcherV2.ElixirLangMixTestTest)
+        2) test update_failures/4 x (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:32
            ** (RuntimeError) no
            code: test "x" do
@@ -169,31 +169,45 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
                {"test/elixir_lang_mix_test_test.exs", 32},
                {"test/elixir_lang_mix_test_test.exs", 6}
              ] ==
-               ElixirLangMixTest.update_failures(old_failures, :all, mix_test_output, exit_code)
+               MixTest.update_failures(old_failures, :all, mix_test_output, exit_code)
     end
 
-    test "groups the most recent test failure with others of the same file, and moved the whole group to the front" do
+    test "groups failures by path, with newest failures first" do
       mix_test_output = """
-        1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+        1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:3
            ** (RuntimeError) no
            code: raise "no"
            stacktrace:
              test/elixir_lang_mix_test_test.exs:3: (test)
 
-        2) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+        2) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:2
            ** (RuntimeError) no
            code: raise "no"
            stacktrace:
              test/elixir_lang_mix_test_test.exs:2: (test)
 
-        3) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+        3) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.MixTestTest)
            test/elixir_lang_mix_test_test.exs:1
            ** (RuntimeError) no
            code: raise "no"
            stacktrace:
              test/elixir_lang_mix_test_test.exs:1: (test)
+
+        4) test x/4 a
+           test/x_test.exs:10
+           ** (RuntimeError) no
+           code: raise "no"
+           stacktrace:
+             test/x_test.exs:10: (test)
+
+        5) test x/4 b
+           test/x_test.exs:11
+           ** (RuntimeError) no
+           code: raise "no"
+           stacktrace:
+             test/x_test.exs:11: (test)
 
       ....
 
@@ -217,6 +231,8 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
       ]
 
       assert [
+               {"test/x_test.exs", 11},
+               {"test/x_test.exs", 10},
                {"test/elixir_lang_mix_test_test.exs", 1},
                {"test/elixir_lang_mix_test_test.exs", 2},
                {"test/elixir_lang_mix_test_test.exs", 3},
@@ -227,12 +243,12 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
                {"test/elixir_lang_fix_all_for_file_mode_test.exs", 8},
                {"test/determine_test.exs", 9}
              ] ==
-               ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
+               MixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
 
     test "shell colour stuff isn't saved in the test_path" do
       mix_test_output = """
-        1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+        1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.MixTestTest)
            \e[1m\e[30mtest/elixir_lang_mix_test_test.exs:113
            ** (RuntimeError) no
            code: raise "no"
@@ -253,15 +269,15 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
       failures = []
 
       assert [{"test/elixir_lang_mix_test_test.exs", 113}] ==
-               ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
+               MixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
   end
 
   test "failures_for_file/2 given a test_file_path & a list of failures, returns the ordered failures for that file path only" do
-    assert [] == ElixirLangMixTest.failures_for_file([], "test/x_test.exs")
+    assert [] == MixTest.failures_for_file([], "test/x_test.exs")
 
     assert [{"test/x_test.exs", 10}] ==
-             ElixirLangMixTest.failures_for_file([{"test/x_test.exs", 10}], "test/x_test.exs")
+             MixTest.failures_for_file([{"test/x_test.exs", 10}], "test/x_test.exs")
 
     assert [
              {"test/x_test.exs", 10},
@@ -270,7 +286,7 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
              {"test/x_test.exs", 40},
              {"test/x_test.exs", 50}
            ] ==
-             ElixirLangMixTest.failures_for_file(
+             MixTest.failures_for_file(
                [
                  {"test/x_test.exs", 10},
                  {"test/x_test.exs", 20},

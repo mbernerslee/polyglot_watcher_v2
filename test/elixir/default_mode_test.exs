@@ -1,18 +1,13 @@
-defmodule PolyglotWatcherV2.ElixirLangDefaultModeTest do
+defmodule PolyglotWatcherV2.Elixir.DefaultModeTest do
   use ExUnit.Case, async: true
 
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.{
-    ActionsTreeValidator,
-    ElixirLangDeterminer,
-    ElixirLangDefaultMode,
-    FilePath,
-    ServerStateBuilder
-  }
+  alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, ServerStateBuilder}
+  alias PolyglotWatcherV2.Elixir.{Determiner, DefaultMode}
 
-  @ex ElixirLangDeterminer.ex()
-  @exs ElixirLangDeterminer.exs()
+  @ex Determiner.ex()
+  @exs Determiner.exs()
   @server_state_normal_mode ServerStateBuilder.build()
   @lib_ex_file_path %FilePath{path: "lib/cool", extension: @ex}
   @test_exs_file_path %FilePath{path: "test/cool", extension: @exs}
@@ -20,7 +15,7 @@ defmodule PolyglotWatcherV2.ElixirLangDefaultModeTest do
   describe "determine_actions/2 - in normal mode" do
     test "given an ex file from a lib dir, returns the expected actions_tree & entry point" do
       {tree, @server_state_normal_mode} =
-        ElixirLangDefaultMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
+        DefaultMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -40,7 +35,7 @@ defmodule PolyglotWatcherV2.ElixirLangDefaultModeTest do
 
     test "given an exs file from a test dir, returns the expected valid actions tree" do
       {tree, @server_state_normal_mode} =
-        ElixirLangDefaultMode.determine_actions(
+        DefaultMode.determine_actions(
           %FilePath{path: "test/cool", extension: @ex},
           @server_state_normal_mode
         )
@@ -58,7 +53,7 @@ defmodule PolyglotWatcherV2.ElixirLangDefaultModeTest do
 
     test "given an ex file from a test dir, it says it doesn't know what to run" do
       {tree, @server_state_normal_mode} =
-        ElixirLangDefaultMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
+        DefaultMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
 
       assert %{entry_point: :clear_screen} = tree
 

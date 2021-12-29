@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.ElixirLangMixTest do
+defmodule PolyglotWatcherV2.Elixir.MixTest do
   def update_failures(_failures, :all, _mix_test_output, _exit_code = 0) do
     []
   end
@@ -34,40 +34,40 @@ defmodule PolyglotWatcherV2.ElixirLangMixTest do
   end
 
   defp add_new_failures(old, new) do
-    IO.inspect(old)
-    IO.inspect(new)
+    ordered_paths = order_paths(old, new)
 
-    do_add_new_failures(old, Enum.reverse(new))
-    |> IO.inspect()
-
-    raise "no"
+    add_new_failures([], [], ordered_paths, Enum.reverse(old) ++ Enum.reverse(new), [])
   end
 
-  defp do_add_new_failures(acc, []) do
-    acc
+  defp add_new_failures(acc, group, [], [], []) do
+    group ++ acc
   end
 
-  defp do_add_new_failures(acc, [new | rest]) do
-    acc = slot_in_new_failure(acc, new)
-    do_add_new_failures(acc, rest)
+  defp add_new_failures(acc, group, [_path | paths], [], discards) do
+    add_new_failures(group ++ acc, [], paths, Enum.reverse(discards), [])
   end
 
-  defp slot_in_new_failure(old, new) do
-    slot_in_new_failure([], old, new)
-  end
+  defp add_new_failures(acc, group, [path | paths], [fail | failures], discards) do
+    {fail_path, _} = fail
 
-  defp slot_in_new_failure(checked, [], new) do
-    [new | checked]
-  end
-
-  defp slot_in_new_failure(checked, [old | rest], new) do
-    {old_test_path, _} = old
-    {new_test_path, _} = new
-
-    if old_test_path == new_test_path do
-      Enum.reduce(rest, [old, new | checked], fn to_add, acc -> [to_add | acc] end)
+    if fail_path == path do
+      add_new_failures(acc, [fail | group], [path | paths], failures, discards)
     else
-      slot_in_new_failure([old | checked], rest, new)
+      add_new_failures(acc, group, [path | paths], failures, [fail | discards])
+    end
+  end
+
+  defp order_paths(old, new), do: do_order_paths([], new ++ old)
+
+  defp do_order_paths(ordered, []) do
+    ordered
+  end
+
+  defp do_order_paths(ordered, [{path, _} | rest]) do
+    if Enum.member?(ordered, path) do
+      do_order_paths(ordered, rest)
+    else
+      do_order_paths([path | ordered], rest)
     end
   end
 

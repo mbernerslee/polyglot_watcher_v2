@@ -1,7 +1,7 @@
-defmodule PolyglotWatcherV2.ElixirLangRunAllMode do
+defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
   alias PolyglotWatcherV2.Action
 
-  def determine_actions(server_state) do
+  def determine_actions(%{elixir: %{mode: {:fixed_file, test_path}}} = server_state) do
     {%{
        entry_point: :clear_screen,
        actions_tree: %{
@@ -10,11 +10,11 @@ defmodule PolyglotWatcherV2.ElixirLangRunAllMode do
            next_action: :put_intent_msg
          },
          put_intent_msg: %Action{
-           runnable: {:puts, :magenta, "Running mix test"},
+           runnable: {:puts, :magenta, "Running mix test #{test_path}"},
            next_action: :mix_test
          },
          mix_test: %Action{
-           runnable: :mix_test,
+           runnable: {:mix_test, test_path},
            next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
          },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit},
