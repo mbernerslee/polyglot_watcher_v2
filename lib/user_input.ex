@@ -1,7 +1,8 @@
 defmodule PolyglotWatcherV2.UserInput do
-  alias PolyglotWatcherV2.{Action, ElixirLangDeterminer}
+  alias PolyglotWatcherV2.Action
+  alias PolyglotWatcherV2.Elixir.Determiner, as: ElixirDeterminer
 
-  @languages [ElixirLangDeterminer]
+  @languages [ElixirDeterminer]
   @helps ["help\n", "help"]
   @help_and_quits ["help_and_quit\n", "help_and_quit"]
 
@@ -28,14 +29,15 @@ defmodule PolyglotWatcherV2.UserInput do
      }, server_state}
   end
 
-  defp put_default_usage({_, server_state}, help_and_quit) when help_and_quit in @help_and_quits do
+  defp put_default_usage({_, server_state}, help_and_quit)
+       when help_and_quit in @help_and_quits do
     {%{
        entry_point: :put_usage,
        actions_tree: %{
          put_usage: %Action{
            runnable: {:puts, general_usage_puts() ++ languages_usage_puts()},
            next_action: :quit_the_program
-         },
+         }
        }
      }, server_state}
   end

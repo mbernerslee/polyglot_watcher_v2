@@ -8,7 +8,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
-  alias PolyglotWatcherV2.{Puts, ShellCommandRunner, ElixirLangMixTest}
+  alias PolyglotWatcherV2.{Puts, ShellCommandRunner}
+  alias PolyglotWatcherV2.Elixir.MixTest
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
 
@@ -80,7 +81,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
       end
 
     failures =
-      ElixirLangMixTest.update_failures(
+      MixTest.update_failures(
         server_state.elixir.failures,
         test_path,
         mix_test_output,

@@ -32,8 +32,8 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
       actions_tree
       |> Map.values()
       |> Enum.flat_map(fn
-        %{next_action: next_action} when is_atom(next_action) -> [next_action]
         %{next_action: %{} = next_action} -> Map.values(next_action)
+        %{next_action: next_action} -> [next_action]
       end)
       |> MapSet.new()
       |> MapSet.delete(:exit)
