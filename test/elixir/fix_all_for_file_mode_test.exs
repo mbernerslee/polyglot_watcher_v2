@@ -1,15 +1,11 @@
-defmodule PolyglotWatcherV2.ElixirLangFixAllForFileModeTest do
+defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
   use ExUnit.Case, async: true
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.{
-    ActionsTreeValidator,
-    ElixirLangDeterminer,
-    FilePath,
-    ServerStateBuilder
-  }
+  alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, ServerStateBuilder}
+  alias PolyglotWatcherV2.Elixir.Determiner
 
-  @ex ElixirLangDeterminer.ex()
+  @ex Determiner.ex()
   @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
 
   describe "determine_actions/1" do
@@ -19,7 +15,7 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileModeTest do
         |> ServerStateBuilder.with_elixir_mode({:fix_all_for_file, "test/x_test.exs"})
         |> ServerStateBuilder.with_elixir_failures([{"test/other_file_test.exs", 1}])
 
-      assert {tree, _} = ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+      assert {tree, _} = Determiner.determine_actions(@ex_file_path, server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -44,7 +40,7 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileModeTest do
           {"test/x_test.exs", 3}
         ])
 
-      assert {tree, _} = ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+      assert {tree, _} = Determiner.determine_actions(@ex_file_path, server_state)
 
       assert %{entry_point: :clear_screen} = tree
 

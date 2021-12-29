@@ -1,25 +1,19 @@
-defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
+defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
   use ExUnit.Case, async: true
 
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.{
-    Action,
-    ActionsTreeValidator,
-    ElixirLangDeterminer,
-    FilePath,
-    ServerStateBuilder
-  }
+  alias PolyglotWatcherV2.{Action, ActionsTreeValidator, FilePath, ServerStateBuilder}
+  alias PolyglotWatcherV2.Elixir.Determiner
 
-  @ex ElixirLangDeterminer.ex()
+  @ex Determiner.ex()
   @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
 
   describe "determine_actions/2" do
     test "can find the expected normal mode actions" do
       server_state = ServerStateBuilder.build()
 
-      assert {tree, ^server_state} =
-               ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -42,8 +36,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:run_all)
 
-      assert {tree, ^server_state} =
-               ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -74,8 +67,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
           {"test/x_test.exs", 8}
         ])
 
-      assert {tree, ^server_state} =
-               ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -103,7 +95,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
     test "switching to default mode returns the expected functioning actions" do
       server_state = ServerStateBuilder.build()
 
-      assert {tree, ^server_state} = ElixirLangDeterminer.user_input_actions("ex d", server_state)
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex d", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -121,7 +113,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       server_state = ServerStateBuilder.build()
 
       assert {tree, ^server_state} =
-               ElixirLangDeterminer.user_input_actions("ex f test/cool_test.exs", server_state)
+               Determiner.user_input_actions("ex f test/cool_test.exs", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -148,7 +140,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       server_state = ServerStateBuilder.build()
 
       assert {tree, _server_state} =
-               ElixirLangDeterminer.user_input_actions(
+               Determiner.user_input_actions(
                  "ex f test/cool_test.exs:100",
                  server_state
                )
@@ -163,8 +155,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
     test "switching to run_all mode returns the expected functioning actions" do
       server_state = ServerStateBuilder.build()
 
-      assert {tree, ^server_state} =
-               ElixirLangDeterminer.user_input_actions("ex ra", server_state)
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex ra", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -185,8 +176,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
-      assert {tree, ^server_state} =
-               ElixirLangDeterminer.user_input_actions("ex fl", server_state)
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex fl", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -211,7 +201,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       server_state = ServerStateBuilder.build()
 
       assert {tree, ^server_state} =
-               ElixirLangDeterminer.user_input_actions("ex faff test/x_test.exs", server_state)
+               Determiner.user_input_actions("ex faff test/x_test.exs", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -238,8 +228,7 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
-      assert {:none, ^server_state} =
-               ElixirLangDeterminer.user_input_actions("ex xxxxx", server_state)
+      assert {:none, ^server_state} = Determiner.user_input_actions("ex xxxxx", server_state)
     end
   end
 end

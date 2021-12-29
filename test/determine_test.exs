@@ -1,6 +1,7 @@
 defmodule PolyglotWatcherV2.DetermineTest do
   use ExUnit.Case, async: true
-  alias PolyglotWatcherV2.{Determine, ElixirLangDeterminer, FilePath, ServerStateBuilder}
+  alias PolyglotWatcherV2.{Determine, FilePath, ServerStateBuilder}
+  alias PolyglotWatcherV2.Elixir.Determiner, as: ElixirDeterminer
 
   describe "actions/2" do
     test "given :ignore, returns no actions" do
@@ -17,7 +18,7 @@ defmodule PolyglotWatcherV2.DetermineTest do
 
     test "given a file path that somebody understands, returns some actions" do
       server_state = ServerStateBuilder.build()
-      ex = ElixirLangDeterminer.ex()
+      ex = ElixirDeterminer.ex()
 
       assert {%{actions_tree: %{}, entry_point: _}, ^server_state} =
                Determine.actions({:ok, %FilePath{path: "cool", extension: ex}}, server_state)
