@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   alias PolyglotWatcherV2.Action
-  alias PolyglotWatcherV2.Elixir.MixTest
+  alias PolyglotWatcherV2.Elixir.Failures
 
   def switch(server_state, test_path) do
     switch_mode_actions_tree = %{
@@ -50,7 +50,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
         %{elixir: %{failures: failures, mode: {:fix_all_for_file, test_path}}} = server_state
       ) do
     failures
-    |> MixTest.failures_for_file(test_path)
+    |> Failures.for_file(test_path)
     |> determine_actions_with_failures(server_state, test_path)
   end
 
