@@ -33,5 +33,58 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileModeTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
     end
+
+    test "with some failures, returns an action to run each failure" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode({:fix_all_for_file, "test/x_test.exs"})
+        |> ServerStateBuilder.with_elixir_failures([
+          {"test/x_test.exs", 1},
+          {"test/x_test.exs", 2},
+          {"test/x_test.exs", 3}
+        ])
+
+      assert {tree, _} = ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      ActionsTreeValidator.validate(tree)
+
+      assert %{
+               actions_tree: %{
+                 :clear_screen => %PolyglotWatcherV2.Action{
+                   next_action: {:mix_test, 0},
+                   runnable: :clear_screen
+                 },
+                 :mix_test => %PolyglotWatcherV2.Action{
+                   next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg},
+                   runnable: :mix_test
+                 },
+                 :put_failure_msg => %PolyglotWatcherV2.Action{
+                   next_action: :exit,
+                   runnable:
+                     {:puts, :red,
+                      "At least one test in test/x_test.exs is busted. I'll run only one failure at a time"}
+                 },
+                 :put_sarcastic_success => %PolyglotWatcherV2.Action{
+                   next_action: :exit,
+                   runnable: :put_sarcastic_success
+                 },
+                 {:mix_test, 0} => %PolyglotWatcherV2.Action{
+                   next_action: %{0 => {:mix_test, 1}, :fallback => :put_failure_msg},
+                   runnable: {:mix_test, "test/x_test.exs:1"}
+                 },
+                 {:mix_test, 1} => %PolyglotWatcherV2.Action{
+                   next_action: %{0 => {:mix_test, 2}, :fallback => :put_failure_msg},
+                   runnable: {:mix_test, "test/x_test.exs:2"}
+                 },
+                 {:mix_test, 2} => %PolyglotWatcherV2.Action{
+                   next_action: %{0 => :mix_test, :fallback => :put_failure_msg},
+                   runnable: {:mix_test, "test/x_test.exs:3"}
+                 }
+               },
+               entry_point: :clear_screen
+             } == tree
+    end
   end
 end
