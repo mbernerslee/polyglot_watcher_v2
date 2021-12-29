@@ -39,21 +39,21 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
     add_new_failures([], [], ordered_paths, Enum.reverse(old) ++ Enum.reverse(new), [])
   end
 
-  defp add_new_failures(acc, group, [], [], []) do
-    group ++ acc
+  defp add_new_failures(acc, fail_path_group, [], [], []) do
+    fail_path_group ++ acc
   end
 
-  defp add_new_failures(acc, group, [_path | paths], [], discards) do
-    add_new_failures(group ++ acc, [], paths, Enum.reverse(discards), [])
+  defp add_new_failures(acc, fail_path_group, [_path | paths], [], discards) do
+    add_new_failures(fail_path_group ++ acc, [], paths, Enum.reverse(discards), [])
   end
 
-  defp add_new_failures(acc, group, [path | paths], [fail | failures], discards) do
+  defp add_new_failures(acc, fail_path_group, [path | paths], [fail | failures], discards) do
     {fail_path, _} = fail
 
     if fail_path == path do
-      add_new_failures(acc, [fail | group], [path | paths], failures, discards)
+      add_new_failures(acc, [fail | fail_path_group], [path | paths], failures, discards)
     else
-      add_new_failures(acc, group, [path | paths], failures, [fail | discards])
+      add_new_failures(acc, fail_path_group, [path | paths], failures, [fail | discards])
     end
   end
 
