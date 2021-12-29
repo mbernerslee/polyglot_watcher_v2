@@ -33,16 +33,42 @@ defmodule PolyglotWatcherV2.ElixirLangMixTest do
     end
   end
 
-  defp add_new_failures(failures, new_failures) do
-    new_failures
-    |> Enum.reverse()
-    |> Enum.reduce(failures, fn new_failure, acc ->
-      if Enum.member?(acc, new_failure) do
-        acc
-      else
-        [new_failure | acc]
-      end
-    end)
+  defp add_new_failures(old, new) do
+    IO.inspect(old)
+    IO.inspect(new)
+
+    do_add_new_failures(old, Enum.reverse(new))
+    |> IO.inspect()
+
+    raise "no"
+  end
+
+  defp do_add_new_failures(acc, []) do
+    acc
+  end
+
+  defp do_add_new_failures(acc, [new | rest]) do
+    acc = slot_in_new_failure(acc, new)
+    do_add_new_failures(acc, rest)
+  end
+
+  defp slot_in_new_failure(old, new) do
+    slot_in_new_failure([], old, new)
+  end
+
+  defp slot_in_new_failure(checked, [], new) do
+    [new | checked]
+  end
+
+  defp slot_in_new_failure(checked, [old | rest], new) do
+    {old_test_path, _} = old
+    {new_test_path, _} = new
+
+    if old_test_path == new_test_path do
+      Enum.reduce(rest, [old, new | checked], fn to_add, acc -> [to_add | acc] end)
+    else
+      slot_in_new_failure([old | checked], rest, new)
+    end
   end
 
   defp accumulate_failing_tests(mix_test_output) do
