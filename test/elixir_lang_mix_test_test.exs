@@ -172,6 +172,64 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
                ElixirLangMixTest.update_failures(old_failures, :all, mix_test_output, exit_code)
     end
 
+    test "groups the most recent test failure with others of the same file, and moved the whole group to the front" do
+      mix_test_output = """
+        1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+           test/elixir_lang_mix_test_test.exs:3
+           ** (RuntimeError) no
+           code: raise "no"
+           stacktrace:
+             test/elixir_lang_mix_test_test.exs:3: (test)
+
+        2) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+           test/elixir_lang_mix_test_test.exs:2
+           ** (RuntimeError) no
+           code: raise "no"
+           stacktrace:
+             test/elixir_lang_mix_test_test.exs:2: (test)
+
+        3) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
+           test/elixir_lang_mix_test_test.exs:1
+           ** (RuntimeError) no
+           code: raise "no"
+           stacktrace:
+             test/elixir_lang_mix_test_test.exs:1: (test)
+
+      ....
+
+      Finished in 0.02 seconds (0.02s async, 0.00s sync)
+      5 tests, 1 failure
+
+      Randomized with seed 211756
+
+      """
+
+      exit_code = 1
+      test_path = "elixir_lang_mix_test_test"
+
+      failures = [
+        {"test/elixir_lang_determiner_test.exs", 6},
+        {"test/server_test.exs", 7},
+        {"test/elixir_lang_fix_all_for_file_mode_test.exs", 8},
+        {"test/elixir_lang_mix_test_test.exs", 4},
+        {"test/elixir_lang_mix_test_test.exs", 5},
+        {"test/determine_test.exs", 9}
+      ]
+
+      assert [
+               {"test/elixir_lang_mix_test_test.exs", 1},
+               {"test/elixir_lang_mix_test_test.exs", 2},
+               {"test/elixir_lang_mix_test_test.exs", 3},
+               {"test/elixir_lang_mix_test_test.exs", 4},
+               {"test/elixir_lang_mix_test_test.exs", 5},
+               {"test/elixir_lang_determiner_test.exs", 6},
+               {"test/server_test.exs", 7},
+               {"test/elixir_lang_fix_all_for_file_mode_test.exs", 8},
+               {"test/determine_test.exs", 9}
+             ] ==
+               ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
+    end
+
     test "shell colour stuff isn't saved in the test_path" do
       mix_test_output = """
         1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
