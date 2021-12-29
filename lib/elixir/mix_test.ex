@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.ElixirLangMixTest do
+defmodule PolyglotWatcherV2.Elixir.MixTest do
   def update_failures(_failures, :all, _mix_test_output, _exit_code = 0) do
     []
   end
@@ -12,10 +12,18 @@ defmodule PolyglotWatcherV2.ElixirLangMixTest do
     end)
   end
 
+  def update_failures(_failures, :all, mix_test_output, _exit_code) do
+    accumulate_failing_tests(mix_test_output)
+  end
+
   def update_failures(failures, _test_path, mix_test_output, _exit_code) do
     new_failures = accumulate_failing_tests(mix_test_output)
 
     add_new_failures(failures, new_failures)
+  end
+
+  def failures_for_file(failures, file_path) do
+    Enum.filter(failures, fn {path, _} -> path == file_path end)
   end
 
   defp parse_test_path(test_path) do
@@ -25,16 +33,42 @@ defmodule PolyglotWatcherV2.ElixirLangMixTest do
     end
   end
 
-  defp add_new_failures(failures, new_failures) do
-    new_failures
-    |> Enum.reverse()
-    |> Enum.reduce(failures, fn new_failure, acc ->
-      if Enum.member?(acc, new_failure) do
-        acc
-      else
-        [new_failure | acc]
-      end
-    end)
+  defp add_new_failures(old, new) do
+    ordered_paths = order_paths(old, new)
+
+    add_new_failures([], [], ordered_paths, Enum.reverse(old) ++ Enum.reverse(new), [])
+  end
+
+  defp add_new_failures(acc, fail_path_group, [], [], []) do
+    fail_path_group ++ acc
+  end
+
+  defp add_new_failures(acc, fail_path_group, [_path | paths], [], discards) do
+    add_new_failures(fail_path_group ++ acc, [], paths, Enum.reverse(discards), [])
+  end
+
+  defp add_new_failures(acc, fail_path_group, [path | paths], [fail | failures], discards) do
+    {fail_path, _} = fail
+
+    if fail_path == path do
+      add_new_failures(acc, [fail | fail_path_group], [path | paths], failures, discards)
+    else
+      add_new_failures(acc, fail_path_group, [path | paths], failures, [fail | discards])
+    end
+  end
+
+  defp order_paths(old, new), do: do_order_paths([], new ++ old)
+
+  defp do_order_paths(ordered, []) do
+    ordered
+  end
+
+  defp do_order_paths(ordered, [{path, _} | rest]) do
+    if Enum.member?(ordered, path) do
+      do_order_paths(ordered, rest)
+    else
+      do_order_paths([path | ordered], rest)
+    end
   end
 
   defp accumulate_failing_tests(mix_test_output) do

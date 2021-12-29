@@ -1,8 +1,9 @@
-defmodule PolyglotWatcherV2.ElixirLangDefaultMode do
-  alias PolyglotWatcherV2.{Action, ElixirLangDeterminer, FilePath}
+defmodule PolyglotWatcherV2.Elixir.DefaultMode do
+  alias PolyglotWatcherV2.{Action, FilePath}
+  alias PolyglotWatcherV2.Elixir.Determiner
 
-  @ex ElixirLangDeterminer.ex()
-  @exs ElixirLangDeterminer.exs()
+  @ex Determiner.ex()
+  @exs Determiner.exs()
 
   def determine_actions(%FilePath{extension: @exs} = file_path, server_state) do
     test_path = FilePath.stringify(file_path)

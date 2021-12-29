@@ -1,7 +1,8 @@
-defmodule PolyglotWatcherV2.ElixirLangFixedLastModeTest do
+defmodule PolyglotWatcherV2.Elixir.FixedLastModeTest do
   use ExUnit.Case, async: true
   require PolyglotWatcherV2.ActionsTreeValidator
-  alias PolyglotWatcherV2.{ActionsTreeValidator, ElixirLangFixedLastMode, ServerStateBuilder}
+  alias PolyglotWatcherV2.{ActionsTreeValidator, ServerStateBuilder}
+  alias PolyglotWatcherV2.Elixir.FixedLastMode
 
   describe "determine_actions/1" do
     test "returns actions to fun the most recently failed test" do
@@ -10,7 +11,7 @@ defmodule PolyglotWatcherV2.ElixirLangFixedLastModeTest do
         |> ServerStateBuilder.with_elixir_mode(:fixed_last)
         |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
-      {tree, _server_state} = ElixirLangFixedLastMode.determine_actions(server_state)
+      {tree, _server_state} = FixedLastMode.determine_actions(server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -32,7 +33,7 @@ defmodule PolyglotWatcherV2.ElixirLangFixedLastModeTest do
         |> ServerStateBuilder.with_elixir_mode(:fixed_last)
         |> ServerStateBuilder.with_elixir_failures([])
 
-      {tree, _server_state} = ElixirLangFixedLastMode.determine_actions(server_state)
+      {tree, _server_state} = FixedLastMode.determine_actions(server_state)
 
       assert %{entry_point: :clear_screen} = tree
 

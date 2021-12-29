@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.ElixirLangFixedLastMode do
+defmodule PolyglotWatcherV2.Elixir.FixedLastMode do
   alias PolyglotWatcherV2.Action
 
   def determine_actions(%{elixir: %{failures: [test_path | _]}} = server_state) do
