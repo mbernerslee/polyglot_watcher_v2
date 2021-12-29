@@ -135,6 +135,43 @@ defmodule PolyglotWatcherV2.ElixirLangMixTestTest do
                ElixirLangMixTest.update_failures(failures, test_path, mix_test_output, exit_code)
     end
 
+    test "running a failing 'mix test' wipes historical test failures that didn't come up this time" do
+      mix_test_output = """
+        1) test update_failures/4 parses mix test output, adding failures to the list (PolyglotWatcherV2.ElixirLangMixTestTest)
+           test/elixir_lang_mix_test_test.exs:6
+           ** (RuntimeError) no
+           code:
+           stacktrace:
+             test/elixir_lang_mix_test_test.exs:29: (test)
+
+
+
+        2) test update_failures/4 x (PolyglotWatcherV2.ElixirLangMixTestTest)
+           test/elixir_lang_mix_test_test.exs:32
+           ** (RuntimeError) no
+           code: test "x" do
+           stacktrace:
+             test/elixir_lang_mix_test_test.exs:33: (test)
+
+
+
+      Finished in 0.02 seconds (0.02s async, 0.00s sync)
+      2 tests, 2 failures
+
+      Randomized with seed 856017
+      """
+
+      exit_code = 1
+
+      old_failures = [{"test/x_test.exs", 1}, {"test/y_test.exs", 2}]
+
+      assert [
+               {"test/elixir_lang_mix_test_test.exs", 32},
+               {"test/elixir_lang_mix_test_test.exs", 6}
+             ] ==
+               ElixirLangMixTest.update_failures(old_failures, :all, mix_test_output, exit_code)
+    end
+
     test "shell colour stuff isn't saved in the test_path" do
       mix_test_output = """
         1) test update_failures/4 clears failures from the list if 'mix test' passed (PolyglotWatcherV2.ElixirLangMixTestTest)
