@@ -12,6 +12,10 @@ defmodule PolyglotWatcherV2.ElixirLangMixTest do
     end)
   end
 
+  def update_failures(_failures, :all, mix_test_output, _exit_code) do
+    accumulate_failing_tests(mix_test_output)
+  end
+
   def update_failures(failures, _test_path, mix_test_output, _exit_code) do
     new_failures = accumulate_failing_tests(mix_test_output)
 

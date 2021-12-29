@@ -48,6 +48,11 @@ This section of the readme is the output of running 'help' on the application it
    *   Fixed Mode
    *   Runs 'mix test [path]' whenever any .ex or .exs file is saved
    *   You can specify an exact line number e.g. test/cool_test.exs:100, if you want
+ * ex faff [path]
+   *   Fix All For File Mode
+   *   Runs:
+     *     (1) 'mix test [path]'
+     *     (2) 'mix test [path]:10' for each failing line number in turn until it's fixed and then (1) again to check we really are done
  * ex fl
    *   Fixed Last Mode
    *   Only runs the most recently failed test when any .ex or .exs files are saved

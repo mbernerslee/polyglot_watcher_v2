@@ -28,17 +28,13 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileMode do
       },
       mix_test: %Action{
         runnable: {:mix_test, test_path},
-        next_action: %{0 => :all_fixed, :fallback => :put_running_latest_failure_msg}
+        next_action: %{0 => :put_sarcastic_success, :fallback => :put_running_latest_failure_msg}
       },
       put_running_latest_failure_msg: %Action{
         runnable:
           {:puts, :red,
-           "We'll run only the above failing test until it passes, then the next one until all #{test_path} test pass"},
+           "We'll run only the above failing test until it passes, then the next one until all #{test_path} tests pass"},
         next_action: :exit
-      },
-      all_fixed: %Action{
-        runnable: {:puts, :green, "Wow, all #{test_path} test passed"},
-        next_action: :put_sarcastic_success
       },
       put_sarcastic_success: %Action{
         runnable: :put_sarcastic_success,
@@ -49,7 +45,6 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileMode do
     {%{entry_point: :clear_screen, actions_tree: switch_mode_actions_tree}, server_state}
   end
 
-  # TODO make the mix test history delete all historical failures in test/x_test.exs if we ran "mix test test/x_test.exs" or "mix test"
   def determine_actions(
         %{elixir: %{failures: failures, mode: {:fix_all_for_file, test_path}}} = server_state
       ) do
@@ -64,14 +59,20 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileMode do
        actions_tree: %{
          clear_screen: %Action{
            runnable: :clear_screen,
-           next_action: :put_success_msg
+           next_action: :mix_test
          },
-         put_success_msg: %Action{
-           runnable: {:puts, :green, "Wow, all the #{test_path} tests passed"},
-           next_action: :put_sarcastic_success
+         mix_test: %Action{
+           runnable: {:mix_test, test_path},
+           next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg}
          },
          put_sarcastic_success: %Action{
            runnable: :put_sarcastic_success,
+           next_action: :exit
+         },
+         put_failure_msg: %Action{
+           runnable:
+             {:puts, :red,
+              "At least one test in #{test_path} is busted. I'll run only one failure at a time"},
            next_action: :exit
          }
        }
@@ -79,30 +80,52 @@ defmodule PolyglotWatcherV2.ElixirLangFixAllForFileMode do
   end
 
   defp determine_actions_with_failures(failures, server_state, test_path) do
-    build_test_actions(failures, test_path)
-    # {%{entry_point: :clear_screen, actions_tree: %{
-    #  clear_screen: %Action{
-    #    runnable: :clear_screen,
-    #    next_action: :put_success_msg
-    #  },
-    #  put_success_msg: %Action{
-    #    runnable: {:puts, :green, "Wow, all the #{test_path} tests passed"}
-    #    next_action: :put_sarcastic_success
-    #  },
-    #  put_sarcastic_success: %Action{
-    #    runnable: :put_sarcastic_success,
-    #    next_action: :exit
-    #  }
-    # }}, server_state}
+    tests_by_line = tests_by_line(failures)
+
+    actions = %{
+      clear_screen: %Action{
+        runnable: :clear_screen,
+        next_action: {:mix_test, 0}
+      },
+      mix_test: %Action{
+        runnable: :mix_test,
+        next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg}
+      },
+      put_sarcastic_success: %Action{
+        runnable: :put_sarcastic_success,
+        next_action: :exit
+      },
+      put_failure_msg: %Action{
+        runnable:
+          {:puts, :red,
+           "At least one test in #{test_path} is busted. I'll run only one failure at a time"},
+        next_action: :exit
+      }
+    }
+
+    {%{entry_point: :clear_screen, actions_tree: Map.merge(actions, tests_by_line)}, server_state}
   end
 
-  defp build_test_actions(failures, test_path) do
-    failures
-    |> Enum.with_index()
-    |> Enum.map(fn {{_, line_number}, index} ->
-      %{
-        {:run_test, index} => %Action{runnable: raise("ass")}
-      }
-    end)
+  defp tests_by_line(failures), do: tests_by_line(%{}, 0, failures)
+
+  defp tests_by_line(test_actions, index, [{test_path, line_number}]) do
+    action = %Action{
+      runnable: {:mix_test, "#{test_path}:#{line_number}"},
+      next_action: %{0 => :mix_test, :fallback => :put_failure_msg}
+    }
+
+    Map.put(test_actions, {:mix_test, index}, action)
+  end
+
+  defp tests_by_line(test_actions, index, [{test_path, line_number} | rest]) do
+    next_index = index + 1
+
+    action = %Action{
+      runnable: {:mix_test, "#{test_path}:#{line_number}"},
+      next_action: %{0 => {:mix_test, next_index}, :fallback => :put_failure_msg}
+    }
+
+    test_actions = Map.put(test_actions, {:mix_test, index}, action)
+    tests_by_line(test_actions, next_index, rest)
   end
 end

@@ -77,20 +77,25 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       assert {tree, ^server_state} =
                ElixirLangDeterminer.determine_actions(@ex_file_path, server_state)
 
-      raise "no"
+      assert %{entry_point: :clear_screen} = tree
 
-      # assert %{entry_point: :clear_screen} = tree
+      expected_action_tree_keys = [
+        :clear_screen,
+        {:mix_test, 0},
+        {:mix_test, 1},
+        {:mix_test, 2},
+        {:mix_test, 3},
+        {:mix_test, 4},
+        {:mix_test, 5},
+        {:mix_test, 6},
+        {:mix_test, 7},
+        :mix_test,
+        :put_sarcastic_success,
+        :put_failure_msg
+      ]
 
-      # expected_action_tree_keys = [
-      #  :clear_screen,
-      #  :put_intent_msg,
-      #  :mix_test,
-      #  :put_success_msg,
-      #  :put_failure_msg
-      # ]
-
-      # ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-      # ActionsTreeValidator.validate(tree)
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
     end
   end
 
@@ -218,7 +223,6 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
         :put_switch_success_msg,
         :mix_test,
         :put_running_latest_failure_msg,
-        :all_fixed,
         :put_sarcastic_success
       ]
 
@@ -228,14 +232,6 @@ defmodule PolyglotWatcherV2.ElixirLangDeterminerTest do
       assert %Action{runnable: {:switch_mode, :elixir, {:fix_all_for_file, "test/x_test.exs"}}} =
                tree.actions_tree.switch_mode
     end
-
-    # test "nope 1" do
-    #  raise "nope 1"
-    # end
-
-    # test "nope 2" do
-    #  raise "nope 2"
-    # end
 
     test "given nonsense user input, doesn't do anything" do
       server_state =
