@@ -79,7 +79,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["d"] -> &switch_to_default_mode(&1)
       ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
-      ["ra"] -> &switch_to_run_all_mode(&1)
+      ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
       _ -> nil
     end
@@ -160,26 +160,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       [result, _line_number] -> %{with_line_number: file_path, without_line_number: result}
       _ -> %{with_line_number: file_path, without_line_number: file_path}
     end
-  end
-
-  defp switch_to_run_all_mode(server_state) do
-    {%{
-       entry_point: :clear_screen,
-       actions_tree: %{
-         clear_screen: %Action{
-           runnable: :clear_screen,
-           next_action: :switch_mode
-         },
-         switch_mode: %Action{
-           runnable: {:switch_mode, :elixir, :run_all},
-           next_action: :put_msg
-         },
-         put_msg: %Action{
-           runnable: {:puts, :magenta, "Switching to Elixir run_all mode"},
-           next_action: :exit
-         }
-       }
-     }, server_state}
   end
 
   defp switch_to_fixed_last_mode(server_state) do
