@@ -18,8 +18,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   def exs, do: @exs
 
   def determine_actions(%FilePath{} = file_path, server_state) do
-    # raise "nopey"
-
     if file_path.extension in @extensions do
       by_mode(file_path, server_state)
     else
@@ -28,7 +26,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   end
 
   def user_input_actions(user_input, server_state) do
-    # raise "nopey"
     ex_space = "#{@ex} "
 
     if String.starts_with?(user_input, ex_space) do
@@ -58,6 +55,12 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:white, "  Runs 'mix test [path]' whenever any .ex or .exs file is saved\n"},
       {:white,
        "  You can specify an exact line number e.g. test/cool_test.exs:100, if you want\n"},
+      {:light_magenta, "ex fa \n"},
+      {:white, "  Fix All Mode\n"},
+      {:white, "  Runs:\n"},
+      {:white, "    (1) 'mix test'\n"},
+      {:white,
+       "    (2) 'mix test [single test only]' for each failing test in turn, until they're all fixed. Then we run (1) again to check we really are done\n"},
       {:light_magenta, "ex faff [path]\n"},
       {:white, "  Fix All For File Mode\n"},
       {:white, "  Runs:\n"},

@@ -74,8 +74,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp mix_test(test_path, server_state) do
-    IO.inspect(server_state.elixir.failures)
-
     {mix_test_output, exit_code} =
       case test_path do
         :all -> ShellCommandRunner.run("mix test --color")

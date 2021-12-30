@@ -2,7 +2,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.FailedTestActionChain
 
-  # TODO update the usage_notes thing
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
