@@ -13,7 +13,7 @@ exec 0<&0 $(
   while read; do :; done
   kill -KILL $pid1 >/dev/null 2>&1
 ) &
-pid2=$!
+pid2=$! >/dev/null 2>&1
 
 # Clean up
 wait $pid1 >/dev/null 2>&1

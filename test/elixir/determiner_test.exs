@@ -52,6 +52,53 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.validate(tree)
     end
 
+    test "returns the fix_all actions when in that state" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:fix_all)
+        |> ServerStateBuilder.with_elixir_failures([
+          {"test/x_test.exs", 1},
+          {"test/x_test.exs", 2},
+          {"test/x_test.exs", 3},
+          {"test/x_test.exs", 4},
+          {"test/x_test.exs", 5},
+          {"test/x_test.exs", 6},
+          {"test/x_test.exs", 7},
+          {"test/x_test.exs", 8}
+        ])
+
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        {:mix_test, 0},
+        {:mix_test_puts, 0},
+        {:mix_test, 1},
+        {:mix_test_puts, 1},
+        {:mix_test, 2},
+        {:mix_test_puts, 2},
+        {:mix_test, 3},
+        {:mix_test_puts, 3},
+        {:mix_test, 4},
+        {:mix_test_puts, 4},
+        {:mix_test, 5},
+        {:mix_test_puts, 5},
+        {:mix_test, 6},
+        {:mix_test_puts, 6},
+        {:mix_test, 7},
+        {:mix_test_puts, 7},
+        :mix_test_msg,
+        :mix_test,
+        :put_sarcastic_success,
+        :put_failure_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
+
     test "returns the fix_all_for_file_actions when in that state" do
       server_state =
         ServerStateBuilder.build()
@@ -74,13 +121,21 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       expected_action_tree_keys = [
         :clear_screen,
         {:mix_test, 0},
+        {:mix_test_puts, 0},
         {:mix_test, 1},
+        {:mix_test_puts, 1},
         {:mix_test, 2},
+        {:mix_test_puts, 2},
         {:mix_test, 3},
+        {:mix_test_puts, 3},
         {:mix_test, 4},
+        {:mix_test_puts, 4},
         {:mix_test, 5},
+        {:mix_test_puts, 5},
         {:mix_test, 6},
+        {:mix_test_puts, 6},
         {:mix_test, 7},
+        {:mix_test_puts, 7},
         :mix_test,
         :put_sarcastic_success,
         :put_failure_msg
@@ -199,6 +254,29 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert %Action{runnable: {:switch_mode, :elixir, :fixed_last}} =
                tree.actions_tree.switch_mode
+    end
+
+    test "switching to fix_all mode works, and returns the expected actions" do
+      server_state = ServerStateBuilder.build()
+
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex fa", server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_switch_mode_msg,
+        :switch_mode,
+        :mix_test_msg,
+        :mix_test,
+        :put_success_msg,
+        :put_failure_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+
+      assert %Action{runnable: {:switch_mode, :elixir, :fix_all}} = tree.actions_tree.switch_mode
     end
 
     test "switching to fix_all_for_file mode, returns the expected actions tree" do

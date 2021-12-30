@@ -4,8 +4,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   alias PolyglotWatcherV2.Elixir.{
     DefaultMode,
     FixAllForFileMode,
-    FixedLastMode,
+    FixAllMode,
     FixedFileMode,
+    FixedLastMode,
     RunAllMode
   }
 
@@ -54,6 +55,12 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:white, "  Runs 'mix test [path]' whenever any .ex or .exs file is saved\n"},
       {:white,
        "  You can specify an exact line number e.g. test/cool_test.exs:100, if you want\n"},
+      {:light_magenta, "ex fa \n"},
+      {:white, "  Fix All Mode\n"},
+      {:white, "  Runs:\n"},
+      {:white, "    (1) 'mix test'\n"},
+      {:white,
+       "    (2) 'mix test [single test only]' for each failing test in turn, until they're all fixed. Then we run (1) again to check we really are done\n"},
       {:light_magenta, "ex faff [path]\n"},
       {:white, "  Fix All For File Mode\n"},
       {:white, "  Runs:\n"},
@@ -78,6 +85,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)
       ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
+      ["fa"] -> &FixAllMode.switch(&1)
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
@@ -202,6 +210,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
       {:fixed_file, _file} ->
         FixedFileMode.determine_actions(server_state)
+
+      :fix_all ->
+        FixAllMode.determine_actions(server_state)
 
       {:fix_all_for_file, _file} ->
         FixAllForFileMode.determine_actions(server_state)
