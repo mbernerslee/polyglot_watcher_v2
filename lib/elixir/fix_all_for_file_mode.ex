@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   alias PolyglotWatcherV2.Action
-  alias PolyglotWatcherV2.Elixir.Failures
+  alias PolyglotWatcherV2.Elixir.{FailedTestActionChain, Failures}
 
   def switch(server_state, test_path) do
     switch_mode_actions_tree = %{
@@ -81,12 +81,17 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   end
 
   defp determine_actions_with_failures(failures, server_state, test_path) do
-    tests_by_line = tests_by_line(failures)
+    failed_test_action_chain =
+      FailedTestActionChain.build(
+        failures,
+        :put_failure_msg,
+        %{0 => :mix_test, :fallback => :put_failure_msg}
+      )
 
     actions = %{
       clear_screen: %Action{
         runnable: :clear_screen,
-        next_action: {:mix_test, 0}
+        next_action: {:mix_test_puts, 0}
       },
       mix_test: %Action{
         runnable: :mix_test,
@@ -99,34 +104,17 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
       put_failure_msg: %Action{
         runnable:
           {:puts, :red,
-           "At least one test in #{test_path} is busted. I'll run only one failure at a time"},
+           "At least one test in #{test_path} is busted. I'll run it exclusively until you fix it... (unless you break another one in the process)"},
         next_action: :exit
       }
     }
 
-    {%{entry_point: :clear_screen, actions_tree: Map.merge(actions, tests_by_line)}, server_state}
-  end
-
-  defp tests_by_line(failures), do: tests_by_line(%{}, 0, failures)
-
-  defp tests_by_line(test_actions, index, [{test_path, line_number}]) do
-    action = %Action{
-      runnable: {:mix_test, "#{test_path}:#{line_number}"},
-      next_action: %{0 => :mix_test, :fallback => :put_failure_msg}
+    {
+      %{
+        entry_point: :clear_screen,
+        actions_tree: Map.merge(actions, failed_test_action_chain)
+      },
+      server_state
     }
-
-    Map.put(test_actions, {:mix_test, index}, action)
-  end
-
-  defp tests_by_line(test_actions, index, [{test_path, line_number} | rest]) do
-    next_index = index + 1
-
-    action = %Action{
-      runnable: {:mix_test, "#{test_path}:#{line_number}"},
-      next_action: %{0 => {:mix_test, next_index}, :fallback => :put_failure_msg}
-    }
-
-    test_actions = Map.put(test_actions, {:mix_test, index}, action)
-    tests_by_line(test_actions, next_index, rest)
   end
 end

@@ -14,12 +14,16 @@ defmodule PolyglotWatcherV2.Elixir.FailureMerger do
   end
 
   def merge(acc, fail_path_group, [path | paths], [fail | failures], discards) do
-    {fail_path, _} = fail
-
-    if fail_path == path do
-      merge(acc, [fail | fail_path_group], [path | paths], failures, discards)
+    if Enum.member?(fail_path_group, fail) or Enum.member?(acc, fail) do
+      merge(acc, fail_path_group, [path | paths], failures, discards)
     else
-      merge(acc, fail_path_group, [path | paths], failures, [fail | discards])
+      {fail_path, _} = fail
+
+      if fail_path == path do
+        merge(acc, [fail | fail_path_group], [path | paths], failures, discards)
+      else
+        merge(acc, fail_path_group, [path | paths], failures, [fail | discards])
+      end
     end
   end
 
