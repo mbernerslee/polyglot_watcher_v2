@@ -13,6 +13,10 @@ defmodule PolyglotWatcherV2.Elixir.FailureMergerTest do
       assert FailureMerger.merge(old, new) == expected
     end
 
+    test "doesn't put in duplicate failures" do
+      assert FailureMerger.merge([{"a", 1}], [{"a", 1}]) == [{"a", 1}]
+    end
+
     test "puts failures in a file with known failures all first" do
       old = [{"a", 1}, {"b", 2}, {"c", 3}]
 

@@ -41,7 +41,7 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
 
     unless actions_that_exist == next_actions do
       raise InvalidActionsTreeError,
-            "I require all 'next_actions' in the tree to exist within it, but at least one didn't in #{inspect(actions_tree)}"
+            "I require all 'next_actions' in the tree to exist within it, but some 'next_actions' we're pointing to don't exist in the tree #{inspect(MapSet.difference(actions_that_exist, next_actions))}"
     end
   end
 

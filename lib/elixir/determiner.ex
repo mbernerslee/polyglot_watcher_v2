@@ -4,8 +4,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   alias PolyglotWatcherV2.Elixir.{
     DefaultMode,
     FixAllForFileMode,
-    FixedLastMode,
+    FixAllMode,
     FixedFileMode,
+    FixedLastMode,
     RunAllMode
   }
 
@@ -17,6 +18,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   def exs, do: @exs
 
   def determine_actions(%FilePath{} = file_path, server_state) do
+    # raise "nopey"
+
     if file_path.extension in @extensions do
       by_mode(file_path, server_state)
     else
@@ -25,6 +28,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   end
 
   def user_input_actions(user_input, server_state) do
+    # raise "nopey"
     ex_space = "#{@ex} "
 
     if String.starts_with?(user_input, ex_space) do
@@ -78,6 +82,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)
       ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
+      ["fa"] -> &FixAllMode.switch(&1)
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
@@ -202,6 +207,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
       {:fixed_file, _file} ->
         FixedFileMode.determine_actions(server_state)
+
+      :fix_all ->
+        FixAllMode.determine_actions(server_state)
 
       {:fix_all_for_file, _file} ->
         FixAllForFileMode.determine_actions(server_state)

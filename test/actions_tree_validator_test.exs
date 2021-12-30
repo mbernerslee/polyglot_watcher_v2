@@ -90,10 +90,7 @@ defmodule PolyglotWatcherV2.ActionsTreeValidatorTest do
 
       tree = %{entry_point: :start, actions_tree: actions_tree}
 
-      msg =
-        "I require all 'next_actions' in the tree to exist within it, but at least one didn't in #{inspect(actions_tree)}"
-
-      assert_raise InvalidActionsTreeError, msg, fn -> ActionsTreeValidator.validate(tree) end
+      assert_raise InvalidActionsTreeError, fn -> ActionsTreeValidator.validate(tree) end
     end
   end
 end
