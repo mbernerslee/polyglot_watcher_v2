@@ -47,6 +47,7 @@ This section of the readme is the output of running 'help' on the application it
  * ex f [path]
    *   Fixed Mode
    *   Runs 'mix test [path]' whenever any .ex or .exs file is saved
+   *   OR without providing [path], does the above but for the most recent known test failure in memory
    *   You can specify an exact line number e.g. test/cool_test.exs:100, if you want
  * ex fa 
    *   Fix All Mode
