@@ -53,6 +53,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:light_magenta, "ex f [path]\n"},
       {:white, "  Fixed Mode\n"},
       {:white, "  Runs 'mix test [path]' whenever any .ex or .exs file is saved\n"},
+      {:white, "  OR without providing [path], does the above but for the most recent known test failure in memory\n"},
       {:white,
        "  You can specify an exact line number e.g. test/cool_test.exs:100, if you want\n"},
       {:light_magenta, "ex fa \n"},
@@ -84,7 +85,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   defp input_to_actions_mapping(user_input) do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)
-      ["f", test_file] -> &switch_to_fixed_file_mode(&1, test_file)
+      ["f"] -> &FixedFileMode.switch(&1)
+      ["f", test_file] -> &FixedFileMode.switch(&1, test_file)
       ["fa"] -> &FixAllMode.switch(&1)
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
@@ -118,56 +120,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
          }
        }
      }, server_state}
-  end
-
-  defp switch_to_fixed_file_mode(server_state, test_path) do
-    test_path = parse_test_path(test_path)
-
-    {%{actions_tree: fixed_file_actions_tree}, _} =
-      FixedFileMode.determine_actions(%{
-        elixir: %{mode: {:fixed_file, test_path.with_line_number}}
-      })
-
-    fixed_file_actions_tree = Map.delete(fixed_file_actions_tree, :clear_screen)
-
-    switch_mode_actions_tree = %{
-      clear_screen: %Action{
-        runnable: :clear_screen,
-        next_action: :check_file_exists
-      },
-      check_file_exists: %Action{
-        runnable: {:file_exists, test_path.without_line_number},
-        next_action: %{true => :switch_mode, :fallback => :put_no_file_msg}
-      },
-      switch_mode: %Action{
-        runnable: {:switch_mode, :elixir, {:fixed_file, test_path.with_line_number}},
-        next_action: :put_switch_success_msg
-      },
-      put_no_file_msg: %Action{
-        runnable:
-          {:puts, :red,
-           "I couldn't find a file at #{test_path.without_line_number}, so I failed to switch mode"},
-        next_action: :exit
-      },
-      put_switch_success_msg: %Action{
-        runnable:
-          {:puts, :magenta, "Switching Elixir to fixed_file #{test_path.with_line_number} mode"},
-        next_action: :put_intent_msg
-      }
-    }
-
-    {%{
-       entry_point: :clear_screen,
-       actions_tree: Map.merge(switch_mode_actions_tree, fixed_file_actions_tree)
-     }, server_state}
-  end
-
-  defp parse_test_path(file_path) do
-    case String.split(file_path, ":") do
-      [result] -> %{with_line_number: result, without_line_number: result}
-      [result, _line_number] -> %{with_line_number: file_path, without_line_number: result}
-      _ -> %{with_line_number: file_path, without_line_number: file_path}
-    end
   end
 
   defp switch_to_fixed_last_mode(server_state) do
