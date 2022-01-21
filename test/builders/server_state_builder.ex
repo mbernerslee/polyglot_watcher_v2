@@ -12,6 +12,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     }
   end
 
+  def with_starting_dir(server_state, starting_dir) do
+    Map.put(server_state, :starting_dir, starting_dir)
+  end
+
   def with_elixir_mode(server_state, mode) do
     put_in(server_state, [:elixir, :mode], mode)
   end

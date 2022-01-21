@@ -10,6 +10,7 @@ end
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{Puts, ShellCommandRunner}
   alias PolyglotWatcherV2.Elixir.Failures
+  alias PolyglotWatcherV2.Elm.FileFinder, as: ElmFileFinder
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
 
@@ -58,6 +59,22 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   def execute({:file_exists, file_path}, server_state) do
     {File.exists?(file_path), server_state}
+  end
+
+  def execute({:find_elm_json, file_path}, server_state) do
+    ElmFileFinder.json(file_path, server_state)
+  end
+
+  def execute({:find_elm_main, file_path}, server_state) do
+    ElmFileFinder.main(file_path, server_state)
+  end
+
+  def execute(:elm_make, server_state) do
+    %{json_path: json_path, main_path: main_path} = server_state.elm
+    File.cd!(json_path)
+    {_output, exit_code} = ShellCommandRunner.run("elm make #{main_path}")
+    File.cd!(server_state.starting_dir)
+    {exit_code, server_state}
   end
 
   def execute(:noop, server_state) do
