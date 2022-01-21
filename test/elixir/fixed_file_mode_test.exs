@@ -1,7 +1,7 @@
 defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
   use ExUnit.Case, async: true
   require PolyglotWatcherV2.ActionsTreeValidator
-  alias PolyglotWatcherV2.{ActionsTreeValidator, ServerStateBuilder}
+  alias PolyglotWatcherV2.{Action, ActionsTreeValidator, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.FixedFileMode
 
   describe "switch/0" do
@@ -21,6 +21,9 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
         :put_success_msg,
         :put_failure_msg
       ]
+
+      assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, "test/x_test.exs:100"}}} =
+               tree.actions_tree.switch_mode
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
