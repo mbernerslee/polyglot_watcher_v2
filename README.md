@@ -38,6 +38,8 @@ You can specify an exact line number e.g. `polyglot_watcher_v2 ex f test/cool_te
 
 OR without specifying `[path]`, runs `mix test [the most recent failure in memory]`
 
+Initialising without specifying a path obviously doesn't really work because I'll have no memory of any test failures yet.
+
 #### Fix All Mode
 `polyglot_watcher_v2 ex fa`
 
