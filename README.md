@@ -1,7 +1,7 @@
 <!-- Keep this up to date with the output of help -->
 # PolyglotWatcherV2
 
-A software development tool that runs tests triggered when files are saved, usinga number of different user-specified modes
+A software development tool that triggers test runs test when files are saved, using a number of different user-specified modes.
 See the section 'Watcher usage and modes' below.
 
 ## Watcher usage and modes
