@@ -6,7 +6,7 @@ See the section 'Watcher usage and modes' below.
 
 ## Installation
 
-if you're on Debian simply do
+if you're on Debian or Mac simply do:
 
 - `git clone git@github.com:mbernerslee/polyglot_watcher_v2.git`
 - `cd polyglot_watcher_v2`

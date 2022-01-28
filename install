@@ -81,10 +81,20 @@ build() {
   fi
 }
 
-create_symlink() {
+create_symlink_for_debian() {
   ln -sf $DIR/polyglot_watcher_v2 ~/.local/bin/polyglot_watcher_v2
   if [[ $? -eq 0 ]]; then
     echo "created polyglot_watcher_v2 symlink to ~/.local/bin OK"
+  else
+    echo "created to create polyglot_watcher_v2 symlink :-("
+    exit 1
+  fi
+}
+
+create_symlink_for_mac() {
+  ln -sf $DIR/polyglot_watcher_v2 /usr/local/bin/polyglot_watcher_v2
+  if [[ $? -eq 0 ]]; then
+    echo "created polyglot_watcher_v2 symlink to /usr/local/bin/polyglot_watcher_v2 OK"
   else
     echo "created to create polyglot_watcher_v2 symlink :-("
     exit 1
@@ -95,7 +105,10 @@ install_for_mac() {
   check_brew_is_installed
   install_fswatch
   check_elixir_installed
+  build
+  create_symlink_for_mac
   echo "Everything installed OK"
+  echo "You should now simply be able to run 'polyglot_watcher_v2' now!"
 }
 
 install_for_debian() {
@@ -103,7 +116,7 @@ install_for_debian() {
   install_inotify_tools
   check_elixir_installed
   build
-  create_symlink
+  create_symlink_for_debian
   echo "Everything installed OK"
   echo "You should now simply be able to run 'polyglot_watcher_v2' now!"
 }
