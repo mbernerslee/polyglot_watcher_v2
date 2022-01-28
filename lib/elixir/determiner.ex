@@ -39,6 +39,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     end
   end
 
+  # keep this up to date with README.md!
   def usage_puts do
     [
       {:magenta, "Elixir\n"},
@@ -53,7 +54,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:light_magenta, "ex f [path]\n"},
       {:white, "  Fixed Mode\n"},
       {:white, "  Runs 'mix test [path]' whenever any .ex or .exs file is saved\n"},
-      {:white, "  OR without providing [path], does the above but for the most recent known test failure in memory\n"},
+      {:white,
+       "  OR without providing [path], does the above but for the most recent known test failure in memory\n"},
       {:white,
        "  You can specify an exact line number e.g. test/cool_test.exs:100, if you want\n"},
       {:light_magenta, "ex fa \n"},

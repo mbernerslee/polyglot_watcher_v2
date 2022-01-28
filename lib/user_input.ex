@@ -64,6 +64,7 @@ defmodule PolyglotWatcherV2.UserInput do
     {actions, server_state}
   end
 
+  # keep this up to date with README.md!
   defp general_usage_puts do
     [
       {:magenta, "\nGeneral usage\n"},
@@ -79,6 +80,7 @@ defmodule PolyglotWatcherV2.UserInput do
     ]
   end
 
+  # keep this up to date with README.md!
   defp languages_usage_puts do
     Enum.flat_map(@languages, fn language -> language.usage_puts end)
   end
