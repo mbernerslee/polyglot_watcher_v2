@@ -18,15 +18,15 @@ using the switches listed below...
 
 | Mode | Switcher | Description |
 | ---- | -------- | ----------- |
-| Default | `polyglot_watcher_v2 ex d` | Will run the equivalently pathed test only
+| Default | `polyglot_watcher_v2 ex d` | Will run the equivalently pathed test only \
 
-In other words:
-`mix test/x_test.exs`
+In other words: \
+`mix test/x_test.exs` \
 
-when these files are saved:
+when these files are saved: \
 
 - *lib/x.ex*
-- *test/x_test.exs*ass |
+- *test/x_test.exs* |
 
 <!--
 #### Default Mode
