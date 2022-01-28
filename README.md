@@ -21,7 +21,12 @@ using the switches listed below...
 Will run the equivalently pathed test only
 
 In other words:
-`mix test/x_test.exs` when *lib/x.ex* or *test/x_test.exs* itself is saved
+`mix test/x_test.exs`
+
+when these files are saved:
+
+- *lib/x.ex*
+- *test/x_test.exs*
 
 
 #### Run All Mode
