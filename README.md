@@ -11,17 +11,25 @@ See the section 'Watcher usage and modes' below.
 
 Will run the equivalently pathed test only
 In other words:
-mix test/x_test.exs when lib/x.ex or test/x_test.exs itself is saved
+`mix test/x_test.exs` when *lib/x.ex* or *test/x_test.exs* itself is saved
 
 
-* ex ra
-  *   Run All Mode
-  *   Runs 'mix test' whenever any .ex or .exs file is saved
-* ex f [path]
-  *   Fixed Mode
-  *   Runs 'mix test [path]' whenever any .ex or .exs file is saved
-  *   OR without providing [path], does the above but for the most recent known test failure in memory
-  *   You can specify an exact line number e.g. test/cool_test.exs:100, if you want
+#### Run All Mode
+`polyglot_watcher_v2 ex ra`
+
+Runs 'mix test' whenever any .ex or .exs file is saved
+
+
+#### Fixed Mode
+`polyglot_watcher_v2 ex f`
+`polyglot_watcher_v2 ex f [path]`
+
+Runs:
+`mix test [path]` whenever any *.ex* or *.exs* file is saved
+You can specify an exact line number e.g. test/cool_test.exs:100, if you want.
+
+OR without specifying `[path]`, runs `mix test [the most recent failure in memory]`
+
 * ex fa
   *   Fix All Mode
   *   Runs:
