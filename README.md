@@ -32,7 +32,7 @@ when these files are saved:
 #### Run All Mode
 `polyglot_watcher_v2 ex ra`
 
-Runs 'mix test' whenever any .ex or .exs file is saved
+Runs `mix test` whenever any .ex or .exs file is saved
 
 
 #### Fixed Mode
