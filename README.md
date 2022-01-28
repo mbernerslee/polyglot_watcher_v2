@@ -5,6 +5,14 @@ See the section 'Watcher usage and modes' below.
 
 ## Watcher usage and modes
 
+I can...
+
+- switch which watcher mode I'm using the fly while I'm running
+- initialise in the desired mode by passing in command line arguments
+
+using the switches listed below...
+
+
 ### Elixir
 #### Default Mode
 `polyglot_watcher_v2 ex d`
@@ -29,23 +37,30 @@ You can specify an exact line number e.g. test/cool_test.exs:100, if you want.
 
 OR without specifying `[path]`, runs `mix test [the most recent failure in memory]`
 
-* ex fa
-  *   Fix All Mode
-  *   Runs:
-    *     (1) 'mix test'
-    *     (2) 'mix test [single test only]' for each failing test in turn, until they're all fixed. Then we run (1) again to check we really are done
-* ex faff [path]
-  *   Fix All For File Mode
-  *   Runs:
-    *     (1) 'mix test [path]'
-    *     (2) 'mix test [path]:10' for each failing line number in turn until it's fixed and then (1) again to check we really are done
-* ex fl
-  *   Fixed Last Mode
-  *   Only runs the most recently failed test when any .ex or .exs files are saved
-  *   I do this by keeping track of which tests have failed as I go
-  *   This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.
-  *   Initialising in this mode isn't reccommended because on startup my memory of failing tests is empty...
-  *   So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one
+#### Fix All Mode
+`polyglot_watcher_v2 ex fa`
+
+Runs:
+1. `mix test`
+2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done
+
+
+#### Fix All For File Mode
+`polyglot_watcher_v2 ex faff [path]`
+
+Runs:
+1. `mix test [path]`
+2. `mix test [path]:line_number_of_a_single_failure` for each failing line number in turn until it's fixed and then 1. again to check we really are done
+
+#### Fixed Last Mode
+`polyglot_watcher_v2 ex fl`
+
+Only runs the most recently failed test when any *.ex* or *.exs* files are saved
+I do this by keeping track of which tests have failed as I go
+This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.
+Initialising in this mode is senseless because on startup my memory of failing tests is empty...
+So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one
+
 
 ## Quick guide to the codebase
 
