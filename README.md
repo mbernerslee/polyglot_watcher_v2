@@ -18,6 +18,7 @@ using the switches listed below...
 `polyglot_watcher_v2 ex d`
 
 Will run the equivalently pathed test only
+
 In other words:
 `mix test/x_test.exs` when *lib/x.ex* or *test/x_test.exs* itself is saved
 
