@@ -6,10 +6,13 @@ See the section 'Watcher usage and modes' below.
 ## Watcher usage and modes
 
 ### Elixir
-* ex d
-  *   Default Mode
-  *   Will run the equivalently pathed test only
-  *   In other words... mix test/x_test.exs when lib/x.ex or test/x_test.exs itself is saved
+#### Default Mode
+`polyglot_watcher_v2 ex d`
+Will run the equivalently pathed test only
+In other words:
+mix test/x_test.exs when lib/x.ex or test/x_test.exs itself is saved
+
+
 * ex ra
   *   Run All Mode
   *   Runs 'mix test' whenever any .ex or .exs file is saved
