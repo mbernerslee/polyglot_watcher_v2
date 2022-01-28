@@ -18,9 +18,9 @@ using the switches listed below...
 
 | Mode | Switcher | Description |
 | ---- | -------- | ----------- |
-| Default | `polyglot_watcher_v2 ex d` | Will run the equivalently pathed test only <br /> In other words: <br /> `mix test/x_test.exs` <br /> when these files are saved: <br/>
-- *lib/x.ex*
-- *test/x_test.exs* |
+| Default | `polyglot_watcher_v2 ex d` | Will run the equivalently pathed test only <br /><br /> In other words: <br /><br /> `mix test/x_test.exs` <br /><br /> when these files are saved: <br/>
+- *lib/x.ex*<br />
+- *test/x_test.exs* <br /> |
 
 <!--
 #### Default Mode
