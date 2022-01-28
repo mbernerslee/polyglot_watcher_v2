@@ -20,6 +20,7 @@ using the switches listed below...
 | ---- | -------- | ----------- |
 | Default | `polyglot_watcher_v2 ex d` | Will run the equivalently pathed test only...<br /> In other words: <br /> `mix test/x_test.exs` <br /> when these files are saved: <br/> - lib/x.ex<br /> - test/x_test.exs <br /> |
 | Run All | `polyglot_watcher_v2 ex ra` | Runs `mix test` whenever any .ex or .exs file is saved |
+| Fixed | `polyglot_watcher_v2 ex f [path]` | Runs `mix test [path]` whenever any *.ex* or *.exs* file is saved. <br /> You can specify an exact line number e.g. `polyglot_watcher_v2 ex f test/cool_test.exs:100`, if you want. <br /><br /> OR without specifying `[path]` <br /><br /> Runs `mix test [the most recent failure in memory]` <br/> Initialising without specifying a path obviously doesn't really work because I'll have no memory of any test failures yet. |
 
 #### Default Mode
 `polyglot_watcher_v2 ex d`
