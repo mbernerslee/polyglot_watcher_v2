@@ -60,15 +60,50 @@ install_inotify_tools() {
   fi
 }
 
+check_elixir_installed() {
+  command -v elixir &> /dev/null
+  if [[ $? -eq 0 ]]; then
+    echo "elixir is already installed OK"
+  else
+    echo "I require Elixir to be installed to work. Install Elixir and try again :-("
+    exit 1
+  fi
+}
+
+build() {
+  echo "building polyglot_watcher_v2..."
+  ./build
+  if [[ $? -eq 0 ]]; then
+    echo "built polyglot_watcher_v2 OK"
+  else
+    echo "failed to build polyglot_watcher_v2 :-("
+    exit 1
+  fi
+}
+
+create_symlink() {
+  ln -sf $DIR/polyglot_watcher_v2 ~/.local/bin/polyglot_watcher_v2
+  if [[ $? -eq 0 ]]; then
+    echo "created polyglot_watcher_v2 symlink to ~/.local/bin OK"
+  else
+    echo "created to create polyglot_watcher_v2 symlink :-("
+    exit 1
+  fi
+}
+
 install_for_mac() {
   check_brew_is_installed
   install_fswatch
+  check_elixir_installed
   echo "Everything installed OK"
 }
 
 install_for_debian() {
   check_os_is_debian
   install_inotify_tools
+  check_elixir_installed
+  build
+  create_symlink
   echo "Everything installed OK"
 }
 
