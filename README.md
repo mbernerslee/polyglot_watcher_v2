@@ -4,6 +4,17 @@
 A software development tool that triggers test runs test when files are saved, using a number of different user-specified modes.
 See the section 'Watcher usage and modes' below.
 
+## Installation
+
+if you're on Debian simply do
+
+- `git clone git@github.com:mbernerslee/polyglot_watcher_v2.git`
+- `cd polyglot_watcher_v2`
+- `./install`
+- now you can run `polyglot_watcher_v2` from anywhere
+
+otherwise you'll have to look at how the `install` works and figure out how to install it on your OS.
+
 ## Watcher usage and modes
 
 I can...
