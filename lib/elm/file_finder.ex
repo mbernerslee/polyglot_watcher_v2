@@ -17,7 +17,10 @@ defmodule PolyglotWatcherV2.Elm.FileFinder do
   end
 
   defp find_json(dir_to_search, starting_dir) do
-    File.ls!(dir_to_search)
-    |> IO.inspect()
+    if dir_to_search |> File.ls!() |> Enum.member?("elm.json") do
+      {:ok, dir_to_search}
+    else
+      find_json
+    end
   end
 end
