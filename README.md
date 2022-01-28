@@ -21,7 +21,6 @@ Runs 'mix test' whenever any .ex or .exs file is saved
 
 
 #### Fixed Mode
-`polyglot_watcher_v2 ex f`
 `polyglot_watcher_v2 ex f [path]`
 
 Runs:
