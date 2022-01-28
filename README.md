@@ -35,9 +35,7 @@ Runs 'mix test' whenever any .ex or .exs file is saved
 Runs:
 `mix test [path]` whenever any *.ex* or *.exs* file is saved
 You can specify an exact line number e.g. `polyglot_watcher_v2 ex f test/cool_test.exs:100`, if you want.
-
 OR without specifying `[path]`, runs `mix test [the most recent failure in memory]`
-
 Initialising without specifying a path obviously doesn't really work because I'll have no memory of any test failures yet.
 
 #### Fix All Mode
@@ -59,13 +57,9 @@ Runs:
 `polyglot_watcher_v2 ex fl`
 
 Only runs the most recently failed test when any *.ex* or *.exs* files are saved.
-
 I do this by keeping track of which tests have failed as I go.
-
 This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.
-
 Initialising in this mode is senseless because on startup my memory of failing tests is empty...
-
 So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one
 
 
