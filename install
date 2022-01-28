@@ -105,6 +105,7 @@ install_for_debian() {
   build
   create_symlink
   echo "Everything installed OK"
+  echo "You should now simply be able to run 'polyglot_watcher_v2' now!"
 }
 
 case $OSTYPE in
