@@ -25,60 +25,6 @@ using the switches listed below...
 | Fix All For File Mode | `ex faff` | Runs <br /><br /> 1. `mix test` <br /> 2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done |
 | Fixed Last Mode | `ex fl` | Runs `mix test [the most recent failure in memory]` when any *.ex* or *.exs* files are saved. <br /> I do this by keeping track of which tests have failed as I go. <br /> This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on. <br /> Initialising in this mode is senseless because on startup my memory of failing tests is empty... <br /> So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one <br /> |
 
-#### Default Mode
-`polyglot_watcher_v2 ex d`
-
-Will run the equivalently pathed test only
-
-In other words:
-`mix test/x_test.exs`
-
-when these files are saved:
-
-- *lib/x.ex*
-- *test/x_test.exs*
-
-
-#### Run All Mode
-`polyglot_watcher_v2 ex ra`
-
-Runs `mix test` whenever any .ex or .exs file is saved
-
-
-#### Fixed Mode
-`polyglot_watcher_v2 ex f [path]`
-
-Runs:
-`mix test [path]` whenever any *.ex* or *.exs* file is saved
-You can specify an exact line number e.g. `polyglot_watcher_v2 ex f test/cool_test.exs:100`, if you want.
-OR without specifying `[path]`, runs `mix test [the most recent failure in memory]`
-Initialising without specifying a path obviously doesn't really work because I'll have no memory of any test failures yet.
-
-#### Fix All Mode
-`polyglot_watcher_v2 ex fa`
-
-Runs:
-1. `mix test`
-2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done
-
-
-#### Fix All For File Mode
-`polyglot_watcher_v2 ex faff [path]`
-
-Runs:
-1. `mix test [path]`
-2. `mix test [path]:line_number_of_a_single_failure` for each failing line number in turn until it's fixed and then 1. again to check we really are done
-
-#### Fixed Last Mode
-`polyglot_watcher_v2 ex fl`
-
-Only runs the most recently failed test when any *.ex* or *.exs* files are saved.
-I do this by keeping track of which tests have failed as I go.
-This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.
-Initialising in this mode is senseless because on startup my memory of failing tests is empty...
-So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one
--->
-
 
 ## Quick guide to the codebase
 
