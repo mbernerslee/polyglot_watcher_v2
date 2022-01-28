@@ -34,7 +34,7 @@ Runs 'mix test' whenever any .ex or .exs file is saved
 
 Runs:
 `mix test [path]` whenever any *.ex* or *.exs* file is saved
-You can specify an exact line number e.g. *test/cool_test.exs:100*, if you want.
+You can specify an exact line number e.g. `polyglot_watcher_v2 ex f test/cool_test.exs:100`, if you want.
 
 OR without specifying `[path]`, runs `mix test [the most recent failure in memory]`
 
