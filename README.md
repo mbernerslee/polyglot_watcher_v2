@@ -1,3 +1,4 @@
+<!-- Keep this up to date with the output of help -->
 # PolyglotWatcherV2
 
 A software development tool that runs tests triggered when files are saved, usinga number of different user-specified modes
