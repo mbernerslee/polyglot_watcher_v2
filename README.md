@@ -15,6 +15,12 @@ using the switches listed below...
 
 
 ### Elixir
+
+| Mode | Switcher | Description |
+| ---- | -------- | ----------- |
+| Default | `polyglot_watcher_v2 ex d` | ass |
+
+<!--
 #### Default Mode
 `polyglot_watcher_v2 ex d`
 
@@ -67,6 +73,7 @@ I do this by keeping track of which tests have failed as I go.
 This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.
 Initialising in this mode is senseless because on startup my memory of failing tests is empty...
 So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one
+-->
 
 
 ## Quick guide to the codebase
