@@ -3,10 +3,28 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
   require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, FilePath, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.Determiner
+  alias PolyglotWatcherV2.Elixir.{Determiner, FixAllForFileMode}
 
   @ex Determiner.ex()
   @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
+
+  describe "switch/1" do
+    test "fails given no provided test file or test failures in memory" do
+      server_state = ServerStateBuilder.build()
+
+      assert {tree, _} = FixAllForFileMode.switch(server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_failed_to_switch_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
+  end
 
   describe "determine_actions/1" do
     test "with no failures for the fixed file, runs all the tests" do
@@ -54,7 +72,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                  },
                  :mix_test => %Action{
                    next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg},
-                   runnable: :mix_test
+                   runnable: {:mix_test, "test/x_test.exs"}
                  },
                  :put_failure_msg => %Action{
                    next_action: :exit,

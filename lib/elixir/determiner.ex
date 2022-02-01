@@ -70,6 +70,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:white, "    (1) 'mix test [path]'\n"},
       {:white,
        "    (2) 'mix test [path]:10' for each failing line number in turn until it's fixed and then (1) again to check we really are done\n"},
+      {:white,
+       "  OR without providing [path], does the above but for the most recent known test failure in memory\n"},
       {:light_magenta, "ex fl\n"},
       {:white, "  Fixed Last Mode\n"},
       {:white,
@@ -90,6 +92,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["f"] -> &FixedFileMode.switch(&1)
       ["f", test_file] -> &FixedFileMode.switch(&1, test_file)
       ["fa"] -> &FixAllMode.switch(&1)
+      ["faff"] -> &FixAllForFileMode.switch(&1)
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)

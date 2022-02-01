@@ -326,6 +326,31 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
                tree.actions_tree.switch_mode
     end
 
+    test "switching to fix_all_for_file mode uses the last failure file if no path is provided" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 1}])
+
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex faff", server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :switch_mode,
+        :put_switch_success_msg,
+        :mix_test,
+        :put_running_latest_failure_msg,
+        :put_sarcastic_success
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+
+      assert %Action{runnable: {:switch_mode, :elixir, {:fix_all_for_file, "test/x_test.exs"}}} =
+               tree.actions_tree.switch_mode
+    end
+
     test "given nonsense user input, doesn't do anything" do
       server_state =
         ServerStateBuilder.build()

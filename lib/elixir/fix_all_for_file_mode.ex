@@ -2,6 +2,63 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.{FailedTestActionChain, Failures}
 
+  def switch(server_state) do
+    case server_state.elixir.failures do
+      [{test_path, _} | _] ->
+        switch_mode_actions_tree = %{
+          clear_screen: %Action{
+            runnable: :clear_screen,
+            next_action: :switch_mode
+          },
+          switch_mode: %Action{
+            runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
+            next_action: :put_switch_success_msg
+          },
+          put_switch_success_msg: %Action{
+            runnable:
+              {:puts, :magenta,
+               "Switching Elixir to fix_all_for_file #{test_path} mode\nRunning mix test #{test_path}..."},
+            next_action: :mix_test
+          },
+          mix_test: %Action{
+            runnable: {:mix_test, test_path},
+            next_action: %{
+              0 => :put_sarcastic_success,
+              :fallback => :put_running_latest_failure_msg
+            }
+          },
+          put_running_latest_failure_msg: %Action{
+            runnable:
+              {:puts, :red,
+               "We'll run only the above failing test until it passes, then the next one until all #{test_path} tests pass"},
+            next_action: :exit
+          },
+          put_sarcastic_success: %Action{
+            runnable: :put_sarcastic_success,
+            next_action: :exit
+          }
+        }
+
+        {%{entry_point: :clear_screen, actions_tree: switch_mode_actions_tree}, server_state}
+
+      [] ->
+        switch_mode_actions_tree = %{
+          clear_screen: %Action{
+            runnable: :clear_screen,
+            next_action: :put_failed_to_switch_msg
+          },
+          put_failed_to_switch_msg: %Action{
+            runnable:
+              {:puts, :magenta,
+               "You asked me to switch to fix all for file mode, without specifying which file. I normally use the file from the most recent failure in my memory, but my memory of test failures is empty, so I'm in a bit of a bind and can't work out what you want from me :-("},
+            next_action: :exit
+          }
+        }
+
+        {%{entry_point: :clear_screen, actions_tree: switch_mode_actions_tree}, server_state}
+    end
+  end
+
   def switch(server_state, test_path) do
     switch_mode_actions_tree = %{
       clear_screen: %Action{
@@ -94,7 +151,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
         next_action: {:mix_test_puts, 0}
       },
       mix_test: %Action{
-        runnable: :mix_test,
+        runnable: {:mix_test, test_path},
         next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg}
       },
       put_sarcastic_success: %Action{
