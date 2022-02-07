@@ -1,6 +1,15 @@
 defmodule PolyglotWatcherV2.Server do
   use GenServer
-  alias PolyglotWatcherV2.{TraverseActionsTree, Determine, FSWatch, Inotifywait, Puts, UserInput}
+
+  alias PolyglotWatcherV2.{
+    TraverseActionsTree,
+    Determine,
+    FSWatch,
+    Inotifywait,
+    Puts,
+    UserInput,
+    StartupMessage
+  }
 
   @process_name :server
 
@@ -60,6 +69,7 @@ defmodule PolyglotWatcherV2.Server do
       command_line_args
       |> Enum.join(" ")
       |> UserInput.determine_actions(server_state)
+      |> StartupMessage.put_default_if_empty()
       |> TraverseActionsTree.execute_all()
 
     listen_for_user_input()

@@ -1,6 +1,7 @@
 defmodule PolyglotWatcherV2.ActionsExecutor do
-  @module Application.compile_env(:polyglot_watcher_v2, :actions_executor_module)
-  def execute(runnable, server_state), do: @module.execute(runnable, server_state)
+  def execute(runnable, server_state), do: module().execute(runnable, server_state)
+
+  defp module, do: Application.get_env(:polyglot_watcher_v2, :actions_executor_module)
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorFake do
