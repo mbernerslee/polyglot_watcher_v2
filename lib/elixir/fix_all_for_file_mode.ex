@@ -117,6 +117,10 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
        actions_tree: %{
          clear_screen: %Action{
            runnable: :clear_screen,
+           next_action: :put_mix_test_msg
+         },
+         put_mix_test_msg: %Action{
+           runnable: {:puts, :magenta, "Running mix test #{test_path}"},
            next_action: :mix_test
          },
          mix_test: %Action{
@@ -142,13 +146,17 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
       FailedTestActionChain.build(
         failures,
         :put_failure_msg,
-        %{0 => :mix_test, :fallback => :put_failure_msg}
+        %{0 => :put_mix_test_msg, :fallback => :put_failure_msg}
       )
 
     actions = %{
       clear_screen: %Action{
         runnable: :clear_screen,
         next_action: {:mix_test_puts, 0}
+      },
+      put_mix_test_msg: %Action{
+        runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+        next_action: :mix_test
       },
       mix_test: %Action{
         runnable: {:mix_test, test_path},

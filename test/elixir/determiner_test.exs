@@ -136,6 +136,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         {:mix_test_puts, 6},
         {:mix_test, 7},
         {:mix_test_puts, 7},
+        :put_mix_test_msg,
         :mix_test,
         :put_sarcastic_success,
         :put_failure_msg

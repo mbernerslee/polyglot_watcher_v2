@@ -39,6 +39,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
 
       expected_action_tree_keys = [
         :clear_screen,
+        :put_mix_test_msg,
         :mix_test,
         :put_sarcastic_success,
         :put_failure_msg
@@ -69,6 +70,10 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                  :clear_screen => %Action{
                    next_action: {:mix_test_puts, 0},
                    runnable: :clear_screen
+                 },
+                 :put_mix_test_msg => %Action{
+                   next_action: :mix_test,
+                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs"}
                  },
                  :mix_test => %Action{
                    next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg},
@@ -105,7 +110,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                    runnable: {:mix_test, "test/x_test.exs:2"}
                  },
                  {:mix_test, 2} => %Action{
-                   next_action: %{0 => :mix_test, :fallback => :put_failure_msg},
+                   next_action: %{0 => :put_mix_test_msg, :fallback => :put_failure_msg},
                    runnable: {:mix_test, "test/x_test.exs:3"}
                  }
                },
