@@ -145,6 +145,17 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
     end
+
+    test "returns actions in dan mode" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode({:dan, :mix_test})
+        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 1}])
+
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
+
+      ActionsTreeValidator.validate(tree)
+    end
   end
 
   describe "user_input_actions/2" do
@@ -358,6 +369,17 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
       assert {:none, ^server_state} = Determiner.user_input_actions("ex xxxxx", server_state)
+    end
+
+    test "can switch to dan mode" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 1}])
+
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex dan", server_state)
+
+      assert %Action{runnable: {:switch_mode, :elixir, {:dan, :mix_test}}} =
+               tree.actions_tree.switch_mode
     end
   end
 end

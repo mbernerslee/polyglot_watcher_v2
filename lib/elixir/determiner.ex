@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   alias PolyglotWatcherV2.{Action, FilePath}
 
   alias PolyglotWatcherV2.Elixir.{
+    DanMode,
     DefaultMode,
     FixAllForFileMode,
     FixAllMode,
@@ -96,6 +97,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
+      ["dan"] -> &DanMode.switch/1
       _ -> nil
     end
   end
@@ -179,6 +181,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
       :fixed_last ->
         FixedLastMode.determine_actions(server_state)
+
+      {:dan, _} ->
+        DanMode.determine_actions(server_state)
     end
   end
 end
