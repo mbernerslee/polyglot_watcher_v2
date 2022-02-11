@@ -28,6 +28,16 @@ defmodule PolyglotWatcherV2.Elixir.Failures do
     Enum.filter(failures, fn {path, _} -> path == file_path end)
   end
 
+  def summary(failures) do
+    failures
+    |> Enum.reduce(%{}, fn {file, _line_number}, acc ->
+      Map.update(acc, file, 1, fn count -> count + 1 end)
+    end)
+    |> Enum.reduce(%{files: 0, count: 0}, fn {_file, count}, acc ->
+      %{acc | files: acc.files + 1, count: acc.count + count}
+    end)
+  end
+
   defp parse_test_path(test_path) do
     case String.split(test_path, ":") do
       [test_path] -> {test_path, :all}

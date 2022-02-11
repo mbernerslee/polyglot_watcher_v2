@@ -47,6 +47,12 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     mix_test(:all, server_state)
   end
 
+  def execute(:put_mix_test_summary, server_state) do
+    %{files: files, count: count} = Failures.summary(server_state.elixir.failures)
+    Puts.on_new_line("#{count} test failure(s) in #{files} file(s)", :cyan)
+    {0, server_state}
+  end
+
   def execute(:put_insult, server_state) do
     insult = Enum.random(insulting_failure_messages())
     {Puts.on_new_line(insult, :red), server_state}

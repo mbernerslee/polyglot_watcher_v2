@@ -19,6 +19,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   def exs, do: @exs
 
   def determine_actions(%FilePath{} = file_path, server_state) do
+    # raise "no"
+
     if file_path.extension in @extensions do
       by_mode(file_path, server_state)
     else
@@ -83,7 +85,11 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:white,
        "  Initialising in this mode isn't reccommended because on startup my memory of failing tests is empty...\n"},
       {:white,
-       "  So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one\n"}
+       "  So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one\n"},
+      {:light_magenta, "ex dan\n"},
+      {:white, "  Dan Mode\n"},
+      {:white,
+       "  Basically the same as Fix All Mode... but possibly with nicer logging to make dan happy\n"}
     ]
   end
 

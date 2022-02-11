@@ -35,6 +35,7 @@ using the switches listed below...
 | Fix All | `ex fa` | Runs <br /><br /> 1. `mix test` <br /> 2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done |
 | Fix All For File | `ex faff [path]` | Runs <br /><br /> 1. `mix test [path]` <br /> 2. `mix test [path]:[one test line number only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done <br /><br /> OR without specifying `[path]` <br /><br /> Runs the above but using the most recently failed test file from memory |
 | Fixed Last | `ex fl` | Runs `mix test [the most recent failure in memory]` when any *.ex* or *.exs* files are saved. <br /> I do this by keeping track of which tests have failed as I go. <br /> This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on. <br /> Initialising in this mode is senseless because on startup my memory of failing tests is empty... <br /> So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one <br /> |
+| Dan | `ex dan` | Basically the same as Fix All Mode... but possibly with nicer logging to make dan happy <br /> |
 
 
 ## Quick guide to the codebase
