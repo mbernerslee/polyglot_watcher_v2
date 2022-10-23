@@ -53,22 +53,8 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
     []
   end
 
-  defp first_file_test_plan([{file, line} | _] = failures) do
-    failures_count = Enum.count(failures)
-
-    first_file_test_plan(failures_count, file, line)
-  end
-
-  defp first_file_test_plan(failures_count, file, line) do
-    Enum.reduce_while(1..(failures_count - 1), ["#{file}:#{line}"], fn count, acc ->
-      max_cases = trunc(:math.pow(2, count))
-
-      if failures_count <= max_cases do
-        {:halt, [file | acc]}
-      else
-        {:cont, ["#{file} --failed --max-cases #{max_cases} --max-failures 1" | acc]}
-      end
-    end)
+  defp first_file_test_plan([{file, line} | _]) do
+    ["#{file} --max-failures 1", "#{file}:#{line}"]
   end
 
   defp sort_and_split_by_first_file([]) do

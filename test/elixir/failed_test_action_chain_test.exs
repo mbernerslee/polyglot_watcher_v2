@@ -20,11 +20,11 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChainTest do
                  next_action: %{0 => {:mix_test_puts, 1}, :fallback => :fail_action}
                },
                {:mix_test_puts, 1} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test test/x_test.exs"},
+                 runnable: {:puts, :magenta, "Running mix test test/x_test.exs --max-failures 1"},
                  next_action: {:mix_test, 1}
                },
                {:mix_test, 1} => %Action{
-                 runnable: {:mix_test, "test/x_test.exs"},
+                 runnable: {:mix_test, "test/x_test.exs --max-failures 1"},
                  next_action: %{0 => {:mix_test_puts, 2}, :fallback => :fail_action}
                },
                {:mix_test_puts, 2} => %Action{
@@ -58,48 +58,18 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChainTest do
                  next_action: %{0 => {:mix_test_puts, 1}, :fallback => :fail_action}
                },
                {:mix_test_puts, 1} => %Action{
-                 runnable:
-                   {:puts, :magenta,
-                    "Running mix test test/a_test.exs --failed --max-cases 2 --max-failures 1"},
+                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs --max-failures 1"},
                  next_action: {:mix_test, 1}
                },
                {:mix_test, 1} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs --failed --max-cases 2 --max-failures 1"},
+                 runnable: {:mix_test, "test/a_test.exs --max-failures 1"},
                  next_action: %{0 => {:mix_test_puts, 2}, :fallback => :fail_action}
                },
                {:mix_test_puts, 2} => %Action{
-                 runnable:
-                   {:puts, :magenta,
-                    "Running mix test test/a_test.exs --failed --max-cases 4 --max-failures 1"},
+                 runnable: {:puts, :magenta, "Running mix test --failed --max-failures 1"},
                  next_action: {:mix_test, 2}
                },
                {:mix_test, 2} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs --failed --max-cases 4 --max-failures 1"},
-                 next_action: %{0 => {:mix_test_puts, 3}, :fallback => :fail_action}
-               },
-               {:mix_test_puts, 3} => %Action{
-                 runnable:
-                   {:puts, :magenta,
-                    "Running mix test test/a_test.exs --failed --max-cases 8 --max-failures 1"},
-                 next_action: {:mix_test, 3}
-               },
-               {:mix_test, 3} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs --failed --max-cases 8 --max-failures 1"},
-                 next_action: %{0 => {:mix_test_puts, 4}, :fallback => :fail_action}
-               },
-               {:mix_test_puts, 4} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs"},
-                 next_action: {:mix_test, 4}
-               },
-               {:mix_test, 4} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs"},
-                 next_action: %{0 => {:mix_test_puts, 5}, :fallback => :fail_action}
-               },
-               {:mix_test_puts, 5} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test --failed --max-failures 1"},
-                 next_action: {:mix_test, 5}
-               },
-               {:mix_test, 5} => %Action{
                  runnable: {:mix_test, "--failed --max-failures 1"},
                  next_action: :success_action
                }
@@ -146,20 +116,12 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChainTest do
                  next_action: %{0 => {:mix_test_puts, 1}, :fallback => :fail_action}
                },
                {:mix_test_puts, 1} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs"},
+                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs --max-failures 1"},
                  next_action: {:mix_test, 1}
                },
                {:mix_test, 1} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs"},
+                 runnable: {:mix_test, "test/a_test.exs --max-failures 1"},
                  next_action: %{0 => {:mix_test_puts, 2}, :fallback => :fail_action}
-               },
-               {:mix_test_puts, 2} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test --failed --max-failures 1"},
-                 next_action: {:mix_test, 2}
-               },
-               {:mix_test, 2} => %Action{
-                 runnable: {:mix_test, "--failed --max-failures 1"},
-                 next_action: _
                }
              } =
                FailedTestActionChain.build(
@@ -187,32 +149,14 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChainTest do
                  next_action: %{0 => {:mix_test_puts, 1}, :fallback => :fail_action}
                },
                {:mix_test_puts, 1} => %Action{
-                 runnable:
-                   {:puts, :magenta,
-                    "Running mix test test/a_test.exs --failed --max-cases 2 --max-failures 1"},
+                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs --max-failures 1"},
                  next_action: {:mix_test, 1}
                },
                {:mix_test, 1} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs --failed --max-cases 2 --max-failures 1"},
-                 next_action: %{0 => {:mix_test_puts, 2}, :fallback => :fail_action}
-               },
-               {:mix_test_puts, 2} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs"},
-                 next_action: {:mix_test, 2}
-               },
-               {:mix_test, 2} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs"},
-                 next_action: %{0 => {:mix_test_puts, 3}, :fallback => :fail_action}
-               },
-               {:mix_test_puts, 3} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test --failed --max-failures 1"},
-                 next_action: {:mix_test, 3}
-               },
-               {:mix_test, 3} => %Action{
-                 runnable: {:mix_test, "--failed --max-failures 1"},
-                 next_action: :success_action
+                 runnable: {:mix_test, "test/a_test.exs --max-failures 1"},
+                 next_action: _
                }
-             } ==
+             } =
                FailedTestActionChain.build(
                  [
                    {"test/a_test.exs", 1},
@@ -236,11 +180,11 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChainTest do
                  next_action: %{0 => {:mix_test_puts, 1}, :fallback => :fail_action}
                },
                {:mix_test_puts, 1} => %Action{
-                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs"},
+                 runnable: {:puts, :magenta, "Running mix test test/a_test.exs --max-failures 1"},
                  next_action: {:mix_test, 1}
                },
                {:mix_test, 1} => %Action{
-                 runnable: {:mix_test, "test/a_test.exs"},
+                 runnable: {:mix_test, "test/a_test.exs --max-failures 1"},
                  next_action: :success_action
                }
              } ==
