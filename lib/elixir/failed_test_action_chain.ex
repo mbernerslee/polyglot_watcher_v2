@@ -35,38 +35,22 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
   defp generate_test_plan(failures) do
     {first_file, rest} = sort_and_split_by_first_file(failures)
 
-    first_file_test_plan(first_file) ++ subsequent_files_test_plan(rest)
-  end
-
-  defp subsequent_files_test_plan([]), do: []
-  defp subsequent_files_test_plan([{file, _line}]), do: [file]
-
-  defp subsequent_files_test_plan(failures) do
-    failures = Enum.map(failures, fn {file, _line} -> file end)
-
-    0
-    |> subsequent_files_test_plan(Enum.count(failures), failures, [])
+    first_file
+    |> first_file_test_plan()
+    |> prepend_subsequent_files_test_plan(rest)
     |> Enum.reverse()
   end
 
-  defp subsequent_files_test_plan(batch_number, max, rest, plan) do
-    batch_size = trunc(:math.pow(2, batch_number))
+  defp prepend_subsequent_files_test_plan(plan, []) do
+    plan
+  end
 
-    if batch_size >= max do
-      plan
-    else
-      {batch, rest} = Enum.split(rest, batch_size)
-      plan = [Enum.join(batch, " ") | plan]
-      subsequent_files_test_plan(batch_number + 1, max, rest, plan)
-    end
+  defp prepend_subsequent_files_test_plan(plan, _rest) do
+    ["--failed --max-failures 1" | plan]
   end
 
   defp first_file_test_plan([]) do
     []
-  end
-
-  defp first_file_test_plan([{file, _line}]) do
-    [file]
   end
 
   defp first_file_test_plan([{file, line} | _] = failures) do
@@ -75,19 +59,9 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
     first_file_test_plan(failures_count, file, line)
   end
 
-  defp first_file_test_plan(1, file, _line) do
-    [file]
-  end
-
   defp first_file_test_plan(failures_count, file, line) do
-    IO.inspect(failures_count)
-    IO.inspect(file)
-
-    1..(failures_count - 1)
-    |> Enum.reduce_while(["#{file}:#{line}"], fn count, acc ->
+    Enum.reduce_while(1..(failures_count - 1), ["#{file}:#{line}"], fn count, acc ->
       max_cases = trunc(:math.pow(2, count))
-
-      IO.inspect({failures_count, max_cases})
 
       if failures_count <= max_cases do
         {:halt, [file | acc]}
@@ -95,7 +69,6 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
         {:cont, ["#{file} --failed --max-cases #{max_cases} --max-failures 1" | acc]}
       end
     end)
-    |> Enum.reverse()
   end
 
   defp sort_and_split_by_first_file([]) do

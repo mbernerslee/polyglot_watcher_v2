@@ -107,11 +107,12 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                  },
                  {:mix_test, 1} => %Action{
                    next_action: %{0 => {:mix_test_puts, 2}, :fallback => :put_failure_msg},
-                   runnable: {:mix_test, "test/x_test.exs:2"}
+                   runnable:
+                     {:mix_test, "test/x_test.exs --failed --max-cases 2 --max-failures 1"}
                  },
                  {:mix_test, 2} => %Action{
                    next_action: %{0 => :put_mix_test_msg, :fallback => :put_failure_msg},
-                   runnable: {:mix_test, "test/x_test.exs:3"}
+                   runnable: {:mix_test, "test/x_test.exs"}
                  }
                },
                entry_point: :clear_screen
