@@ -91,23 +91,32 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                  },
                  {:mix_test_puts, 0} => %Action{
                    next_action: {:mix_test, 0},
-                   runnable: _
+                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs:1"}
+                 },
+                 {:mix_test, 0} => %Action{
+                   next_action: {:put_elixir_failures_count, 0},
+                   runnable: {:mix_test, "test/x_test.exs:1"}
+                 },
+                 {:put_elixir_failures_count, 0} => %Action{
+                   runnable: {:put_elixir_failures_count, "test/x_test.exs"},
+                   next_action: %{0 => {:mix_test_puts, 1}, :fallback => :put_failure_msg}
                  },
                  {:mix_test_puts, 1} => %Action{
                    next_action: {:mix_test, 1},
-                   runnable: _
-                 },
-                 {:mix_test, 0} => %Action{
-                   next_action: %{0 => {:mix_test_puts, 1}, :fallback => :put_failure_msg},
-                   runnable: {:mix_test, "test/x_test.exs:1"}
+                   runnable:
+                     {:puts, :magenta, "Running mix test test/x_test.exs --max-failures 1"}
                  },
                  {:mix_test, 1} => %Action{
-                   next_action: %{0 => :put_mix_test_msg, :fallback => :put_failure_msg},
+                   next_action: {:put_elixir_failures_count, 1},
                    runnable: {:mix_test, "test/x_test.exs --max-failures 1"}
+                 },
+                 {:put_elixir_failures_count, 1} => %Action{
+                   runnable: {:put_elixir_failures_count, "test/x_test.exs"},
+                   next_action: %{0 => :put_mix_test_msg, :fallback => :put_failure_msg}
                  }
                },
                entry_point: :clear_screen
-             } = tree
+             } == tree
     end
   end
 end

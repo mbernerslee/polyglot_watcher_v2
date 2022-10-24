@@ -271,6 +271,54 @@ defmodule PolyglotWatcherV2.Elixir.FailuresTest do
       assert [{"test/elixir_lang_mix_test_test.exs", 113}] ==
                Failures.update(failures, test_path, mix_test_output, exit_code)
     end
+
+    test "when the test path is test/x_test.exs --max-failures 1, and it passed, then remove all x_test failures from the list" do
+      mix_test_output = """
+      ...
+
+      Finished in 0.02 seconds (0.02s async, 0.00s sync)
+      3 tests, 0 failures
+
+      Randomized with seed 821110
+
+      """
+
+      exit_code = 0
+      test_path = "test/x_test.exs --max-failures 1"
+
+      failures = [
+        {"test/x_test.exs", 1},
+        {"test/x_test.exs", 2},
+        {"test/x_test.exs", 3},
+        {"test/y_test.exs", 4}
+      ]
+
+      assert [{"test/y_test.exs", 4}] ==
+               Failures.update(failures, test_path, mix_test_output, exit_code)
+    end
+
+    test "when the test path is '--failed --max-failures 1', and it passed, then remove all failures from the list" do
+      mix_test_output = """
+      ...
+
+      Finished in 0.02 seconds (0.02s async, 0.00s sync)
+      3 tests, 0 failures
+
+      Randomized with seed 821110
+
+      """
+
+      exit_code = 0
+      test_path = "--failed --max-failures 1"
+
+      failures = [
+        {"test/x_test.exs", 1},
+        {"test/y_test.exs", 2},
+        {"test/z_test.exs", 3}
+      ]
+
+      assert [] == Failures.update(failures, test_path, mix_test_output, exit_code)
+    end
   end
 
   test "for_file/2 given a test_file_path & a list of failures, returns the ordered failures for that file path only" do
@@ -302,5 +350,81 @@ defmodule PolyglotWatcherV2.Elixir.FailuresTest do
                ],
                "test/x_test.exs"
              )
+  end
+
+  describe "count/2" do
+    test "given a list of failures and a filename, counts all the failures for that file name" do
+      assert Failures.count(
+               [
+                 {"test/x_test.exs", 10},
+                 {"test/x_test.exs", 20},
+                 {"test/x_test.exs", 30},
+                 {"test/other_test.exs", 10},
+                 {"test/other_test.exs", 20},
+                 {"test/other_test.exs", 30},
+                 {"test/x_test.exs", 40},
+                 {"test/yet_another_test.exs", 10},
+                 {"test/yet_another_test.exs", 20},
+                 {"test/yet_another_test.exs", 30},
+                 {"test/x_test.exs", 50}
+               ],
+               "test/x_test.exs"
+             ) == 5
+    end
+
+    test "given a list of failures and :all, counts all the failures" do
+      assert Failures.count(
+               [
+                 {"test/x_test.exs", 10},
+                 {"test/x_test.exs", 20},
+                 {"test/x_test.exs", 30},
+                 {"test/other_test.exs", 10},
+                 {"test/other_test.exs", 20},
+                 {"test/other_test.exs", 30},
+                 {"test/x_test.exs", 40},
+                 {"test/yet_another_test.exs", 10},
+                 {"test/yet_another_test.exs", 20},
+                 {"test/yet_another_test.exs", 30},
+                 {"test/x_test.exs", 50}
+               ],
+               :all
+             ) == 11
+    end
+  end
+
+  describe "failures_count_message/1" do
+    test "given a count > 1, return a magenta message" do
+      assert Failures.count_message(2) ==
+               [
+                 {[:cyan, :italic], "--------------------------------------"},
+                 {[:cyan, :italic], " 2 failing tests remain "},
+                 {[:cyan, :italic], "--------------------------------------"}
+               ]
+
+      assert Failures.count_message(42) ==
+               [
+                 {[:cyan, :italic], "--------------------------------------"},
+                 {[:cyan, :italic], " 42 failing tests remain "},
+                 {[:cyan, :italic], "--------------------------------------"}
+               ]
+    end
+
+    test "given a count = 1, return a magenta message in the singular" do
+      assert Failures.count_message(1) ==
+               [
+                 {[:cyan, :italic], "--------------------------------------"},
+                 {[:cyan, :italic], " 1 failing test remains "},
+                 {[:cyan, :italic], "--------------------------------------"}
+               ]
+    end
+
+    test "given a count = 0, return a green message" do
+      assert Failures.count_message(0) ==
+               [
+                 {[:green, :italic], "--------------------------------------"},
+                 {[:green, :italic], " 0 failing tests remain! "},
+                 {[:green, :italic], "--------------------------------------"}
+               ]
+    end
   end
 end

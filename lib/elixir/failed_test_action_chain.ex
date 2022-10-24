@@ -1,35 +1,39 @@
 defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
   alias PolyglotWatcherV2.Action
 
-  def build([], _fail_action, next_action) do
+  def build(failures, fail_action, next_action, mode \\ :all)
+
+  def build([], _fail_action, next_action, _mode) do
     %{{:mix_test_puts, 0} => %Action{runnable: :noop, next_action: next_action}}
   end
 
-  def build(failures, fail_action, next_action) do
+  def build(failures, fail_action, next_action, mode) do
     tests = generate_test_plan(failures)
-    build(%{}, 0, tests, fail_action, next_action)
+    build(%{}, 0, tests, fail_action, next_action, mode)
   end
 
-  defp build(test_actions, index, [test], _fail_action, next_action) do
+  defp build(test_actions, index, [test], _fail_action, next_action, mode) do
     test_actions
     |> Map.merge(puts(index, test))
-    |> Map.merge(mix_test(index, test, next_action))
+    |> Map.merge(mix_test(index, test))
+    |> Map.merge(put_elixir_failures_count(index, mode, next_action))
   end
 
-  defp build(test_actions, index, [test | rest], fail_action, next_action) do
+  defp build(test_actions, index, [test | rest], fail_action, next_action, mode) do
     next_index = index + 1
 
     test_actions =
       test_actions
       |> Map.merge(puts(index, test))
+      |> Map.merge(mix_test(index, test))
       |> Map.merge(
-        mix_test(index, test, %{
+        put_elixir_failures_count(index, mode, %{
           0 => {:mix_test_puts, next_index},
           :fallback => fail_action
         })
       )
 
-    build(test_actions, next_index, rest, fail_action, next_action)
+    build(test_actions, next_index, rest, fail_action, next_action, mode)
   end
 
   defp generate_test_plan(failures) do
@@ -85,11 +89,20 @@ defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
     }
   end
 
-  defp mix_test(index, test, next_action) do
+  defp put_elixir_failures_count(index, mode, next_action) do
+    %{
+      {:put_elixir_failures_count, index} => %Action{
+        runnable: {:put_elixir_failures_count, mode},
+        next_action: next_action
+      }
+    }
+  end
+
+  defp mix_test(index, test) do
     %{
       {:mix_test, index} => %Action{
         runnable: {:mix_test, test},
-        next_action: next_action
+        next_action: {:put_elixir_failures_count, index}
       }
     }
   end

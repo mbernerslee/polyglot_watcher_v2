@@ -65,6 +65,15 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {0, server_state}
   end
 
+  def execute({:put_elixir_failures_count, all_or_filename}, server_state) do
+    server_state.elixir.failures
+    |> Failures.count(all_or_filename)
+    |> Failures.count_message()
+    |> Puts.on_new_line()
+
+    {server_state.elixir.mix_test_exit_code, server_state}
+  end
+
   def execute(unknown, server_state) do
     Puts.on_new_line(
       "Unknown runnable action given to ActionsExecutor. It was #{inspect(unknown)}, can't do it",
@@ -89,7 +98,12 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
         exit_code
       )
 
-    {exit_code, put_in(server_state, [:elixir, :failures], failures)}
+    server_state =
+      server_state
+      |> put_in([:elixir, :failures], failures)
+      |> put_in([:elixir, :mix_test_exit_code], exit_code)
+
+    {exit_code, server_state}
   end
 
   defp insulting_failure_messages do

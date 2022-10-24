@@ -146,7 +146,8 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
       FailedTestActionChain.build(
         failures,
         :put_failure_msg,
-        %{0 => :put_mix_test_msg, :fallback => :put_failure_msg}
+        %{0 => :put_mix_test_msg, :fallback => :put_failure_msg},
+        test_path
       )
 
     actions = %{
