@@ -29,7 +29,14 @@ defmodule PolyglotWatcherV2.Server do
 
   @os_watchers %{linux: Inotifywait, mac: FSWatch}
 
-  @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
+  defp zombie_killer_script_contents, do: unquote(File.read!("#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"))
+
+  defp zombie_killer_script do
+    path = Path.join(System.tmp_dir!(), "zombie_killer.sh")
+    :ok = File.write!(path, zombie_killer_script_contents(), [:write])
+    _ = System.cmd("chmod", ["+x", path])
+    path
+  end
 
   def child_spec(command_line_args \\ []) do
     %{
@@ -57,7 +64,7 @@ defmodule PolyglotWatcherV2.Server do
       Puts.on_new_line(watcher.startup_message, :magenta)
     end
 
-    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
+    port = Port.open({:spawn_executable, zombie_killer_script()}, args: watcher.startup_command)
 
     server_state =
       Map.merge(
