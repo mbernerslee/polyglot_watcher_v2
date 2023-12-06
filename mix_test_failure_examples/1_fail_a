@@ -1,0 +1,16 @@
+...................................................................
+
+  1) test user_input_actions/2 switching to fix_all mode works, and returns the expected actions (PolyglotWatcherV2.Elixir.DeterminerTest)
+     test/elixir/determiner_test.exs:261
+     ** (PolyglotWatcherV2.InvalidActionsTreeError) I require all 'next_actions' in the tree to exist within it, but some 'next_actions' we're pointing to don't exist in the tree MapSet.new([:mix_test_msg, :put_success_msg, :put_switch_mode_msg])
+     code: ActionsTreeValidator.validate(tree)
+     stacktrace:
+       (polyglot_watcher_v2 0.1.0) test/support/actions_tree_validator.ex:43: PolyglotWatcherV2.ActionsTreeValidator.check_all_next_actions_exist/2
+       (polyglot_watcher_v2 0.1.0) test/support/actions_tree_validator.ex:12: PolyglotWatcherV2.ActionsTreeValidator.validate/1
+       test/elixir/determiner_test.exs:279: (test)
+
+...........
+Finished in 0.1 seconds (0.1s async, 0.01s sync)
+79 tests, 1 failure
+
+Randomized with seed 127125

@@ -1,0 +1,38 @@
+.............................................................................
+
+  1) test start_link/2 when starting up without any command line args, puts the default startup message (PolyglotWatcherV2.ServerTest)
+     test/server_test.exs:18
+     Assertion with =~ failed
+     code:  assert output =~ "Watching for file saves..."
+     left:  ""
+     right: "Watching for file saves..."
+     stacktrace:
+       test/server_test.exs:22: (test)
+
+
+
+  2) test start_link/2 with no command line args given, spawns the server process with default starting state (PolyglotWatcherV2.ServerTest)
+     test/server_test.exs:7
+     match (=) failed
+     code:  assert {:ok, pid} = Server.start_link([], [])
+     left:  {:ok, pid}
+     right: {:error,
+             {%RuntimeError{message: "no"},
+              [
+                {PolyglotWatcherV2.Server, :init, 1, [file: 'lib/server.ex', line: 47, error_info: %{module: Exception}]},
+                {:gen_server, :init_it, 2, [file: 'gen_server.erl', line: 851]},
+                {:gen_server, :init_it, 6, [file: 'gen_server.erl', line: 814]},
+                {:proc_lib, :init_p_do_apply, 3, [file: 'proc_lib.erl', line: 240]}
+              ]}}
+     stacktrace:
+       test/server_test.exs:9: anonymous fn/0 in PolyglotWatcherV2.ServerTest."test start_link/2 with no command line args given, spawns the server process with default starting state"/1
+       (ex_unit 1.14.2) lib/ex_unit/capture_io.ex:272: ExUnit.CaptureIO.do_capture_gl/2
+       (ex_unit 1.14.2) lib/ex_unit/capture_io.ex:230: ExUnit.CaptureIO.do_with_io/3
+       (ex_unit 1.14.2) lib/ex_unit/capture_io.ex:106: ExUnit.CaptureIO.capture_io/1
+       test/server_test.exs:8: (test)
+
+
+Finished in 0.1 seconds (0.1s async, 0.00s sync)
+79 tests, 2 failures
+
+Randomized with seed 628557
