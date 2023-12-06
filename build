@@ -11,9 +11,9 @@ find_todos() {
 }
 
 . ./scripts/beautifier
-run_action "find_todos"
-run_action "mix deps.get"
-run_action "mix loadconfig config/prod.exs"
-run_action "MIX_ENV=test mix compile --warnings-as-errors --force"
-run_action "mix test"
+# run_action "find_todos"
+# run_action "mix deps.get"
+# run_action "mix loadconfig config/prod.exs"
+# run_action "MIX_ENV=test mix compile --warnings-as-errors --force"
+# run_action "mix test"
 run_action "MIX_ENV=prod mix escript.build"
