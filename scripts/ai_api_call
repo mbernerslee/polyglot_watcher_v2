@@ -1,0 +1,19 @@
+#!/bin/bash
+
+curl https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt4-0613/chat/completions?api-version=2023-05-15 \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "api-key: $AZURE_OPENAI_API_KEY" \
+  -d "{
+    \"messages\": [
+        {
+            \"role\": \"system\",
+            \"content\": \"You are a helpful assistant.\"
+        },
+        {
+            \"role\": \"user\",
+            \"content\": \"What's your faveourite colour?\"
+        }
+    ]
+}"
+
