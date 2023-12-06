@@ -11,6 +11,7 @@ end
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{Puts, ShellCommandRunner}
   alias PolyglotWatcherV2.Elixir.Failures
+  alias PolyglotWatcherV2.AIAPICall
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
 
@@ -49,6 +50,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   def execute(:mix_test_ai, server_state) do
     {mix_test_output, exit_code} = ShellCommandRunner.run("mix test --color")
+    if exit_code != 0 do
+      AIAPICall.post(mix_test_output)
+    end
+    IO.inspect(label: "after")
 
 # hi
     failures =

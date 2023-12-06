@@ -10,6 +10,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
 
   describe "switch/1" do
     test "fails given no provided test file or test failures in memory" do
+      raise "thing"
       server_state = ServerStateBuilder.build()
 
       assert {tree, _} = FixAllForFileMode.switch(server_state)
