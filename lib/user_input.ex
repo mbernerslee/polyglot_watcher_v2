@@ -19,7 +19,7 @@ defmodule PolyglotWatcherV2.UserInput do
 
   defp put_default_usage({_, server_state}, help) when help in @helps do
     {%{
-      #  entry_point: :put_usage,
+       entry_point: :put_usage,
        actions_tree: %{
          put_usage: %Action{
            runnable: {:puts, general_usage_puts() ++ languages_usage_puts()},
