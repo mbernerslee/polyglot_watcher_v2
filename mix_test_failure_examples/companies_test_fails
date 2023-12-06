@@ -1,0 +1,74 @@
+1) test update_company/2 with valid attrs updates company, publishes event and returns success (Platform.CompaniesTest)
+     test/platform/companies/companies_test.exs:289
+     Assertion failed, no matching message after 100ms
+     Showing 1 of 1 message in the mailbox
+     code: assert_receive {%Company{name: "updated_name"}, _}
+     mailbox:
+       pattern: {%Platform.Companies.Company{name: "updated_name"}, _}
+       value:   {
+                  %Platform.Companies.Company{
+                    name: "Surge forward",
+                    __meta__: #Ecto.Schema.Metadata<:loaded, "companies">,
+                    address_line_1: "2 Eastbourne Terrace, Floors 5+6, Paddington",
+                    automated_calendar_invites: true,
+                    company_additional_managers: [],
+                    company_email_domains: [],
+                    creates_standard_roles: false,
+                    description: "A cool company",
+                    employees: #Ecto.Association.NotLoaded<association :employees is not loaded>,
+                    exclude_from_commitment_statements: false,
+                    id: 21076,
+                    inserted_at: ~U[2023-01-01 17:30:00.000000Z],
+                    logo_updated_at: ~U[2023-01-01 17:30:00.000000Z],
+                    manager: #Ecto.Association.NotLoaded<association :manager is not loaded>,
+                    manager_id: 29102,
+                    postcode: "W2 6LG",
+                    region: "GB",
+                    role_matches: #Ecto.Association.NotLoaded<association :role_matches is not loaded>,
+                    roles: #Ecto.Association.NotLoaded<association :roles is not loaded>,
+                    unique_join_code: "413527",
+                    updated_at: ~U[2023-01-01 17:30:00.000000Z],
+                    url: "https://www.multiverse.io",
+                    uuid: "cf6280fa-9c5c-461a-b361-dd233f0b76b7"
+                  },
+                  []
+                }
+     stacktrace:
+       test/platform/companies/companies_test.exs:301: (test)
+
+..............
+
+  2) test create_company/2 backfill doesn't associate members with different email domain to company (Platform.CompaniesTest)
+     test/platform/companies/companies_test.exs:265
+     Expected truthy, got nil
+     code: assert association_exists?
+     stacktrace:
+       test/platform/companies/companies_test.exs:284: (test)
+
+......
+
+  3) test update_company/2 backfill associates user with updated email domain (Platform.CompaniesTest)
+     test/platform/companies/companies_test.exs:431
+     match (=) failed
+     The following variables were pinned:
+       new_domain = "newdomain.com"
+     code:  assert [%{email_domain: ^new_domain}] = updated_company.company_email_domains
+     left:  [%{email_domain: ^new_domain}]
+     right: [
+              %Platform.CompanyEmailDomains.CompanyEmailDomain{
+                email_domain: "domain.com",
+                __meta__: #Ecto.Schema.Metadata<:loaded, "company_email_domains">,
+                company: #Ecto.Association.NotLoaded<association :company is not loaded>,
+                company_id: 21096,
+                id: 238,
+                inserted_at: ~U[2023-01-01 17:30:00.000000Z],
+                skip_domain_check: false,
+                updated_at: ~U[2023-01-01 17:30:00.000000Z]
+              }
+            ]
+     stacktrace:
+       test/platform/companies/companies_test.exs:460: (test)
+
+............................
+Finished in 2.9 seconds (2.9s async, 0.00s sync)
+58 tests, 3 failures
