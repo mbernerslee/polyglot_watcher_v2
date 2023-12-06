@@ -7,11 +7,7 @@ defmodule PolyglotWatcherV2.Puts do
     red: IO.ANSI.red(),
     cyan: IO.ANSI.cyan(),
     light_cyan: IO.ANSI.light_cyan(),
-    white: IO.ANSI.white(),
-    light_white: IO.ANSI.light_white(),
-    yellow: IO.ANSI.yellow(),
-    italic: IO.ANSI.italic(),
-    bright: IO.ANSI.bright(),
+   
     strikethrough: "\e[9m"
   }
 

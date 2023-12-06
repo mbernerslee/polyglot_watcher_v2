@@ -1,0 +1,84 @@
+.........................................................
+
+  1) test parse_std_out/1 any three space-separated-words are considered legitimate (PolyglotWatcherV2.InotifywaitTest)
+     test/inotifywait_test.exs:23
+     ** (ArgumentError) cannot use an empty string as the match to replace
+     code: Inotifywait.parse_std_out(std_out, working_dir)
+     stacktrace:
+       (elixir 1.14.2) lib/string.ex:994: String.replace_leading/3
+       (elixir 1.14.2) lib/string.ex:1290: String.trim/2
+       (polyglot_watcher_v2 0.1.0) lib/inotifywait.ex:10: PolyglotWatcherV2.Inotifywait.parse_std_out/2
+       test/inotifywait_test.exs:29: (test)
+
+
+
+  2) test parse_std_out/1 can return a file path (PolyglotWatcherV2.InotifywaitTest)
+     test/inotifywait_test.exs:6
+     ** (ArgumentError) cannot use an empty string as the match to replace
+     code: Inotifywait.parse_std_out(std_out, working_dir)
+     stacktrace:
+       (elixir 1.14.2) lib/string.ex:994: String.replace_leading/3
+       (elixir 1.14.2) lib/string.ex:1290: String.trim/2
+       (polyglot_watcher_v2 0.1.0) lib/inotifywait.ex:10: PolyglotWatcherV2.Inotifywait.parse_std_out/2
+       test/inotifywait_test.exs:12: (test)
+
+..................
+
+  3) test handle_info/2 - file_event regonises file events from FileSystem, & returns a server_state (PolyglotWatcherV2.ServerTest)
+     test/server_test.exs:37
+     ** (ArgumentError) cannot use an empty string as the match to replace
+     code: Server.handle_info(
+     stacktrace:
+       (elixir 1.14.2) lib/string.ex:994: String.replace_leading/3
+       (elixir 1.14.2) lib/string.ex:1290: String.trim/2
+       (polyglot_watcher_v2 0.1.0) lib/inotifywait.ex:10: PolyglotWatcherV2.Inotifywait.parse_std_out/2
+       (polyglot_watcher_v2 0.1.0) lib/server.ex:86: PolyglotWatcherV2.Server.handle_info/2
+       test/server_test.exs:41: (test)
+
+.
+Finished in 0.1 seconds (0.1s async, 0.01s sync)
+79 tests, 3 failures
+
+Randomized with seed 833042
+..........................................................
+
+  1) test parse_std_out/1 any three space-separated-words are considered legitimate (PolyglotWatcherV2.InotifywaitTest)
+     test/inotifywait_test.exs:23
+     ** (ArgumentError) cannot use an empty string as the match to replace
+     code: Inotifywait.parse_std_out(std_out, working_dir)
+     stacktrace:
+       (elixir 1.14.2) lib/string.ex:994: String.replace_leading/3
+       (elixir 1.14.2) lib/string.ex:1290: String.trim/2
+       (polyglot_watcher_v2 0.1.0) lib/inotifywait.ex:10: PolyglotWatcherV2.Inotifywait.parse_std_out/2
+       test/inotifywait_test.exs:29: (test)
+
+
+
+  2) test parse_std_out/1 can return a file path (PolyglotWatcherV2.InotifywaitTest)
+     test/inotifywait_test.exs:6
+     ** (ArgumentError) cannot use an empty string as the match to replace
+     code: Inotifywait.parse_std_out(std_out, working_dir)
+     stacktrace:
+       (elixir 1.14.2) lib/string.ex:994: String.replace_leading/3
+       (elixir 1.14.2) lib/string.ex:1290: String.trim/2
+       (polyglot_watcher_v2 0.1.0) lib/inotifywait.ex:10: PolyglotWatcherV2.Inotifywait.parse_std_out/2
+       test/inotifywait_test.exs:12: (test)
+
+................
+
+  3) test handle_info/2 - file_event regonises file events from FileSystem, & returns a server_state (PolyglotWatcherV2.ServerTest)
+     test/server_test.exs:37
+     ** (ArgumentError) cannot use an empty string as the match to replace
+     code: Server.handle_info(
+     stacktrace:
+       (elixir 1.14.2) lib/string.ex:994: String.replace_leading/3
+       (elixir 1.14.2) lib/string.ex:1290: String.trim/2
+       (polyglot_watcher_v2 0.1.0) lib/inotifywait.ex:10: PolyglotWatcherV2.Inotifywait.parse_std_out/2
+       (polyglot_watcher_v2 0.1.0) lib/server.ex:86: PolyglotWatcherV2.Server.handle_info/2
+       test/server_test.exs:41: (test)
+
+..
+Finished in 0.1 seconds (0.09s async, 0.01s sync)
+79 tests, 3 failures
+
+Randomized with seed 801921

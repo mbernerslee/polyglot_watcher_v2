@@ -5,6 +5,7 @@ defmodule PolyglotWatcherV2.Determine do
     [ElixirDeterminer]
   end
 
+  @spec actions(:ignore | {:ok, any()}, any()) :: any()
   def actions({:ok, file_path}, server_state) do
     Enum.reduce_while(languages(), {:none, server_state}, fn language_module,
                                                              {:none, server_state} ->
