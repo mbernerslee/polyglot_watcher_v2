@@ -1,0 +1,16 @@
+....
+
+  1) test merge/2 doesn't put in duplicate failures (PolyglotWatcherV2.Elixir.FailureMergerTest)
+     test/elixir/failure_merger_test.exs:16
+     Assertion with == failed
+     code:  assert FailureMerger.merge([{"a", 1}], [{"a", 1}]) == [{"a", 1}]
+     left:  [{"a", 1}, :poop]
+     right: [{"a", 1}]
+     stacktrace:
+       test/elixir/failure_merger_test.exs:17: (test)
+
+..........................................................................
+Finished in 0.1 seconds (0.1s async, 0.01s sync)
+79 tests, 1 failure
+
+Randomized with seed 831564

@@ -1,0 +1,71 @@
+1) test parse_std_out/1 returns the first legit looking file path (PolyglotWatcherV2.FSWatchTest)
+     test/fswatch_test.exs:16
+     match (=) failed
+     code:  assert {:ok, %FilePath{path: "first/legit", extension: "txt"}} = FSWatch.parse_std_out(std_out, "steve")
+     left:  {
+              :ok,
+              %PolyglotWatcherV2.FilePath{
+                extension: "txt",
+                path: "first/legit"
+              }
+            }
+     right: {
+              :ok,
+              %PolyglotWatcherV2.FilePath{
+                extension: "txt",
+                path: "/Users/bernersiscool/src/polyglot_watcher_v2/first/legit"
+              }
+            }
+     stacktrace:
+       test/fswatch_test.exs:22: (test)
+
+
+
+  2) test parse_std_out/1 finds paths relative to the working_dir (PolyglotWatcherV2.FSWatchTest)
+     test/fswatch_test.exs:34
+     Assertion with == failed
+     code:  assert {:ok, %FilePath{path: "fifth/file_name", extension: "txt"}} ==
+              FSWatch.parse_std_out(std_out, "ben")
+     left:  {
+              :ok,
+              %PolyglotWatcherV2.FilePath{
+                extension: "txt",
+                path: "fifth/file_name"
+              }
+            }
+     right: {
+              :ok,
+              %PolyglotWatcherV2.FilePath{
+                extension: "txt",
+                path: "/first/second/third/fourth/fifth/file_name"
+              }
+            }
+     stacktrace:
+       test/fswatch_test.exs:39: (test)
+
+.
+
+  3) test parse_std_out/1 can dedupe & return a file path (PolyglotWatcherV2.FSWatchTest)
+     test/fswatch_test.exs:6
+     match (=) failed
+     code:  assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} = FSWatch.parse_std_out(std_out, "steve")
+     left:  {
+              :ok,
+              %PolyglotWatcherV2.FilePath{
+                extension: "ex",
+                path: "lib/server"
+              }
+            }
+     right: {
+              :ok,
+              %PolyglotWatcherV2.FilePath{
+                extension: "ex",
+                path: "/Users/bernersiscool/src/polyglot_watcher_v2/lib/server"
+              }
+            }
+     stacktrace:
+       test/fswatch_test.exs:12: (test)
+
+
+Finished in 0.02 seconds (0.02s async, 0.00s sync)
+4 tests, 3 failures
