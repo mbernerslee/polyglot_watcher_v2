@@ -110,7 +110,7 @@ defmodule PolyglotWatcherV2.Elixir.Failures do
     end
   end
 
-  defp accumulate_failing_tests(mix_test_output) do
+  def accumulate_failing_tests(mix_test_output) do
     mix_test_output = String.split(mix_test_output, "\n")
     accumulate_failing_tests([], nil, mix_test_output)
   end
