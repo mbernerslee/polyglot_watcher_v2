@@ -86,6 +86,7 @@ defmodule PolyglotWatcherV2.Server do
       |> state.watcher.parse_std_out(state.starting_dir)
       |> Determine.actions(state)
       |> TraverseActionsTree.execute_all()
+      |> IO.inspect()
 
     set_ignore_file_changes(false)
     {:noreply, state}

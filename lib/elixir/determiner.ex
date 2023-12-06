@@ -96,6 +96,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
+      ["ai"] -> &switch_to_ai_mode(&1)
       _ -> nil
     end
   end
@@ -147,12 +148,36 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       put_switch_msg: %Action{
         runnable: {:puts, :magenta, "Switching to Elixir fixed_last mode"},
         next_action: :put_intent_msg
-      }
+      },
+
     }
 
     {%{
        entry_point: :clear_screen,
        actions_tree: Map.merge(switch_mode_actions_tree, fixed_last_actions_tree)
+     }, server_state}
+  end
+
+  defp switch_to_ai_mode(server_state) do
+
+    ai_actions_tree = %{
+      clear_screen: %Action{
+        runnable: :clear_screen,
+        next_action: :switch_mode
+      },
+      switch_mode: %Action{
+        runnable: {:switch_mode, :elixir, :ai},
+        next_action: :put_switch_msg
+      },
+      put_switch_msg: %Action{
+        runnable: {:puts, :magenta, "Switching to Ai mode"},
+        next_action: :exit
+      }
+    }
+
+    {%{
+       entry_point: :clear_screen,
+       actions_tree: ai_actions_tree
      }, server_state}
   end
 
