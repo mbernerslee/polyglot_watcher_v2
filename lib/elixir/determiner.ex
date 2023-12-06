@@ -7,7 +7,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     FixAllMode,
     FixedFileMode,
     FixedLastMode,
-    RunAllMode
+    RunAllMode,
+    AIMode
   }
 
   @ex "ex"
@@ -16,7 +17,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
   def ex, do: @ex
   def exs, do: @exs
-
+# sdf
   def determine_actions(%FilePath{} = file_path, server_state) do
     if file_path.extension in @extensions do
       by_mode(file_path, server_state)
@@ -24,7 +25,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:none, server_state}
     end
   end
-
+# hel
   def user_input_actions(user_input, server_state) do
     ex_space = "#{@ex} "
 
@@ -204,6 +205,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
       :fixed_last ->
         FixedLastMode.determine_actions(server_state)
-    end
+
+      :ai ->
+        AIMode.determine_actions(server_state)
+      end
   end
 end
