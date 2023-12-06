@@ -50,12 +50,23 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   def execute(:mix_test_ai, server_state) do
     {mix_test_output, exit_code} = ShellCommandRunner.run("mix test --color")
-    if exit_code != 0 do
-      AIAPICall.post(mix_test_output)
-    end
-    IO.inspect(label: "after")
 
-# hi
+    if exit_code != 0 do
+      execute(
+        {:puts, :magenta,
+         "Calling an AI to help understand the test failures... [Could take a while!]"},
+        server_state
+      )
+
+      case AIAPICall.post(mix_test_output) do
+        {:ok, response} -> IO.puts(response)
+        error -> IO.puts("AI response error! #{inspect(error)}")
+      end
+
+      execute({:puts, :magenta, "AI done!"}, server_state)
+    end
+
+    # hi
     failures =
       Failures.update(
         server_state.elixir.failures,
