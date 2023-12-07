@@ -12,66 +12,88 @@ defmodule PolyglotWatcherV2.AIAPICall do
 
     question = build_question(test_output)
 
-    # {:ok, "cool api response"}
-    body =
-      %{
-        "messages" => [
-          %{
-            "role" => "system",
-            "content" =>
-              "You are a pirate assistant who understands the elixir programming language.
-        You want to be helpful but you are also a deeply sarcastic person."
-          },
-          %{"role" => "user", "content" => question}
-        ]
-      }
-      |> Jason.encode!()
+    {:ok, "cool api response"}
+    # body =
+    #   %{
+    #     "messages" => [
+    #       %{
+    #         "role" => "system",
+    #         "content" =>
+    #           "You are a pirate assistant who understands the elixir programming language.
+    #     You want to be helpful but you are also a deeply sarcastic person."
+    #       },
+    #       %{"role" => "user", "content" => question}
+    #     ]
+    #   }
+    #   |> Jason.encode!()
 
-    options = [recv_timeout: 500_000]
+    # options = [recv_timeout: 500_000]
 
-    case HTTPoison.post(@url, body, headers, options) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        body
-        |> Jason.decode!()
-        |> decode_body()
+    # case HTTPoison.post(@url, body, headers, options) do
+    #   {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    #     body
+    #     |> Jason.decode!()
+    #     |> decode_body()
 
-      {:ok, %HTTPoison.Response{status_code: status_code} = error} ->
-        {:error, "Received status code: #{status_code}. error = #{inspect(error)}"}
+    #   {:ok, %HTTPoison.Response{status_code: status_code} = error} ->
+    #     {:error, "Received status code: #{status_code}. error = #{inspect(error)}"}
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, reason}
+    #   {:error, %HTTPoison.Error{reason: reason}} ->
+    #     {:error, reason}
+    # end
+  end
+
+  defp test_to_lib(test_file) do
+    case Regex.named_captures(~r/test\/(?<file_body>[^\.]+)_test\.exs/, test_file) do
+      %{"file_body" => file_body} ->
+        {:ok, "lib/" <> file_body <> ".ex"}
+      _ ->
+        :error
     end
   end
 
   defp build_question(test_output) do
-    test_failures = Failures.accumulate_failing_tests(test_output)
+    # test_failures = Failures.accumulate_failing_tests(test_output)
 
-    test_code =
-      test_failures
-      |> Enum.map(fn {test_file, _} -> test_file end)
-      # |> IO.inspect(label: "XX")
-      |> Enum.uniq()
-      # |> IO.inspect(label: "test_code")
-      |> Enum.reduce("", fn test_file, acc -> acc <> "\n" <> File.read!(test_file) end)
+    # test_code =
+    #   test_failures
+    #   |> Enum.map(fn {test_file, _} -> test_file end)
+    #   # |> IO.inspect(label: "XX")
+    #   |> Enum.uniq()
+    #   # |> IO.inspect(label: "test_code")
+    #   |> Enum.reduce("", fn test_file, acc -> acc <> "\n" <> File.read!(test_file) end)
 
     # IO.puts("######## TEST CODE ###########################")
 
     # IO.puts(test_code)
 
-    test_failures_count = Enum.count(test_failures)
+    # test_failures_count = Enum.count(test_failures)
 
-    stacktrace_files =
+    test_files =
       test_output
-      |> Stacktrace.find_files()
-      |> Enum.flat_map(fn {_test, %{files: files}} -> files end)
+      |> Failures.accumulate_failing_tests
+      |> IO.inspect(label: "before")
+      |> Enum.map(fn {test_file, _} -> test_file end)
       |> Enum.uniq()
-      # |> IO.inspect(label: "staketrace_files")
-      |> Enum.reduce("", fn file, acc ->
-        case File.read(file) do
-          {:ok, contents} -> acc <> "\n" <> contents
-          _ -> acc
+      |> IO.inspect(label: "after")
+
+      lib_files =
+        test_files |> Enum.flat_map(fn test_file -> case test_to_lib(test_file) do
+          {:ok, lib_file} ->
+            [lib_file]
+            _ -> []
         end
       end)
+      |> IO.inspect()
+      # |> Enum.flat_map(fn {_test, %{files: files}} -> files end)
+      # |> Enum.uniq()
+      # # |> IO.inspect(label: "staketrace_files")
+      # |> Enum.reduce("", fn file, acc ->
+      #   case File.read(file) do
+      #     {:ok, contents} -> acc <> "\n" <> contents
+      #     _ -> acc
+      #   end
+      # end)
 
     # IO.puts("######## STACKTRACE FILES ###########################")
 
@@ -81,19 +103,8 @@ defmodule PolyglotWatcherV2.AIAPICall do
     # String.length(test_code) |> IO.inspect(label: "test_code length")
     # String.length(test_output) |> IO.inspect(label: "test_output length")
 
-    """
-    Below is the output from running elixir tests with 'mix test':
-
-    #{test_output}
-
-    And here is the code from the stacktraces of the failures:
-
-    #{stacktrace_files}
-
-    Is there a common theme to all of these failures? If so, can you please tell me what it is and offer any Elixir code that will fix the problem?
-
-    Failing that, can you identify a common root cause that is causing the most tests to fail, and if so can you offer any Elixir code that might fix that problem?
-    """
+    #
+    "hello"
   end
 
   defp decode_body(body) do
