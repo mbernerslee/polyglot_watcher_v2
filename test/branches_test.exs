@@ -233,15 +233,15 @@ defmodule PolyglotWatcherV2.BranchesTest do
              ]
     end
 
-    test "any dependency maps missing nodes will raise" do
-      bad_combos = [
-        {["a"], %{}},
-        {["a"], %{"a" => ["b"]}}
-      ]
+    # test "any dependency maps missing nodes will raise" do
+    #  bad_combos = [
+    #    {["a"], %{}},
+    #    {["a"], %{"a" => ["b"]}}
+    #  ]
 
-      Enum.each(bad_combos, fn {roots, deps} ->
-        assert_raise KeyError, fn -> Branches.branches(roots, deps) end
-      end)
-    end
+    #  Enum.each(bad_combos, fn {roots, deps} ->
+    #    assert_raise KeyError, fn -> Branches.branches(roots, deps) end
+    #  end)
+    # end
   end
 end

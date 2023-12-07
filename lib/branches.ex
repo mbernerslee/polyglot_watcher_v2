@@ -1,18 +1,13 @@
 defmodule PolyglotWatcherV2.Branches do
-  def branches(paths, tree) do
+  def branches(roots, deps) do
+    Enum.flat_map(roots, fn root -> branch(root, deps, [root]) end)
   end
 
-  # def branches(roots, deps) do
-  #  roots
-  #  |> Enum.flat_map(&walk(&1, [], deps))
-  # end
-
-  # defp walk(node, path, deps) do
-  #  new_path = [node | path]
-
-  #  case deps[node] do
-  #    [] -> [Enum.reverse(new_path)]
-  #    children -> children |> Enum.flat_map(&walk(&1, new_path, deps))
-  #  end
-  # end
+  defp branch(node, deps, path) do
+    case Map.get(deps, node) do
+      nil -> raise KeyError, "KeyError: key #{node} not found"
+      [] -> [path]
+      direct_deps -> Enum.flat_map(direct_deps, &branch(&1, deps, path ++ [&1]))
+    end
+  end
 end

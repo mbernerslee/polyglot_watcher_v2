@@ -12,99 +12,103 @@ defmodule PolyglotWatcherV2.AIAPICall do
 
     question = build_question(test_output)
 
-    {:ok, "cool api response"}
-    # body =
-    #   %{
-    #     "messages" => [
-    #       %{
-    #         "role" => "system",
-    #         "content" =>
-    #           "You are a pirate assistant who understands the elixir programming language.
-    #     You want to be helpful but you are also a deeply sarcastic person."
-    #       },
-    #       %{"role" => "user", "content" => question}
-    #     ]
-    #   }
-    #   |> Jason.encode!()
+    # {:ok, "cool api response"}
+    body =
+      %{
+        "messages" => [
+          %{
+            "role" => "system",
+            "content" =>
+              "You are a pirate assistant who understands the elixir programming language.
+         You want to be helpful but you are also a deeply sarcastic person."
+          },
+          %{"role" => "user", "content" => question}
+        ]
+      }
+      |> Jason.encode!()
 
-    # options = [recv_timeout: 500_000]
+    options = [recv_timeout: 500_000]
 
-    # case HTTPoison.post(@url, body, headers, options) do
-    #   {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-    #     body
-    #     |> Jason.decode!()
-    #     |> decode_body()
+    case HTTPoison.post(@url, body, headers, options) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        body
+        |> Jason.decode!()
+        |> decode_body()
 
-    #   {:ok, %HTTPoison.Response{status_code: status_code} = error} ->
-    #     {:error, "Received status code: #{status_code}. error = #{inspect(error)}"}
+      {:ok, %HTTPoison.Response{status_code: status_code} = error} ->
+        {:error, "Received status code: #{status_code}. error = #{inspect(error)}"}
 
-    #   {:error, %HTTPoison.Error{reason: reason}} ->
-    #     {:error, reason}
-    # end
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, reason}
+    end
   end
 
   defp test_to_lib(test_file) do
     case Regex.named_captures(~r/test\/(?<file_body>[^\.]+)_test\.exs/, test_file) do
       %{"file_body" => file_body} ->
         {:ok, "lib/" <> file_body <> ".ex"}
+
       _ ->
         :error
     end
   end
 
   defp build_question(test_output) do
-    # test_failures = Failures.accumulate_failing_tests(test_output)
+    test_files =
+      test_output
+      |> Failures.accumulate_failing_tests()
+      |> Enum.map(fn {test_file, _} -> test_file end)
+      |> Enum.uniq()
 
-    # test_code =
-    #   test_failures
-    #   |> Enum.map(fn {test_file, _} -> test_file end)
-    #   # |> IO.inspect(label: "XX")
-    #   |> Enum.uniq()
-    #   # |> IO.inspect(label: "test_code")
-    #   |> Enum.reduce("", fn test_file, acc -> acc <> "\n" <> File.read!(test_file) end)
+    lib_files =
+      test_files
+      |> Enum.flat_map(fn test_file ->
+        case test_to_lib(test_file) do
+          {:ok, lib_file} -> [lib_file]
+          _ -> []
+        end
+      end)
+      |> Enum.uniq()
+
+    test_code =
+      Enum.reduce(test_files, "", fn test_file, acc ->
+        case File.read(test_file) do
+          {:ok, contents} -> acc <> "\n" <> contents
+          _ -> acc
+        end
+      end)
+
+    lib_code =
+      Enum.reduce(lib_files, "", fn lib_file, acc ->
+        case File.read(lib_file) do
+          {:ok, contents} -> acc <> "\n" <> contents
+          _ -> acc
+        end
+      end)
 
     # IO.puts("######## TEST CODE ###########################")
 
     # IO.puts(test_code)
 
-    # test_failures_count = Enum.count(test_failures)
+    # IO.puts("######## LIB CODE ###########################")
 
-    test_files =
-      test_output
-      |> Failures.accumulate_failing_tests
-      |> IO.inspect(label: "before")
-      |> Enum.map(fn {test_file, _} -> test_file end)
-      |> Enum.uniq()
-      |> IO.inspect(label: "after")
+    # IO.puts(lib_code)
 
-      lib_files =
-        test_files |> Enum.flat_map(fn test_file -> case test_to_lib(test_file) do
-          {:ok, lib_file} ->
-            [lib_file]
-            _ -> []
-        end
-      end)
-      |> IO.inspect()
-      # |> Enum.flat_map(fn {_test, %{files: files}} -> files end)
-      # |> Enum.uniq()
-      # # |> IO.inspect(label: "staketrace_files")
-      # |> Enum.reduce("", fn file, acc ->
-      #   case File.read(file) do
-      #     {:ok, contents} -> acc <> "\n" <> contents
-      #     _ -> acc
-      #   end
-      # end)
+    """
+    Given the elixir test failure output
 
-    # IO.puts("######## STACKTRACE FILES ###########################")
+    #{test_output}
 
-    # IO.puts(test_code)
+    Which happened from running the tests
 
-    # String.length(stacktrace_files) |> IO.inspect(label: "stacktrace_files length")
-    # String.length(test_code) |> IO.inspect(label: "test_code length")
-    # String.length(test_output) |> IO.inspect(label: "test_output length")
+    #{test_code}
 
-    #
-    "hello"
+    And the underlying code of
+
+    #{lib_code}
+
+    Can you please provide me the correct code that woud make the tests pass?
+    """
   end
 
   defp decode_body(body) do
