@@ -12,17 +12,26 @@ defmodule PolyglotWatcherV2.AIAPICall do
 
     question = build_question(test_output)
 
-    # {:ok, "cool api response"}
     body =
       %{
         "messages" => [
           %{
             "role" => "system",
             "content" =>
-              "You are a pirate assistant who understands the elixir programming language.
-         You want to be helpful but you are also a deeply sarcastic person."
+        #       "You are a pirate assistant who understands the elixir programming language.
+        #  You want to be helpful but you are also a deeply sarcastic person."
+        #   },
+        #   %{"role" => "user", "content" => question}
+
+              "You are a bot who understands the elixir programming language.
+               You are an implementation within a test watcher that is being used to debug failing tests.
+               You only show solutions as code snippets before explaining the issues
+               Your responses are returned in a terminal"
           },
-          %{"role" => "user", "content" => question}
+          %{
+            "role" => "user",
+            "content" => content
+          }
         ]
       }
       |> Jason.encode!()
@@ -94,20 +103,54 @@ defmodule PolyglotWatcherV2.AIAPICall do
 
     # IO.puts(lib_code)
 
+    faulty_test_response_example =
+      ~s|
+      ----------------------------------------------------------------
+      \033[32m First test (test/elixir/fix_all_for_file_mode_test.exs:12): \033[0m
+
+      ```
+      test "fails given no provided test file or test failures in memory" do
+        \033[31m raise "thing" <---- Here be the culprit \033[0m
+        ...
+      end
+      ```
+
+      Problem: The code raises an error on purpose.
+      solution: Delete or comment out the raise function if it's not needed for the test.
+
+      ----------------------------------------------------------------
+      |
+
+
     """
-    Given the elixir test failure output
+    Do not introduce anything before providing the code snippets as solutions (eg. `Sure, here are the lines and explanations for the test errors:`)
+    Talk as minimally as possible.
+    Below is the output from running elixir tests with 'mix test'
 
     #{test_output}
 
-    Which happened from running the tests
+    And also these are the tests files that failed:
 
     #{test_code}
+
+    I'd like a marked up version of just the  test (not the whole file), highlighting the line where the error occurs,
+    and an explanation about what is going wrong.
+
+    In the case of the fault being in the test file, here is an example of what I want you to return: #{faulty_test_response_example}.
+    You must include, an index for the test, the code snippet, problem, and solution.
+    Do not specify the programming language before showing code snippets (eg. ```elixir.)
+    Under no circumstances are you to use a different format for your response
+    I also want you to put "<---- Here be the culprit" in red font for a terminal at the lines which are causing the failures.
+    If you find multiple lines with faults, add this same thing to each line.
+    If the fault is very simple, I want you to be very very brief. If the fault is not, I want you to explain as normal.
+
 
     And the underlying code of
 
     #{lib_code}
 
     Can you please provide me the correct code that woud make the tests pass?
+
     """
   end
 
