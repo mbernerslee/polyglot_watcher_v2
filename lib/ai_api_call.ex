@@ -30,7 +30,7 @@ defmodule PolyglotWatcherV2.AIAPICall do
           },
           %{
             "role" => "user",
-            "content" => content
+            "content" => question
           }
         ]
       }
