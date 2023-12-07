@@ -59,8 +59,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
       )
 
       case AIAPICall.post(mix_test_output) do
-        {:ok, response} -> IO.puts(response)
-        error -> IO.puts("AI response error! #{inspect(error)}")
+        {:ok, response} ->
+          IO.puts(response)
+
+        error ->
+          IO.puts("AI response error! #{inspect(error)}")
       end
 
       execute({:puts, :magenta, "AI done!"}, server_state)
