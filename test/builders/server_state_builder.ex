@@ -20,4 +20,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
   def with_elixir_failures(server_state, failures) do
     put_in(server_state, [:elixir, :failures], failures)
   end
+
+  def with_rust_mode(server_state, mode) do
+    put_in(server_state, [:rust, :mode], mode)
+  end
 end
