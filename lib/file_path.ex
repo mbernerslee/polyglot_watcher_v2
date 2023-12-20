@@ -2,7 +2,6 @@ defmodule PolyglotWatcherV2.FilePath do
   defstruct path: nil, extension: nil
 
   def build(relative_path) do
-    # case String.split(relative_path, ".", trim: true) do
     case split_by_final_full_stop(relative_path) do
       %{path: ""} ->
         :ignore

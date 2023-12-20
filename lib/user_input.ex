@@ -1,8 +1,9 @@
 defmodule PolyglotWatcherV2.UserInput do
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.Determiner, as: ElixirDeterminer
+  alias PolyglotWatcherV2.Rust.Determiner, as: RustDeterminer
 
-  @languages [ElixirDeterminer]
+  @languages [ElixirDeterminer, RustDeterminer]
   @helps ["help\n", "help"]
   @help_and_quits ["help_and_quit\n", "help_and_quit"]
 
@@ -82,6 +83,8 @@ defmodule PolyglotWatcherV2.UserInput do
 
   # keep this up to date with README.md!
   defp languages_usage_puts do
-    Enum.flat_map(@languages, fn language -> language.usage_puts end)
+    Enum.reduce(@languages, [], fn language, acc ->
+      acc ++ [{:magenta, "\n"} | language.usage_puts]
+    end)
   end
 end
