@@ -9,9 +9,10 @@ defmodule PolyglotWatcherV2.ServerTest do
         assert {:ok, pid} = Server.start_link([], [])
         assert is_pid(pid)
 
-        assert %{port: port, elixir: elixir} = :sys.get_state(pid)
+        assert %{port: port, elixir: elixir, rust: rust} = :sys.get_state(pid)
         assert is_port(port)
         assert %{failures: [], mode: :default} == elixir
+        assert %{mode: :default} == rust
       end)
     end
 
@@ -39,7 +40,7 @@ defmodule PolyglotWatcherV2.ServerTest do
 
       assert {:noreply, new_server_state} =
                Server.handle_info(
-                 {:port, {:data, './test/ CLOSE_WRITE,CLOSE server_test.exs\n'}},
+                 {:port, {:data, ~c"./test/ CLOSE_WRITE,CLOSE server_test.exs\n"}},
                  server_state
                )
 

@@ -1,8 +1,9 @@
 defmodule PolyglotWatcherV2.Determine do
   alias PolyglotWatcherV2.Elixir.Determiner, as: ElixirDeterminer
+  alias PolyglotWatcherV2.Rust.Determiner, as: RustDeterminer
 
   defp languages do
-    [ElixirDeterminer]
+    [ElixirDeterminer, RustDeterminer]
   end
 
   def actions({:ok, file_path}, server_state) do

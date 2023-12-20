@@ -19,7 +19,8 @@ defmodule PolyglotWatcherV2.Server do
     port: nil,
     ignore_file_changes: false,
     starting_dir: nil,
-    elixir: %{mode: :default, failures: []}
+    elixir: %{mode: :default, failures: []},
+    rust: %{mode: :default}
   }
 
   @supported_oss %{

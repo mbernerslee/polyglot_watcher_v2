@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       port: nil,
       ignore_file_changes: false,
       elixir: %{mode: :default, failures: []},
+      rust: %{mode: :default},
       os: :linux,
       watcher: Inotifywait,
       starting_dir: "./"

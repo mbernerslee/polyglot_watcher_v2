@@ -28,5 +28,13 @@ defmodule PolyglotWatcherV2.InotifywaitTest do
       assert {:ok, %FilePath{path: "path/file", extension: "extension"}} ==
                Inotifywait.parse_std_out(std_out, working_dir)
     end
+
+    test "when there's a output we can't parse to a file, followed by one we can, return the one we can" do
+      std_out = "./lib/ CLOSE_WRITE,CLOSE 4913\n./lib/ CLOSE_WRITE,CLOSE server.ex\n"
+      working_dir = "/Users/bernersiscool/src/polyglot_watcher_v2"
+
+      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
+               Inotifywait.parse_std_out(std_out, working_dir)
+    end
   end
 end
