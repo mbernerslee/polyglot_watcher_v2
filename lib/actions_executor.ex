@@ -53,7 +53,9 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   def execute(:cargo_test, server_state) do
-    {_cargo_build_output, exit_code} = ShellCommandRunner.run("cargo test")
+    {_cargo_build_output, exit_code} =
+      ShellCommandRunner.run("cargo test -q --color=always -- --color=always")
+
     {exit_code, server_state}
   end
 
