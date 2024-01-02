@@ -11,7 +11,7 @@ defmodule PolyglotWatcherV2.ShellCommandRunner do
 
   @impl true
   def init(%{command: command, caller_pid: caller_pid}) do
-    port = Port.open({:spawn, command}, [:exit_status])
+    port = Port.open({:spawn, command}, [:exit_status, :stderr_to_stdout])
 
     {:ok, %{port: port, command_output: "", caller_pid: caller_pid}}
   end
