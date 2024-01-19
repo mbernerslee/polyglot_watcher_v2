@@ -7,7 +7,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     FixAllMode,
     FixedFileMode,
     FixedLastMode,
-    RunAllMode
+    RunAllMode,
+    FixedFileAIMode
   }
 
   @ex "ex"
@@ -96,6 +97,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
+      ["fai", test_file] -> &FixedFileAIMode.switch(&1, test_file)
       _ -> nil
     end
   end
@@ -167,6 +169,9 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
       {:fixed_file, _file} ->
         FixedFileMode.determine_actions(server_state)
+
+      {:fixed_file_ai, _file} ->
+        FixedFileAIMode.determine_actions(server_state)
 
       :fix_all ->
         FixAllMode.determine_actions(server_state)

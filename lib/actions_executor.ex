@@ -59,6 +59,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {exit_code, server_state}
   end
 
+  def execute(:elixir_call_chat_gpt, server_state) do
+    IO.puts("Calling ChatGPT!")
+    {0, server_state}
+  end
+
   def execute(:put_insult, server_state) do
     insult = Enum.random(insulting_failure_messages())
     {Puts.on_new_line(insult, :red), server_state}

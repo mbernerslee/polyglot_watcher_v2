@@ -125,6 +125,37 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
     end
+    test "returns the fixed_file_ai_mode_actions when in that state" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode({:fixed_file_ai, "test/x_test.exs"})
+        |> ServerStateBuilder.with_elixir_failures([
+          {"test/x_test.exs", 1},
+          {"test/x_test.exs", 2},
+          {"test/x_test.exs", 3},
+          {"test/x_test.exs", 4},
+          {"test/x_test.exs", 5},
+          {"test/x_test.exs", 6},
+          {"test/x_test.exs", 7},
+          {"test/x_test.exs", 8}
+        ])
+
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_intent_msg,
+        :mix_test,
+        :put_insult,
+        :call_chat_gpt,
+        :put_success_msg,
+        :put_chat_gpt_failure_msg,
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
   end
 
   describe "user_input_actions/2" do
@@ -338,6 +369,18 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
 
       assert {:none, ^server_state} = Determiner.user_input_actions("ex xxxxx", server_state)
+    end
+
+    test "given ex fai, switches to fixed ai mode" do
+      server_state = ServerStateBuilder.build()
+
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex fai test/x_test.exs:12", server_state)
+
+      expected_action_tree_keys = [:call_chat_gpt, :check_file_exists, :clear_screen, :mix_test, :put_chat_gpt_failure_msg, :put_insult, :put_intent_msg, :put_no_file_msg, :put_success_msg, :put_switch_success_msg, :switch_mode]
+      assert %{entry_point: :clear_screen} = tree
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
     end
   end
 end
