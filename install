@@ -94,7 +94,7 @@ create_symlink_for_debian() {
 }
 
 create_symlink_for_mac() {
-  ln -sf $DIR/polyglot_watcher_v2 /usr/local/bin/polyglot_watcher_v2
+  sudo ln -sf $DIR/polyglot_watcher_v2 /usr/local/bin/polyglot_watcher_v2
   if [[ $? -eq 0 ]]; then
     echo "created polyglot_watcher_v2 symlink to /usr/local/bin/polyglot_watcher_v2 OK"
   else
@@ -123,15 +123,11 @@ install_for_debian() {
   echo "You should now simply be able to run 'polyglot_watcher_v2' now!"
 }
 
-case $OSTYPE in
-  'darwin20')
-    install_for_mac
-    ;;
-  'linux-gnu')
-    install_for_debian
-    ;;
-  *)
-    echo "Installing on your OS $OSTYPE is not yet supported :-("
-    exit 1
-    ;;
-esac
+if [[ $OSTYPE == darwin* ]]; then
+  install_for_mac
+elif [[ $OSTYPE == linux-gnu ]]; then
+  install_for_debian
+else
+  echo "Installing on your OS $OSTYPE is not yet supported :-("
+  exit 1
+fi
