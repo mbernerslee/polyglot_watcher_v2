@@ -11,7 +11,36 @@ defmodule PolyglotWatcherV2.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [main_module: PolyglotWatcherV2, name: escript_name(Mix.env())]
+      escript: [main_module: PolyglotWatcherV2, name: escript_name(Mix.env())],
+      releases: [
+        polyglot_watcher_v2: [
+          steps: [:assemble, &test_release_step/1],
+          include_erts: true
+          # platform release steps
+          #   steps: [:assemble, :tar],
+          #   include_executables_for: [:unix],
+          #   applications: [
+          #     runtime_tools: :permanent,
+          #     fun_with_flags: :load,
+          #     fun_with_flags_ui: :load,
+          #     stardust_phoenix: :load
+          #   ],
+          #   include_erts: true
+        ]
+      ]
+    ]
+  end
+
+  defp test_release_step(%Mix.Release{} = release) do
+    # mode = Keyword.fetch!(release.applications.polyglot_watcher_v2, :mode)
+    # :ok = Mix.Release.make_boot_script(release, release.version_path, [mode])
+    release
+  end
+
+  def application do
+    [
+      mod: {PolyglotWatcherV2, []},
+      extra_applications: []
     ]
   end
 
