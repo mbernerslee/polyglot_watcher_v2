@@ -55,10 +55,10 @@ defmodule PolyglotWatcherV2.Server do
     watcher = Map.fetch!(@os_watchers, os)
 
     if Application.get_env(:polyglot_watcher_v2, :put_watcher_startup_message) do
-      Puts.on_new_line(watcher.startup_message, :magenta)
+      Puts.on_new_line(watcher.startup_message(), :magenta)
     end
 
-    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
+    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
 
     server_state =
       Map.merge(
