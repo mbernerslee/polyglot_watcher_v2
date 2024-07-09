@@ -11,9 +11,7 @@ defmodule PolyglotWatcherV2.ShellCommandRunner do
 
   @impl true
   def init(%{command: command, caller_pid: caller_pid}) do
-    IO.inspect(command)
     port = Port.open({:spawn, command}, [:exit_status, :stderr_to_stdout])
-    IO.inspect("after port open")
 
     {:ok, %{port: port, command_output: "", caller_pid: caller_pid}}
   end
@@ -23,7 +21,6 @@ defmodule PolyglotWatcherV2.ShellCommandRunner do
     # this line looks weird and pointless, but it solves elm make output from being wrong
     # and outputting "Main âââ>", instead of "Main ───>"
     # https://elixirforum.com/t/converting-a-list-of-bytes-from-utf-8-or-iso-8859-1-to-elixir-string/20032/2
-    IO.inspect("handle_info! #{inspect(command_output)}")
     command_output = :unicode.characters_to_binary(:erlang.list_to_binary(command_output))
 
     IO.write(command_output)

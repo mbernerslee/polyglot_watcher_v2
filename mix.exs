@@ -14,7 +14,6 @@ defmodule PolyglotWatcherV2.MixProject do
       escript: [main_module: PolyglotWatcherV2, name: escript_name(Mix.env())],
       releases: [
         polyglot_watcher_v2: [
-          steps: [:assemble, &test_release_step/1],
           include_erts: true
           # platform release steps
           #   steps: [:assemble, :tar],
@@ -29,12 +28,6 @@ defmodule PolyglotWatcherV2.MixProject do
         ]
       ]
     ]
-  end
-
-  defp test_release_step(%Mix.Release{} = release) do
-    # mode = Keyword.fetch!(release.applications.polyglot_watcher_v2, :mode)
-    # :ok = Mix.Release.make_boot_script(release, release.version_path, [mode])
-    release
   end
 
   def application do

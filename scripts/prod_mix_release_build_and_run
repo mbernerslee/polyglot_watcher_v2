@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+MIX_ENV=prod mix compile --force
+MIX_ENV=prod mix release --overwrite
+
+chmod +x _build/prod/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2_wrapper
+
+_build/prod/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2_wrapper
