@@ -9,6 +9,16 @@ defmodule PolyglotWatcherV2 do
   def start(_type, command_line_args \\ []) do
     # TODO test this
     # TODO e2e test that release works
+
+    IO.inspect(command_line_args)
+
+    # TODO make CLI args work... since they gotta be passed in this way it seems
+    # TODO e2e test that asserts starting 2 instances via the wrapper works
+    # TODO use start OR main - only the one `mix release` supports. delete the other
+
+    System.get_env("POLYGLOT_WATCHER_V2_CLI_ARGS")
+    |> IO.inspect()
+
     if path = System.get_env("POLYGLOT_WATCHER_V2_PATH") do
       System.put_env("PATH", path)
     else
