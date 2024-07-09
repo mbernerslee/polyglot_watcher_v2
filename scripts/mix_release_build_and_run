@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+mix release --overwrite
+_build/dev/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2 start
