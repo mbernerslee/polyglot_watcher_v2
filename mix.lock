@@ -1,0 +1,3 @@
+%{
+  "mimic": {:hex, :mimic, "1.8.2", "f4cf6ad13a305c5ee1a6c304ee36fc7afb3ad748e2af8cd5fbf122f44a283534", [:mix], [], "hexpm", "abc982d5fdcc4cb5292980cb698cd47c0c5d9541b401e540fb695b69f1d46485"},
+}

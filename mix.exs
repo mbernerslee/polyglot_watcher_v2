@@ -54,6 +54,6 @@ defmodule PolyglotWatcherV2.MixProject do
   end
 
   defp deps do
-    []
+    [{:mimic, "~> 1.7", only: :test}]
   end
 end
