@@ -19,7 +19,7 @@ defmodule PolyglotWatcherV2.EnvironmentVariables.Real do
   def put(key, value), do: System.put_env(key, value)
 end
 
-defmodule PolyglotWatcherV2.EnvironmentVariables.Mock do
+defmodule PolyglotWatcherV2.EnvironmentVariables.Stub do
   def read do
     %{cli_args: "start polyglot_watcher_v2_seperator_arg", path: "/usr/local/go/bin"}
   end
@@ -36,10 +36,10 @@ defmodule PolyglotWatcherV2.EnvironmentVariables do
 
   def read do
     case module().read() do
-      %{cli_args: nil, path: nil} -> raise @both_missing_error
-      %{path: nil} -> raise @no_path_error
-      %{cli_args: nil} -> raise @no_cli_args_error
-      env_vars -> env_vars
+      %{cli_args: nil, path: nil} -> {:error, @both_missing_error}
+      %{path: nil} -> {:error, @no_path_error}
+      %{cli_args: nil} -> {:error, @no_cli_args_error}
+      env_vars -> {:ok, env_vars}
     end
   end
 

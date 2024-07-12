@@ -1,2 +1,2 @@
-Mimic.copy(PolyglotWatcherV2.EnvironmentVariables.Mock)
+Mimic.copy(PolyglotWatcherV2.EnvironmentVariables.Stub)
 ExUnit.start()

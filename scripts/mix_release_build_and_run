@@ -7,4 +7,4 @@ mix release --overwrite
 
 chmod +x _build/dev/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2_wrapper
 
-_build/dev/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2_wrapper
+_build/dev/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2_wrapper $@

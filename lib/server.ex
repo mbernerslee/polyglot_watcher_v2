@@ -2,12 +2,15 @@ defmodule PolyglotWatcherV2.Server do
   use GenServer
 
   alias PolyglotWatcherV2.{
+    CommandLineArguments,
+    EnvironmentVariables,
     TraverseActionsTree,
     Determine,
     FSWatch,
     Inotifywait,
     Puts,
     UserInput,
+    Result,
     StartupMessage
   }
 
@@ -32,31 +35,61 @@ defmodule PolyglotWatcherV2.Server do
 
   @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
 
-  def child_spec(command_line_args \\ []) do
+  def child_spec do
     %{
       id: __MODULE__,
-      start: {__MODULE__, :start_link, [command_line_args, @default_options]}
+      start: {__MODULE__, :start_link, [@default_options]}
     }
   end
 
-  def start_link(command_line_args \\ [], genserver_options \\ @default_options) do
-    GenServer.start_link(__MODULE__, command_line_args, genserver_options)
+  def start_link(genserver_options \\ @default_options) do
+    GenServer.start_link(__MODULE__, nil, genserver_options)
   end
 
   @impl true
-  def init(command_line_args) do
-    case determine_os() do
-      {:stop, reason} -> {:stop, reason}
-      os -> init_for_os(os, command_line_args)
+  def init(_ignored_init_arg \\ nil) do
+    {:ok, %{}}
+    |> Result.and_then(&determine_os/1)
+    |> Result.and_then(&read_env_vars/1)
+    |> Result.and_then(&parse_cli_args/1)
+    |> case do
+      {:ok, setup} ->
+        init_with_setup(setup)
+
+      {:error, error} ->
+        Puts.on_new_line(error, :red)
+        {:stop, error}
     end
   end
 
-  defp init_for_os(os, command_line_args) do
+  defp read_env_vars(acc) do
+    case EnvironmentVariables.read() do
+      {:ok, env_vars} ->
+        {:ok, Map.merge(acc, env_vars)}
+
+      error ->
+        error
+    end
+  end
+
+  defp parse_cli_args(acc) do
+    case CommandLineArguments.parse(acc.cli_args) do
+      {:ok, cli_args} ->
+        {:ok, Map.replace(acc, :cli_args, cli_args)}
+
+      error ->
+        error
+    end
+  end
+
+  defp init_with_setup(%{os: os, path: path, cli_args: cli_args}) do
     watcher = Map.fetch!(@os_watchers, os)
 
     if Application.get_env(:polyglot_watcher_v2, :put_watcher_startup_message) do
       Puts.on_new_line(watcher.startup_message(), :magenta)
     end
+
+    EnvironmentVariables.put("PATH", path)
 
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
 
@@ -67,8 +100,7 @@ defmodule PolyglotWatcherV2.Server do
       )
 
     server_state =
-      command_line_args
-      |> Enum.join(" ")
+      cli_args
       |> UserInput.determine_actions(server_state)
       |> StartupMessage.put_default_if_empty()
       |> TraverseActionsTree.execute_all()
@@ -112,12 +144,12 @@ defmodule PolyglotWatcherV2.Server do
     {:noreply, state}
   end
 
-  defp determine_os do
+  defp determine_os(acc) do
     os = :os.type()
 
     case Map.get(@supported_oss, os) do
-      nil -> {:stop, "I don't support your operating system '#{inspect(os)}', so I'm exiting"}
-      supported_os -> supported_os
+      nil -> {:error, "I don't support your operating system '#{inspect(os)}', so I'm exiting"}
+      supported_os -> {:ok, Map.put(acc, :os, supported_os)}
     end
   end
 
