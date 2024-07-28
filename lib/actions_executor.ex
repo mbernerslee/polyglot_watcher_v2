@@ -47,6 +47,13 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     mix_test(:all, server_state)
   end
 
+  def execute({:persist_env_var, key, accessor}, server_state) do
+    case System.get_env(key) do
+      nil -> {1, server_state}
+      env_var -> {0, put_in(server_state, accessor, env_var) |> IO.inspect()}
+    end
+  end
+
   def execute(:cargo_build, server_state) do
     {_cargo_build_output, exit_code} = ShellCommandRunner.run("cargo build --color=always")
     {exit_code, server_state}

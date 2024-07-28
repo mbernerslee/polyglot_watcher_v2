@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   alias PolyglotWatcherV2.{Action, FilePath}
 
   alias PolyglotWatcherV2.Elixir.{
+    ClaudeAIMode,
     DefaultMode,
     FixAllForFileMode,
     FixAllMode,
@@ -96,6 +97,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["fl"] -> &switch_to_fixed_last_mode(&1)
+      ["cl"] -> &ClaudeAIMode.switch(&1)
       _ -> nil
     end
   end
