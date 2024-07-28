@@ -9,7 +9,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       rust: %{mode: :default},
       os: :linux,
       watcher: Inotifywait,
-      starting_dir: "./"
+      starting_dir: "./",
+      files: %{}
     }
   end
 
@@ -23,5 +24,9 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
 
   def with_rust_mode(server_state, mode) do
     put_in(server_state, [:rust, :mode], mode)
+  end
+
+  def with_claude_api_key(server_state, claude_api_key) do
+    put_in(server_state, [:claude_api_key], claude_api_key)
   end
 end

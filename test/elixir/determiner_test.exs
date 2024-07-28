@@ -125,6 +125,34 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
     end
+
+    test "returns the Claude AI actions when in that state" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode({:claude_ai, %{}})
+        |> ServerStateBuilder.with_claude_api_key("SECRET")
+
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        {:mix_test, 0},
+        {:mix_test_puts, 0},
+        {:put_elixir_failures_count, 0},
+        {:mix_test, 1},
+        {:mix_test_puts, 1},
+        {:put_elixir_failures_count, 1},
+        :put_mix_test_msg,
+        :mix_test,
+        :put_sarcastic_success,
+        :put_failure_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
   end
 
   describe "user_input_actions/2" do

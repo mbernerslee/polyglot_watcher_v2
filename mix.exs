@@ -32,6 +32,9 @@ defmodule PolyglotWatcherV2.MixProject do
   end
 
   defp deps do
-    []
+    [
+      {:httpoison, "~> 2.0"},
+      {:jason, "~> 1.4"}
+    ]
   end
 end

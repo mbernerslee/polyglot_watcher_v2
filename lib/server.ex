@@ -60,10 +60,11 @@ defmodule PolyglotWatcherV2.Server do
 
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
 
+    # TODO test the files addition
     server_state =
       Map.merge(
         @initial_state,
-        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
+        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher, files: %{}}
       )
 
     server_state =
