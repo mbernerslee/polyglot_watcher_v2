@@ -107,6 +107,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          },
          put_claude_api_response: %Action{
            runnable: :put_claude_api_response,
+           next_action: %{0 => :find_claude_api_diff, :fallback => :fallback_placeholder_error}
+         },
+         find_claude_api_diff: %Action{
+           runnable: :find_claude_api_diff,
+           next_action: %{
+             0 => :write_claude_api_diff_to_file,
+             :fallback => :fallback_placeholder_error
+           }
+         },
+         write_claude_api_diff_to_file: %Action{
+           runnable: :write_claude_api_diff_to_file,
            next_action: %{0 => :exit, :fallback => :fallback_placeholder_error}
          },
          missing_file_msg: %Action{
@@ -171,22 +182,62 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
      }}
   end
 
+  def find_diff(response_text) do
+    response_text
+    |> String.split("\n")
+    |> Enum.reduce_while(nil, fn
+      "```diff", nil ->
+        {:cont, []}
+
+      _line, nil ->
+        {:cont, nil}
+
+      "```", [_ | _] = acc ->
+        {:halt, acc}
+
+      line, acc when is_list(acc) ->
+        {:cont, [line | acc]}
+    end)
+    |> case do
+      nil -> {:error, :no_diff_found}
+      diff -> {:ok, (diff |> Enum.reverse() |> Enum.join("\n")) <> "\n"}
+    end
+  end
+
   defp api_content(lib, test, mix_test_output) do
     """
-    Buffer: Elixir Code
-    <content>
-    #{lib}
-    </content>
+    <buffer>
+      <name>
+        Elixir Code
+      </name>
+      <filePath>
+        #{lib.path}
+      </filePath>
+      <content>
+        #{lib.contents}
+      </content>
+    </buffer>
 
-    Buffer: Elixir Test
-    <content>
-    #{test}
-    </content>
+    <buffer>
+      <name>
+        Elixir Test
+      </name>
+      <filePath>
+        #{test.path}
+      </filePath>
+      <content>
+        #{test.contents}
+      </content>
+    </buffer>
 
-    Buffer: Elixir Mix Test Output
-    <content>
-    #{mix_test_output}
-    </content>
+    <buffer>
+      <name>
+        Elixir Mix Test Output
+      </name>
+      <content>
+      #{mix_test_output}
+      </content>
+    </buffer>
 
     *****
 

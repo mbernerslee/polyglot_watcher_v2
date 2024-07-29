@@ -61,16 +61,14 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   def do_execute({:persist_env_var, key, accessor}, server_state) do
     case System.get_env(key) do
       nil -> {1, server_state}
-      env_var -> {0, put_in(server_state, accessor, env_var) |> IO.inspect()}
+      env_var -> {0, put_in(server_state, accessor, env_var)}
     end
   end
 
   def do_execute({:persist_file, path, key}, server_state) do
-    IO.inspect(path)
-
     case File.read(path) do
       {:ok, contents} ->
-        files = Map.put(server_state.files, key, contents)
+        files = Map.put(server_state.files, key, %{contents: contents, path: path})
         {0, put_in(server_state, [:files], files)}
 
       error ->
@@ -115,9 +113,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
         IO.puts(resp)
 
-        # File.write!("claude", resp)
-
-        {0, server_state}
+        {0, put_in(server_state, [:elixir, :claude_api_response_text], resp)}
 
       error ->
         IO.inspect("****************************")
@@ -131,6 +127,26 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   def do_execute(:put_claude_api_response, server_state) do
     {{:error, :missing_or_invalid_response}, server_state}
+  end
+
+  def do_execute(
+        :find_claude_api_diff,
+        %{elixir: %{claude_api_response_text: claude_api_response_text}} = server_state
+      ) do
+    case ClaudeAIMode.find_diff(claude_api_response_text) do
+      {:ok, diff} -> {0, put_in(server_state, [:elixir, :claude_api_diff], diff)}
+      _error -> {1, server_state}
+    end
+  end
+
+  def do_execute(
+        :write_claude_api_diff_to_file,
+        %{elixir: %{claude_api_diff: diff}} = server_state
+      ) do
+    case File.write("polyglot_watcher_v2.diff", diff) do
+      :ok -> {0, server_state}
+      error -> {1, server_state}
+    end
   end
 
   def do_execute(:cargo_build, server_state) do

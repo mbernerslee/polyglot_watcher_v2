@@ -26,6 +26,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :build_claude_api_call,
         :perform_claude_api_request,
         :put_claude_api_response,
+        :find_claude_api_diff,
+        :write_claude_api_diff_to_file,
         :missing_file_msg,
         :put_claude_noop_msg,
         :fallback_placeholder_error,
@@ -37,5 +39,51 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
       assert ActionsTreeValidator.validate(tree)
     end
+  end
+
+  describe "find_diff/2" do
+    test "given a response with a diff in it, returns the diff" do
+      assert {:ok, diff_contents() <> "\n"} ==
+               ClaudeAIMode.find_diff(api_response_text_with_diff())
+    end
+
+    test "x" do
+      assert {:error, :no_diff} == ClaudeAIMode.find_diff("no diff here")
+    end
+  end
+
+  defp api_response_text_with_diff do
+    """
+    Based on the test output and the code, it appears that the test is failing because there's an extra key `:bollocks` in the actual action tree that is not expected. Here's a diff to fix this issue:
+
+    #{diff()}
+
+    This diff removes the `:bollocks` key from the actions tree. This extra key was causing the test to fail because it wasn't included in the list of expected action tree keys in the test.
+
+    After applying this change, the actual action tree keys should match the expected keys in the test, and the test should pass.
+    """
+  end
+
+  defp diff do
+    """
+    ```diff
+    #{diff_contents()}
+    ```
+    """
+  end
+
+  defp diff_contents do
+    """
+    --- a/lib/elixir/claude_ai_mode.ex
+    +++ b/lib/elixir/claude_ai_mode.ex
+    @@ -143,7 +143,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
+                next_action: :put_failure_msg
+              },
+              put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit},
+    -         bollocks: %Action{runnable: :put_sarcastic_success, next_action: :exit},
+              put_failure_msg: %Action{runnable: :put_insult, next_action: :exit}
+            }
+          }, server_state}
+    """
   end
 end
