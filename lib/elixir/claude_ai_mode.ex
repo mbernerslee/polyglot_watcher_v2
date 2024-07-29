@@ -199,7 +199,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         {:cont, [line | acc]}
     end)
     |> case do
-      nil -> {:error, :no_diff_found}
+      nil -> {:error, :no_diff}
       diff -> {:ok, (diff |> Enum.reverse() |> Enum.join("\n")) <> "\n"}
     end
   end
