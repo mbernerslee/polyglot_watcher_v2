@@ -6,10 +6,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
   alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
 
   @ex Determiner.ex()
-  @exs Determiner.exs()
+  # @exs Determiner.exs()
   @server_state_normal_mode ServerStateBuilder.build()
   @lib_ex_file_path %FilePath{path: "lib/cool", extension: @ex}
-  @test_exs_file_path %FilePath{path: "test/cool", extension: @exs}
+  # @test_exs_file_path %FilePath{path: "test/cool", extension: @exs}
 
   describe "determine_actions/1" do
     test "given a lib file, returns a valid action tree" do
