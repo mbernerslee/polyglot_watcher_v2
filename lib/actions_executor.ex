@@ -21,7 +21,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     do_execute(command, server_state)
   end
 
-  def do_execute(:clear_screen, server_state) do
+  defp do_execute(:clear_screen, server_state) do
     if @actually_clear_screen do
       do_execute({:run_sys_cmd, "tput", ["reset"]}, server_state)
     else
@@ -29,43 +29,47 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     end
   end
 
-  def do_execute({:run_sys_cmd, cmd, args}, server_state) do
+  defp do_execute({:run_sys_cmd, cmd, args}, server_state) do
     {_std_out, exit_code} = System.cmd(cmd, args, into: IO.stream(:stdio, :line))
     {exit_code, server_state}
   end
 
-  def do_execute({:puts, messages}, server_state) do
+  defp do_execute({:puts, messages}, server_state) do
     {Puts.on_new_line(messages), server_state}
   end
 
-  def do_execute({:puts, colour, message}, server_state) do
+  defp do_execute({:puts, colour, message}, server_state) do
     {Puts.on_new_line(message, colour), server_state}
   end
 
-  def do_execute({:switch_mode, language, mode}, server_state) do
+  defp do_execute({:switch_mode, language, mode}, server_state) do
     {0, put_in(server_state, [language, :mode], mode)}
   end
 
-  def do_execute({:mix_test_persist_output, test_path}, server_state) do
+  defp do_execute({:mix_test_persist_output, test_path}, server_state) do
     mix_test(test_path, server_state, persist_output: true)
   end
 
-  def do_execute({:mix_test, test_path}, server_state) do
+  defp do_execute({:mix_test, test_path}, server_state) do
     mix_test(test_path, server_state)
   end
 
-  def do_execute(:mix_test, server_state) do
+  # TODO make the mix_test always persist the lib file, test file & mix test output, so that claude AI can be called upon at any time
+
+  defp do_execute(:mix_test, server_state) do
     mix_test(:all, server_state)
   end
 
-  def do_execute({:persist_env_var, key, accessor}, server_state) do
+  # TODO pull out conditional logic from new exector fn heads, test them in isolation separately
+
+  defp do_execute({:persist_env_var, key, accessor}, server_state) do
     case System.get_env(key) do
       nil -> {1, server_state}
       env_var -> {0, put_in(server_state, accessor, env_var)}
     end
   end
 
-  def do_execute({:persist_file, path, key}, server_state) do
+  defp do_execute({:persist_file, path, key}, server_state) do
     case File.read(path) do
       {:ok, contents} ->
         files = Map.put(server_state.files, key, %{contents: contents, path: path})
@@ -76,7 +80,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     end
   end
 
-  def do_execute(:build_claude_api_call, server_state) do
+  defp do_execute(:build_claude_api_call, server_state) do
     case ClaudeAIMode.build_api_call(server_state) do
       {:ok, request} ->
         {0, put_in(server_state, [:elixir, :claude_api_request], request)}
@@ -86,22 +90,23 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     end
   end
 
-  def do_execute(
-        :perform_claude_api_request,
-        %{elixir: %{claude_api_request: %Request{} = request}} = server_state
-      ) do
+  defp do_execute(
+         :perform_claude_api_request,
+         %{elixir: %{claude_api_request: %Request{} = request}} = server_state
+       ) do
     response = HTTPoison.request(request)
     {0, put_in(server_state, [:elixir, :claude_api_response], response)}
   end
 
-  def do_execute(:perform_claude_api_request, server_state) do
+  defp do_execute(:perform_claude_api_request, server_state) do
     {{:error, :missing_or_invalid_request}, server_state}
   end
 
-  def do_execute(
-        :put_claude_api_response,
-        %{elixir: %{claude_api_response: response}} = server_state
-      ) do
+  # TODO obviously parse this properly...
+  defp do_execute(
+         :put_claude_api_response,
+         %{elixir: %{claude_api_response: response}} = server_state
+       ) do
     case response do
       {:ok, %Response{status_code: 200, body: body}} ->
         resp =
@@ -125,61 +130,61 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     end
   end
 
-  def do_execute(:put_claude_api_response, server_state) do
+  defp do_execute(:put_claude_api_response, server_state) do
     {{:error, :missing_or_invalid_response}, server_state}
   end
 
-  def do_execute(
-        :find_claude_api_diff,
-        %{elixir: %{claude_api_response_text: claude_api_response_text}} = server_state
-      ) do
+  defp do_execute(
+         :find_claude_api_diff,
+         %{elixir: %{claude_api_response_text: claude_api_response_text}} = server_state
+       ) do
     case ClaudeAIMode.find_diff(claude_api_response_text) do
       {:ok, diff} -> {0, put_in(server_state, [:elixir, :claude_api_diff], diff)}
       _error -> {1, server_state}
     end
   end
 
-  def do_execute(
-        :write_claude_api_diff_to_file,
-        %{elixir: %{claude_api_diff: diff}} = server_state
-      ) do
+  defp do_execute(
+         :write_claude_api_diff_to_file,
+         %{elixir: %{claude_api_diff: diff}} = server_state
+       ) do
     case File.write("polyglot_watcher_v2.diff", diff) do
       :ok -> {0, server_state}
-      error -> {1, server_state}
+      _error -> {1, server_state}
     end
   end
 
-  def do_execute(:cargo_build, server_state) do
+  defp do_execute(:cargo_build, server_state) do
     {_cargo_build_output, exit_code} = ShellCommandRunner.run("cargo build --color=always")
     {exit_code, server_state}
   end
 
-  def do_execute(:cargo_test, server_state) do
+  defp do_execute(:cargo_test, server_state) do
     {_cargo_build_output, exit_code} =
       ShellCommandRunner.run("cargo test -q --color=always -- --color=always")
 
     {exit_code, server_state}
   end
 
-  def do_execute(:put_insult, server_state) do
+  defp do_execute(:put_insult, server_state) do
     insult = Enum.random(insulting_failure_messages())
     {Puts.on_new_line(insult, :red), server_state}
   end
 
-  def do_execute(:put_sarcastic_success, server_state) do
+  defp do_execute(:put_sarcastic_success, server_state) do
     insult = Enum.random(sarcastic_sucesses())
     {Puts.on_new_line(insult, :green), server_state}
   end
 
-  def do_execute({:file_exists, file_path}, server_state) do
+  defp do_execute({:file_exists, file_path}, server_state) do
     {File.exists?(file_path), server_state}
   end
 
-  def do_execute(:noop, server_state) do
+  defp do_execute(:noop, server_state) do
     {0, server_state}
   end
 
-  def do_execute({:put_elixir_failures_count, all_or_filename}, server_state) do
+  defp do_execute({:put_elixir_failures_count, all_or_filename}, server_state) do
     server_state.elixir.failures
     |> Failures.count(all_or_filename)
     |> Failures.count_message()
@@ -188,7 +193,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {server_state.elixir.mix_test_exit_code, server_state}
   end
 
-  def do_execute(unknown, server_state) do
+  defp do_execute(unknown, server_state) do
     Puts.on_new_line(
       "Unknown runnable action given to ActionsExecutor. It was #{inspect(unknown)}, can't do it",
       :red

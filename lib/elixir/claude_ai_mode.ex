@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   @ex Determiner.ex()
   @exs Determiner.exs()
 
+  # TODO test it
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
@@ -50,7 +51,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         determine_actions(lib_path, test_path_string, server_state)
 
       :error ->
-        {cannot_determine_lib_path_from_test_path(test_path), server_state}
+        {cannot_determine_lib_path_from_test_path(test_path_string), server_state}
     end
   end
 
@@ -257,19 +258,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   # Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
 
   defp determine_equivalent_lib_path(%FilePath{path: path, extension: @exs}) do
-    case Regex.named_captures(~r|^test\/(?<path>.*)_test$|, path) do
-      %{"path" => path} ->
-        {:ok, "lib/" <> path <> ".#{@ex}"}
-
-      _ ->
-        :error
-    end
+    equivalent_path_finder(path, "test", "lib", @ex)
   end
 
   defp determine_equivalent_test_path(%FilePath{path: path, extension: @ex}) do
-    case String.split(path, "lib/") do
+    equivalent_path_finder(path, "lib", "test", @exs)
+  end
+
+  defp equivalent_path_finder(path, prefix, replacement_prefix, extension) do
+    case String.split(path, prefix <> "/") do
       ["", middle_bit_of_file_path] ->
-        {:ok, "test/" <> middle_bit_of_file_path <> "_test.#{@exs}"}
+        {:ok, replacement_prefix <> "/" <> middle_bit_of_file_path <> ".#{extension}"}
 
       _ ->
         :error

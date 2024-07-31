@@ -6,10 +6,29 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
   alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
 
   @ex Determiner.ex()
-  # @exs Determiner.exs()
+  @exs Determiner.exs()
   @server_state_normal_mode ServerStateBuilder.build()
   @lib_ex_file_path %FilePath{path: "lib/cool", extension: @ex}
-  # @test_exs_file_path %FilePath{path: "test/cool", extension: @exs}
+  @test_exs_file_path %FilePath{path: "test/cool", extension: @exs}
+
+  describe "switch/1" do
+    test "given a valid server state, switches to ClaudeAI mode" do
+      assert {tree, @server_state_normal_mode} = ClaudeAIMode.switch(@server_state_normal_mode)
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_switch_mode_msg,
+        :switch_mode,
+        :persist_api_key,
+        :no_api_key_fail_msg,
+        :put_awaiting_file_save_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+
+      assert ActionsTreeValidator.validate(tree)
+    end
+  end
 
   describe "determine_actions/1" do
     test "given a lib file, returns a valid action tree" do
@@ -33,6 +52,68 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+
+      assert ActionsTreeValidator.validate(tree)
+    end
+
+    test "given a test file, returns a valid action tree" do
+      {tree, @server_state_normal_mode} =
+        ClaudeAIMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_intent_msg,
+        :mix_test,
+        :put_claude_init_msg,
+        :persist_lib_file,
+        :persist_test_file,
+        :build_claude_api_call,
+        :perform_claude_api_request,
+        :put_claude_api_response,
+        :find_claude_api_diff,
+        :write_claude_api_diff_to_file,
+        :missing_file_msg,
+        :put_claude_noop_msg,
+        :fallback_placeholder_error,
+        :put_success_msg,
+        :put_failure_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+
+      assert ActionsTreeValidator.validate(tree)
+    end
+
+    test "given a lib file, but in an invalid format, returns an error actions tree" do
+      {tree, @server_state_normal_mode} =
+        ClaudeAIMode.determine_actions(
+          %FilePath{path: "not_lib/not_cool", extension: @ex},
+          @server_state_normal_mode
+        )
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :cannot_find_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+
+      assert ActionsTreeValidator.validate(tree)
+    end
+
+    test "given a test file, but in an invalid format, returns an error actions tree" do
+      {tree, @server_state_normal_mode} =
+        ClaudeAIMode.determine_actions(
+          %FilePath{path: "not_test/not_cool", extension: @exs},
+          @server_state_normal_mode
+        )
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :cannot_find_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
