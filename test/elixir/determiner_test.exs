@@ -138,15 +138,20 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        {:mix_test, 0},
-        {:mix_test_puts, 0},
-        {:put_elixir_failures_count, 0},
-        {:mix_test, 1},
-        {:mix_test_puts, 1},
-        {:put_elixir_failures_count, 1},
-        :put_mix_test_msg,
+        :put_intent_msg,
         :mix_test,
-        :put_sarcastic_success,
+        :put_claude_init_msg,
+        :persist_lib_file,
+        :persist_test_file,
+        :build_claude_api_call,
+        :perform_claude_api_request,
+        :put_claude_api_response,
+        :find_claude_api_diff,
+        :write_claude_api_diff_to_file,
+        :missing_file_msg,
+        :put_claude_noop_msg,
+        :fallback_placeholder_error,
+        :put_success_msg,
         :put_failure_msg
       ]
 
@@ -372,10 +377,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         :switch_mode,
         :persist_api_key,
         :no_api_key_fail_msg,
-        :mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :put_awaiting_file_save_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
