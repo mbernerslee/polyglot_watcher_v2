@@ -9,8 +9,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
-  alias PolyglotWatcherV2.{Puts, ShellCommandRunner}
-  alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures}
+  alias PolyglotWatcherV2.{EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
+  alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures, MixTest}
   alias HTTPoison.{Request, Response}
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
@@ -46,38 +46,22 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {0, put_in(server_state, [language, :mode], mode)}
   end
 
-  defp do_execute({:mix_test_persist_output, test_path}, server_state) do
-    mix_test(test_path, server_state, persist_output: true)
-  end
-
   defp do_execute({:mix_test, test_path}, server_state) do
-    mix_test(test_path, server_state)
+    MixTest.run(test_path, server_state)
   end
-
-  # TODO make the mix_test always persist the lib file, test file & mix test output, so that claude AI can be called upon at any time
 
   defp do_execute(:mix_test, server_state) do
-    mix_test(:all, server_state)
+    MixTest.run(:all, server_state)
   end
 
   # TODO pull out conditional logic from new exector fn heads, test them in isolation separately
 
-  defp do_execute({:persist_env_var, key, accessor}, server_state) do
-    case System.get_env(key) do
-      nil -> {1, server_state}
-      env_var -> {0, put_in(server_state, accessor, env_var)}
-    end
+  defp do_execute({:persist_env_var, key}, server_state) do
+    EnvironmentVariables.read_and_persist(key, server_state)
   end
 
   defp do_execute({:persist_file, path, key}, server_state) do
-    case File.read(path) do
-      {:ok, contents} ->
-        files = Map.put(server_state.files, key, %{contents: contents, path: path})
-        {0, put_in(server_state, [:files], files)}
-
-      error ->
-        {error, server_state}
-    end
+    FileSystem.read_and_persist(path, key, server_state)
   end
 
   defp do_execute(:build_claude_api_call, server_state) do
@@ -200,34 +184,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     )
 
     {1, server_state}
-  end
-
-  defp mix_test(test_path, server_state, opts \\ []) do
-    {mix_test_output, exit_code} =
-      case test_path do
-        :all -> ShellCommandRunner.run("mix test --color")
-        path -> ShellCommandRunner.run("mix test #{path} --color")
-      end
-
-    failures =
-      Failures.update(
-        server_state.elixir.failures,
-        test_path,
-        mix_test_output,
-        exit_code
-      )
-
-    server_state =
-      server_state
-      |> put_in([:elixir, :failures], failures)
-      |> put_in([:elixir, :mix_test_exit_code], exit_code)
-
-    if Keyword.get(opts, :persist_output, false) do
-      server_state = put_in(server_state, [:elixir, :mix_test_output], mix_test_output)
-      {exit_code, server_state}
-    else
-      {exit_code, server_state}
-    end
   end
 
   defp insulting_failure_messages do

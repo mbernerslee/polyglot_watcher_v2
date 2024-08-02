@@ -24,7 +24,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
            next_action: :persist_api_key
          },
          persist_api_key: %Action{
-           runnable: {:persist_env_var, "ANTHROPIC_API_KEY", [:claude_api_key]},
+           runnable: {:persist_env_var, "ANTHROPIC_API_KEY"},
            next_action: %{0 => :put_awaiting_file_save_msg, :fallback => :no_api_key_fail_msg}
          },
          no_api_key_fail_msg: %Action{
@@ -80,7 +80,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
            next_action: :mix_test
          },
          mix_test: %Action{
-           runnable: {:mix_test_persist_output, test_path},
+           runnable: {:mix_test, test_path},
            next_action: %{0 => :put_claude_noop_msg, :fallback => :put_claude_init_msg}
          },
          put_claude_init_msg: %Action{
@@ -156,10 +156,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
      }, server_state}
   end
 
+  # TODO test me
   def build_api_call(%{
         files: %{lib: lib, test: test},
         elixir: %{mix_test_output: mix_test_output},
-        claude_api_key: claude_api_key
+        env_vars: %{"ANTHROPIC_API_KEY" => claude_api_key}
       })
       when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) do
     # https://docs.anthropic.com/en/api/messages-examples
@@ -258,17 +259,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   # Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
 
   defp determine_equivalent_lib_path(%FilePath{path: path, extension: @exs}) do
-    equivalent_path_finder(path, "test", "lib", @ex)
+    equivalent_path_finder(path, "test", "lib", ".#{@ex}")
   end
 
   defp determine_equivalent_test_path(%FilePath{path: path, extension: @ex}) do
-    equivalent_path_finder(path, "lib", "test", @exs)
+    equivalent_path_finder(path, "lib", "test", "_test.#{@exs}")
   end
 
   defp equivalent_path_finder(path, prefix, replacement_prefix, extension) do
     case String.split(path, prefix <> "/") do
       ["", middle_bit_of_file_path] ->
-        {:ok, replacement_prefix <> "/" <> middle_bit_of_file_path <> ".#{extension}"}
+        {:ok, replacement_prefix <> "/" <> middle_bit_of_file_path <> extension}
 
       _ ->
         :error

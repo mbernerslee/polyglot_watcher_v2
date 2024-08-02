@@ -59,6 +59,21 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       assert ActionsTreeValidator.validate(tree)
     end
 
+    test "given a lib file, puts the correct test file path" do
+      {%{actions_tree: actions_tree}, @server_state_normal_mode} =
+        ClaudeAIMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
+
+      assert actions_tree.persist_test_file.runnable ==
+               {:persist_file, "test/cool_test.exs", :test}
+    end
+
+    test "given a test file, puts the correct lib file path" do
+      {%{actions_tree: actions_tree}, @server_state_normal_mode} =
+        ClaudeAIMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
+
+      assert actions_tree.persist_lib_file.runnable == {:persist_file, "lib/cool.ex", :lib}
+    end
+
     test "given a test file, returns a valid action tree" do
       {tree, @server_state_normal_mode} =
         ClaudeAIMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)

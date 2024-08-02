@@ -20,7 +20,8 @@ defmodule PolyglotWatcherV2.Server do
     ignore_file_changes: false,
     starting_dir: nil,
     elixir: %{mode: :default, failures: []},
-    rust: %{mode: :default}
+    rust: %{mode: :default},
+    env_vars: %{}
   }
 
   @supported_oss %{

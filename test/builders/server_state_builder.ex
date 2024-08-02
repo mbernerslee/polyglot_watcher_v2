@@ -10,7 +10,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       os: :linux,
       watcher: Inotifywait,
       starting_dir: "./",
-      files: %{}
+      files: %{},
+      env_vars: %{}
     }
   end
 
@@ -28,5 +29,15 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
 
   def with_claude_api_key(server_state, claude_api_key) do
     put_in(server_state, [:claude_api_key], claude_api_key)
+  end
+
+  def with_env_var(server_state, key, value) do
+    Map.update!(server_state, :env_vars, fn env_vars -> Map.put(env_vars, key, value) end)
+  end
+
+  def with_file(server_state, key, %{contents: contents, path: path}) do
+    Map.update!(server_state, :files, fn files ->
+      Map.put(files, key, %{contents: contents, path: path})
+    end)
   end
 end
