@@ -23,6 +23,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:elixir, :failures], failures)
   end
 
+  def with_mix_test_output(server_state, mix_test_output) do
+    put_in(server_state, [:elixir, :mix_test_output], mix_test_output)
+  end
+
   def with_rust_mode(server_state, mode) do
     put_in(server_state, [:rust, :mode], mode)
   end
@@ -38,6 +42,12 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
   def with_file(server_state, key, %{contents: contents, path: path}) do
     Map.update!(server_state, :files, fn files ->
       Map.put(files, key, %{contents: contents, path: path})
+    end)
+  end
+
+  def with_file(server_state, key, nil) do
+    Map.update!(server_state, :files, fn files ->
+      Map.put(files, key, nil)
     end)
   end
 end

@@ -136,26 +136,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert %{entry_point: :clear_screen} = tree
 
-      expected_action_tree_keys = [
-        :clear_screen,
-        :put_intent_msg,
-        :mix_test,
-        :put_claude_init_msg,
-        :persist_lib_file,
-        :persist_test_file,
-        :build_claude_api_call,
-        :perform_claude_api_request,
-        :put_claude_api_response,
-        :find_claude_api_diff,
-        :write_claude_api_diff_to_file,
-        :missing_file_msg,
-        :put_claude_noop_msg,
-        :fallback_placeholder_error,
-        :put_success_msg,
-        :put_failure_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
     end
   end

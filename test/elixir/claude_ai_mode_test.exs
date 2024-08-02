@@ -4,6 +4,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
   alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
+  alias HTTPoison.Request
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -42,13 +43,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_claude_init_msg,
         :persist_lib_file,
         :persist_test_file,
-        :build_claude_api_call,
+        :build_claude_api_request,
         :perform_claude_api_request,
         :put_claude_api_response,
         :find_claude_api_diff,
         :write_claude_api_diff_to_file,
         :missing_file_msg,
-        :put_claude_noop_msg,
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
@@ -85,13 +85,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_claude_init_msg,
         :persist_lib_file,
         :persist_test_file,
-        :build_claude_api_call,
+        :build_claude_api_request,
         :perform_claude_api_request,
         :put_claude_api_response,
         :find_claude_api_diff,
         :write_claude_api_diff_to_file,
         :missing_file_msg,
-        :put_claude_noop_msg,
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
@@ -136,6 +135,75 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       assert ActionsTreeValidator.validate(tree)
     end
   end
+
+  describe "build_api_request/2" do
+    test "given server_state that contains the required info to build the API call, then it is built and stored in the server_state" do
+      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
+      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
+      mix_test_output = "it failed mate. get good."
+      api_key = "super-secret"
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file(:lib, lib_file)
+        |> ServerStateBuilder.with_file(:test, test_file)
+        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
+        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+
+      assert {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
+
+      assert %{elixir: %{claude_api_request: api_request}} = new_server_state
+
+      assert put_in(server_state, [:elixir, :claude_api_request], api_request) == new_server_state
+
+      assert %Request{
+               method: :post,
+               url: "https://api.anthropic.com/v1/messages",
+               headers: [
+                 {"x-api-key", ^api_key},
+                 {"anthropic-version", "2023-06-01"},
+                 {"content-type", "application/json"}
+               ],
+               body: body,
+               options: [recv_timeout: 30_000]
+             } = api_request
+
+      assert %{
+               "max_tokens" => 2048,
+               "model" => "claude-3-5-sonnet-20240620",
+               "messages" => [%{"role" => "user", "content" => _}]
+             } = Jason.decode!(body)
+    end
+
+    test "given server_state that is missing any of the required info to build the API call, then we return exit_code 1 and leave the server_state unchanged" do
+      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
+      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
+      mix_test_output = "it failed mate. get good."
+      api_key = "super-secret"
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file(:lib, lib_file)
+        |> ServerStateBuilder.with_file(:test, test_file)
+        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
+        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+
+      assert {0, _} = ClaudeAIMode.build_api_request(server_state)
+
+      bad_server_states = [
+        ServerStateBuilder.with_file(server_state, :lib, nil),
+        ServerStateBuilder.with_file(server_state, :test, nil),
+        ServerStateBuilder.with_mix_test_output(server_state, nil),
+        ServerStateBuilder.with_env_var(server_state, "ANTHROPIC_API_KEY", nil)
+      ]
+
+      Enum.each(bad_server_states, fn bad_server_state ->
+        assert {1, bad_server_state} == ClaudeAIMode.build_api_request(bad_server_state)
+      end)
+    end
+  end
+
+  # TODO don't try to run mix test in claude mode if the file doesn't exist
 
   describe "find_diff/2" do
     test "given a response with a diff in it, returns the diff" do

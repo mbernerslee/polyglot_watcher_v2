@@ -6,6 +6,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   @ex Determiner.ex()
   @exs Determiner.exs()
 
+  # TODO if we have the neccessary info to immediately call claude -> then just do it???
+  # TODO OR do the full "make calling claude a 1 off, rather than (or in addition to) a mode switch thing... so persist lib & test files all the time by default? (gulp)"
   # TODO test it
   def switch(server_state) do
     {%{
@@ -43,6 +45,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
 
   # TODO deal with the lots of duplication with elixir default
   # TODO test this properly
+  # TODO move the determine equivalent path stuff to its own place & test it.
+
   def determine_actions(%FilePath{extension: @exs} = test_path, server_state) do
     test_path_string = FilePath.stringify(test_path)
 
@@ -81,10 +85,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, test_path},
-           next_action: %{0 => :put_claude_noop_msg, :fallback => :put_claude_init_msg}
+           next_action: %{0 => :put_success_msg, :fallback => :put_claude_init_msg}
          },
          put_claude_init_msg: %Action{
-           runnable: {:puts, :magenta, "Doing up some Claude setup..."},
+           runnable: {:puts, :magenta, "Doing some Claude setup..."},
            next_action: :persist_lib_file
          },
          persist_lib_file: %Action{
@@ -93,10 +97,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          },
          persist_test_file: %Action{
            runnable: {:persist_file, test_path, :test},
-           next_action: %{0 => :build_claude_api_call, :fallback => :fallback_placeholder_error}
+           next_action: %{
+             0 => :build_claude_api_request,
+             :fallback => :fallback_placeholder_error
+           }
          },
-         build_claude_api_call: %Action{
-           runnable: :build_claude_api_call,
+         build_claude_api_request: %Action{
+           runnable: :build_claude_api_request,
            next_action: %{
              0 => :perform_claude_api_request,
              :fallback => :fallback_placeholder_error
@@ -135,12 +142,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
               """},
            next_action: :put_failure_msg
          },
-         put_claude_noop_msg: %Action{
-           runnable:
-             {:puts, :green,
-              "Looks like Claude AI has nothing to do here, because all the tests are already passing!"},
-           next_action: :put_success_msg
-         },
          fallback_placeholder_error: %Action{
            runnable:
              {:puts, :red,
@@ -156,32 +157,42 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
      }, server_state}
   end
 
-  # TODO test me
-  def build_api_call(%{
-        files: %{lib: lib, test: test},
-        elixir: %{mix_test_output: mix_test_output},
-        env_vars: %{"ANTHROPIC_API_KEY" => claude_api_key}
-      })
-      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) do
-    # https://docs.anthropic.com/en/api/messages-examples
-    # https://github.com/lebrunel/anthropix - use this instead?
-    {:ok,
-     %Request{
-       method: :post,
-       url: "https://api.anthropic.com/v1/messages",
-       headers: [
-         {"x-api-key", claude_api_key},
-         {"anthropic-version", "2023-06-01"},
-         {"content-type", "application/json"}
-       ],
-       body:
-         Jason.encode!(%{
-           max_tokens: 2048,
-           model: "claude-3-5-sonnet-20240620",
-           messages: [%{role: "user", content: api_content(lib, test, mix_test_output)}]
-         }),
-       options: [recv_timeout: 30_000]
-     }}
+  def build_api_request(
+        %{
+          files: %{lib: lib, test: test},
+          elixir: %{mix_test_output: mix_test_output},
+          env_vars: %{"ANTHROPIC_API_KEY" => claude_api_key}
+        } = server_state
+      )
+      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) and
+             not is_nil(claude_api_key) do
+    request = build_api_request(lib, test, mix_test_output, claude_api_key)
+    {0, put_in(server_state, [:elixir, :claude_api_request], request)}
+  end
+
+  def build_api_request(server_state) do
+    {1, server_state}
+  end
+
+  # https://docs.anthropic.com/en/api/messages-examples
+  # https://github.com/lebrunel/anthropix - use this instead?
+  defp build_api_request(lib, test, mix_test_output, claude_api_key) do
+    %Request{
+      method: :post,
+      url: "https://api.anthropic.com/v1/messages",
+      headers: [
+        {"x-api-key", claude_api_key},
+        {"anthropic-version", "2023-06-01"},
+        {"content-type", "application/json"}
+      ],
+      body:
+        Jason.encode!(%{
+          max_tokens: 2048,
+          model: "claude-3-5-sonnet-20240620",
+          messages: [%{role: "user", content: api_content(lib, test, mix_test_output)}]
+        }),
+      options: [recv_timeout: 30_000]
+    }
   end
 
   def find_diff(response_text) do

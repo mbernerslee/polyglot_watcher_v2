@@ -64,14 +64,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
-  defp do_execute(:build_claude_api_call, server_state) do
-    case ClaudeAIMode.build_api_call(server_state) do
-      {:ok, request} ->
-        {0, put_in(server_state, [:elixir, :claude_api_request], request)}
-
-      _error ->
-        {1, server_state}
-    end
+  defp do_execute(:build_claude_api_request, server_state) do
+    ClaudeAIMode.build_api_request(server_state)
   end
 
   defp do_execute(
