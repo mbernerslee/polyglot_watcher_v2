@@ -64,7 +64,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     end
   end
 
-  # TODO remove the fallback_fail of course.. maybe?
   defp determine_actions(lib_path, test_path, server_state) do
     {%{
        entry_point: :clear_screen,
@@ -83,6 +82,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          },
          put_claude_init_msg: %Action{
            runnable: {:puts, :magenta, "Doing some Claude setup..."},
+           next_action: :put_perist_files_msg
+         },
+         put_perist_files_msg: %Action{
+           runnable: {:puts, :magenta, "Saving the lib & test files to memory..."},
            next_action: :persist_lib_file
          },
          persist_lib_file: %Action{
@@ -93,15 +96,19 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
            runnable: {:persist_file, test_path, :test},
            next_action: %{
              0 => :build_claude_api_request,
-             :fallback => :fallback_placeholder_error
+             :fallback => :missing_file_msg
            }
          },
          build_claude_api_request: %Action{
            runnable: :build_claude_api_request,
            next_action: %{
-             0 => :perform_claude_api_request,
+             0 => :put_calling_claude_msg,
              :fallback => :fallback_placeholder_error
            }
+         },
+         put_calling_claude_msg: %Action{
+           runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
+           next_action: :perform_claude_api_request
          },
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
@@ -139,7 +146,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
            runnable:
              {:puts, :red,
               """
-              Clause fallback error
+              Claude fallback error
               Oh no!
               """},
            next_action: :put_failure_msg

@@ -83,7 +83,15 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:white,
        "  Initialising in this mode isn't reccommended because on startup my memory of failing tests is empty...\n"},
       {:white,
-       "  So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one\n"}
+       "  So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one\n"},
+      {:light_magenta, "ex cl\n"},
+      {:white, "  Claude\n"},
+      {:white,
+       "  The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test\n"},
+      {:white,
+       "  It auto-generates the prompt with the lib file, test file & mix test output for you.\n"},
+      {:white,
+       "  Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.\n"}
     ]
   end
 
