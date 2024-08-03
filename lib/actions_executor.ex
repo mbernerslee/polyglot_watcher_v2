@@ -11,7 +11,7 @@ end
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
   alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures, MixTest}
-  alias HTTPoison.{Request, Response}
+  alias HTTPoison.Request
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
   @log Application.compile_env(:polyglot_watcher_v2, :log_executor_commands)
@@ -54,8 +54,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     MixTest.run(:all, server_state)
   end
 
-  # TODO pull out conditional logic from new exector fn heads, test them in isolation separately
-
   defp do_execute({:persist_env_var, key}, server_state) do
     EnvironmentVariables.read_and_persist(key, server_state)
   end
@@ -73,6 +71,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
          %{elixir: %{claude_api_request: %Request{} = request}} = server_state
        ) do
     response = HTTPoison.request(request)
+
     {0, put_in(server_state, [:elixir, :claude_api_response], response)}
   end
 
@@ -80,55 +79,23 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {{:error, :missing_or_invalid_request}, server_state}
   end
 
-  # TODO obviously parse this properly...
-  defp do_execute(
-         :put_claude_api_response,
-         %{elixir: %{claude_api_response: response}} = server_state
-       ) do
-    case response do
-      {:ok, %Response{status_code: 200, body: body}} ->
-        resp =
-          body
-          |> Jason.decode!()
-          |> Map.fetch!("content")
-          |> hd()
-          |> Map.fetch!("text")
+  defp do_execute(:parse_claude_api_response, server_state) do
+    ClaudeAIMode.parse_api_response(server_state)
+  end
 
-        IO.puts(resp)
+  defp do_execute(:put_parsed_claude_api_response, server_state) do
+    case server_state[:elixir][:claude_api_response] do
+      {:ok, {:parsed, response}} ->
+        IO.puts(response)
+        {0, server_state}
 
-        {0, put_in(server_state, [:elixir, :claude_api_response_text], resp)}
-
-      error ->
-        IO.inspect("****************************")
-        IO.inspect("ERROR :-(")
-        IO.inspect("****************************")
-        IO.inspect(error, limit: :infinity)
-        IO.inspect("****************************")
+      {:error, {:parsed, response}} ->
+        IO.puts(response)
         {1, server_state}
-    end
-  end
 
-  defp do_execute(:put_claude_api_response, server_state) do
-    {{:error, :missing_or_invalid_response}, server_state}
-  end
-
-  defp do_execute(
-         :find_claude_api_diff,
-         %{elixir: %{claude_api_response_text: claude_api_response_text}} = server_state
-       ) do
-    case ClaudeAIMode.find_diff(claude_api_response_text) do
-      {:ok, diff} -> {0, put_in(server_state, [:elixir, :claude_api_diff], diff)}
-      _error -> {1, server_state}
-    end
-  end
-
-  defp do_execute(
-         :write_claude_api_diff_to_file,
-         %{elixir: %{claude_api_diff: diff}} = server_state
-       ) do
-    case File.write("polyglot_watcher_v2.diff", diff) do
-      :ok -> {0, server_state}
-      _error -> {1, server_state}
+      other ->
+        IO.puts("Some kinda fail happened. \n#{inspect(other)}")
+        {1, server_state}
     end
   end
 

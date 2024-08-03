@@ -129,7 +129,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
     test "returns the Claude AI actions when in that state" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode({:claude_ai, %{}})
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai)
         |> ServerStateBuilder.with_claude_api_key("SECRET")
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
@@ -363,7 +363,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
 
-      assert %Action{runnable: {:switch_mode, :elixir, {:claude_ai, %{}}}} =
+      assert %Action{runnable: {:switch_mode, :elixir, :claude_ai}} =
                tree.actions_tree.switch_mode
     end
 

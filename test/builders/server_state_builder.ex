@@ -23,6 +23,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:elixir, :failures], failures)
   end
 
+  def with_elixir_claude_api_response(server_state, response) do
+    put_in(server_state, [:elixir, :claude_api_response], response)
+  end
+
   def with_mix_test_output(server_state, mix_test_output) do
     put_in(server_state, [:elixir, :mix_test_output], mix_test_output)
   end

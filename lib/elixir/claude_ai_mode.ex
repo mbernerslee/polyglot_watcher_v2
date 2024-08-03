@@ -1,14 +1,11 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   alias PolyglotWatcherV2.{Action, FilePath}
-  alias PolyglotWatcherV2.Elixir.Determiner
-  alias HTTPoison.Request
+  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
+  alias HTTPoison.{Request, Response}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
 
-  # TODO if we have the neccessary info to immediately call claude -> then just do it???
-  # TODO OR do the full "make calling claude a 1 off, rather than (or in addition to) a mode switch thing... so persist lib & test files all the time by default? (gulp)"
-  # TODO test it
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
@@ -22,7 +19,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
            next_action: :switch_mode
          },
          switch_mode: %Action{
-           runnable: {:switch_mode, :elixir, {:claude_ai, %{messages: [], files: %{}}}},
+           runnable: {:switch_mode, :elixir, :claude_ai},
            next_action: :persist_api_key
          },
          persist_api_key: %Action{
@@ -43,14 +40,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
      }, server_state}
   end
 
-  # TODO deal with the lots of duplication with elixir default
-  # TODO test this properly
-  # TODO move the determine equivalent path stuff to its own place & test it.
-
   def determine_actions(%FilePath{extension: @exs} = test_path, server_state) do
     test_path_string = FilePath.stringify(test_path)
 
-    case determine_equivalent_lib_path(test_path) do
+    case EquivalentPath.determine(test_path) do
       {:ok, lib_path} ->
         determine_actions(lib_path, test_path_string, server_state)
 
@@ -62,7 +55,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   def determine_actions(%FilePath{extension: @ex} = lib_path, server_state) do
     lib_path_string = FilePath.stringify(lib_path)
 
-    case determine_equivalent_test_path(lib_path) do
+    case EquivalentPath.determine(lib_path) do
       {:ok, test_path} ->
         determine_actions(lib_path_string, test_path, server_state)
 
@@ -71,6 +64,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     end
   end
 
+  # TODO remove the fallback_fail of course.. maybe?
   defp determine_actions(lib_path, test_path, server_state) do
     {%{
        entry_point: :clear_screen,
@@ -111,21 +105,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          },
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
-           next_action: %{0 => :put_claude_api_response, :fallback => :fallback_placeholder_error}
-         },
-         put_claude_api_response: %Action{
-           runnable: :put_claude_api_response,
-           next_action: %{0 => :find_claude_api_diff, :fallback => :fallback_placeholder_error}
-         },
-         find_claude_api_diff: %Action{
-           runnable: :find_claude_api_diff,
            next_action: %{
-             0 => :write_claude_api_diff_to_file,
+             0 => :parse_claude_api_response,
              :fallback => :fallback_placeholder_error
            }
          },
-         write_claude_api_diff_to_file: %Action{
-           runnable: :write_claude_api_diff_to_file,
+         parse_claude_api_response: %Action{
+           runnable: :parse_claude_api_response,
+           next_action: %{
+             0 => :put_parsed_claude_api_response,
+             :fallback => :fallback_placeholder_error
+           }
+         },
+         put_parsed_claude_api_response: %Action{
+           runnable: :put_parsed_claude_api_response,
            next_action: %{0 => :exit, :fallback => :fallback_placeholder_error}
          },
          missing_file_msg: %Action{
@@ -174,6 +167,52 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     {1, server_state}
   end
 
+  def parse_api_response(
+        %{elixir: %{claude_api_response: {:ok, %Response{status_code: 200, body: body}}}} =
+          server_state
+      ) do
+    case Jason.decode(body) do
+      {:ok, %{"content" => [%{"text" => text} | _]}} ->
+        {0, put_in(server_state, [:elixir, :claude_api_response], {:ok, {:parsed, text}})}
+
+      _ ->
+        result =
+          {:error,
+           {:parsed,
+            """
+            I failed to decode the Claude API HTTP 200 response :-(
+            It was:
+
+            #{body}
+            """}}
+
+        {1, put_in(server_state, [:elixir, :claude_api_response], result)}
+    end
+  end
+
+  def parse_api_response(%{elixir: %{claude_api_response: response}} = server_state) do
+    result =
+      {:error,
+       {:parsed,
+        """
+        Claude API did not return a HTTP 200 response :-(
+        It was:
+
+        #{inspect(response)}
+        """}}
+
+    {1, put_in(server_state, [:elixir, :claude_api_response], result)}
+  end
+
+  def parse_api_response(server_state) do
+    {1,
+     put_in(
+       server_state,
+       [:elixir, :claude_api_response],
+       {:error, {:parsed, "I have no Claude API response in my memory..."}}
+     )}
+  end
+
   # https://docs.anthropic.com/en/api/messages-examples
   # https://github.com/lebrunel/anthropix - use this instead?
   defp build_api_request(lib, test, mix_test_output, claude_api_key) do
@@ -193,28 +232,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         }),
       options: [recv_timeout: 30_000]
     }
-  end
-
-  def find_diff(response_text) do
-    response_text
-    |> String.split("\n")
-    |> Enum.reduce_while(nil, fn
-      "```diff", nil ->
-        {:cont, []}
-
-      _line, nil ->
-        {:cont, nil}
-
-      "```", [_ | _] = acc ->
-        {:halt, acc}
-
-      line, acc when is_list(acc) ->
-        {:cont, [line | acc]}
-    end)
-    |> case do
-      nil -> {:error, :no_diff}
-      diff -> {:ok, (diff |> Enum.reverse() |> Enum.join("\n")) <> "\n"}
-    end
   end
 
   defp api_content(lib, test, mix_test_output) do
@@ -257,34 +274,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
 
     """
-  end
-
-  ####################
-  ####################
-  ## previous prompt generations
-
-  # Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide some replacement Elixir Code that would make the tests pass?
-
-  # Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide some replacement Elixir Code that would make the tests pass? I would like the entire replacement Elixir module returned, including any unchanged code.
-
-  # Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
-
-  defp determine_equivalent_lib_path(%FilePath{path: path, extension: @exs}) do
-    equivalent_path_finder(path, "test", "lib", ".#{@ex}")
-  end
-
-  defp determine_equivalent_test_path(%FilePath{path: path, extension: @ex}) do
-    equivalent_path_finder(path, "lib", "test", "_test.#{@exs}")
-  end
-
-  defp equivalent_path_finder(path, prefix, replacement_prefix, extension) do
-    case String.split(path, prefix <> "/") do
-      ["", middle_bit_of_file_path] ->
-        {:ok, replacement_prefix <> "/" <> middle_bit_of_file_path <> extension}
-
-      _ ->
-        :error
-    end
   end
 
   defp cannot_determine_test_path_from_lib_path(lib_path) do

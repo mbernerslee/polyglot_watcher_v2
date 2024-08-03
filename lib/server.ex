@@ -21,7 +21,8 @@ defmodule PolyglotWatcherV2.Server do
     starting_dir: nil,
     elixir: %{mode: :default, failures: []},
     rust: %{mode: :default},
-    env_vars: %{}
+    env_vars: %{},
+    files: %{}
   }
 
   @supported_oss %{
@@ -61,11 +62,10 @@ defmodule PolyglotWatcherV2.Server do
 
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
 
-    # TODO test the files addition
     server_state =
       Map.merge(
         @initial_state,
-        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher, files: %{}}
+        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
       )
 
     server_state =

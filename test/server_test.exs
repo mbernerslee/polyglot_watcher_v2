@@ -9,7 +9,8 @@ defmodule PolyglotWatcherV2.ServerTest do
         assert {:ok, pid} = Server.start_link([], [])
         assert is_pid(pid)
 
-        assert %{port: port, elixir: elixir, rust: rust} = :sys.get_state(pid)
+        assert %{port: port, elixir: elixir, rust: rust, files: files} = :sys.get_state(pid)
+        assert files == %{}
         assert is_port(port)
         assert %{failures: [], mode: :default} == elixir
         assert %{mode: :default} == rust

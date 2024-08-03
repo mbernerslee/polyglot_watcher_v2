@@ -1,5 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.MixTest do
-  alias PolyglotWatcherV2.{ShellCommandRunner}
+  alias PolyglotWatcherV2.ShellCommandRunner
   alias PolyglotWatcherV2.Elixir.Failures
 
   def run(test_path, server_state) do

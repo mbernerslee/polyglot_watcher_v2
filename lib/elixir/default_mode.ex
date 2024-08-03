@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.DefaultMode do
   alias PolyglotWatcherV2.{Action, FilePath}
-  alias PolyglotWatcherV2.Elixir.Determiner
+  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -32,23 +32,12 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
   def determine_actions(%FilePath{extension: @ex} = lib_path, server_state) do
     lib_path_string = FilePath.stringify(lib_path)
 
-    case determine_equivalent_test_path(lib_path) do
+    case EquivalentPath.determine(lib_path) do
       {:ok, test_path} ->
         {mix_test_with_file_exists_check(lib_path_string, test_path), server_state}
 
       :error ->
         {no_idea_what_to_run(lib_path_string), server_state}
-    end
-  end
-
-  # move this to its own module & test it, especially with paths that have more than one "lib/" in the name
-  defp determine_equivalent_test_path(%FilePath{path: path, extension: @ex}) do
-    case String.split(path, "lib/") do
-      ["", middle_bit_of_file_path] ->
-        {:ok, "test/" <> middle_bit_of_file_path <> "_test.#{@exs}"}
-
-      _ ->
-        :error
     end
   end
 

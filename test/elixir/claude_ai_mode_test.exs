@@ -4,13 +4,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
   alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
-  alias HTTPoison.Request
+  alias HTTPoison.{Request, Response}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
   @server_state_normal_mode ServerStateBuilder.build()
   @lib_ex_file_path %FilePath{path: "lib/cool", extension: @ex}
-  @test_exs_file_path %FilePath{path: "test/cool", extension: @exs}
+  @test_exs_file_path %FilePath{path: "test/cool_test", extension: @exs}
 
   describe "switch/1" do
     test "given a valid server state, switches to ClaudeAI mode" do
@@ -45,9 +45,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :persist_test_file,
         :build_claude_api_request,
         :perform_claude_api_request,
-        :put_claude_api_response,
-        :find_claude_api_diff,
-        :write_claude_api_diff_to_file,
+        :parse_claude_api_response,
+        :put_parsed_claude_api_response,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -69,9 +68,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
     test "given a test file, puts the correct lib file path" do
       {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
+        ClaudeAIMode.determine_actions(
+          %FilePath{path: "test/elixir/claude_ai_mode_test", extension: @exs},
+          @server_state_normal_mode
+        )
 
-      assert actions_tree.persist_lib_file.runnable == {:persist_file, "lib/cool.ex", :lib}
+      assert actions_tree.persist_lib_file.runnable ==
+               {:persist_file, "lib/elixir/claude_ai_mode.ex", :lib}
     end
 
     test "given a test file, returns a valid action tree" do
@@ -87,9 +90,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :persist_test_file,
         :build_claude_api_request,
         :perform_claude_api_request,
-        :put_claude_api_response,
-        :find_claude_api_diff,
-        :write_claude_api_diff_to_file,
+        :parse_claude_api_response,
+        :put_parsed_claude_api_response,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -203,51 +205,84 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
     end
   end
 
-  # TODO don't try to run mix test in claude mode if the file doesn't exist
+  describe "parse_api_response/2" do
+    test "given some server state containing a happy api response, put the parsed response into the server state" do
+      response_text = "some text"
+      body = Jason.encode!(%{"content" => [%{"text" => response_text}]})
 
-  describe "find_diff/2" do
-    test "given a response with a diff in it, returns the diff" do
-      assert {:ok, diff_contents() <> "\n"} ==
-               ClaudeAIMode.find_diff(api_response_text_with_diff())
+      response = {:ok, %Response{status_code: 200, body: body}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_claude_api_response(response)
+
+      assert {0, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
+
+      parsed = {:ok, {:parsed, response_text}}
+
+      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
+               new_server_state
     end
 
-    test "x" do
-      assert {:error, :no_diff} == ClaudeAIMode.find_diff("no diff here")
+    test "given some server state containing a sad api response with an unparsable HTTP 200 body, put the parsed response into the server state" do
+      body = Jason.encode!(%{"nope" => [%{"sad" => "times"}]})
+
+      response = {:ok, %Response{status_code: 200, body: body}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_claude_api_response(response)
+
+      assert {1, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
+
+      parsed =
+        {:error,
+         {:parsed,
+          """
+          I failed to decode the Claude API HTTP 200 response :-(
+          It was:
+
+          #{body}
+          """}}
+
+      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
+               new_server_state
     end
-  end
 
-  defp api_response_text_with_diff do
-    """
-    Based on the test output and the code, it appears that the test is failing because there's an extra key `:bollocks` in the actual action tree that is not expected. Here's a diff to fix this issue:
+    test "given some server state containing a sad api response with a non HTTP 200 response, put the parsed response into the server state" do
+      body = Jason.encode!(%{"its" => "wrecked"})
 
-    #{diff()}
+      response = %Response{status_code: 500, body: body}
 
-    This diff removes the `:bollocks` key from the actions tree. This extra key was causing the test to fail because it wasn't included in the list of expected action tree keys in the test.
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_claude_api_response(response)
 
-    After applying this change, the actual action tree keys should match the expected keys in the test, and the test should pass.
-    """
-  end
+      assert {1, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
 
-  defp diff do
-    """
-    ```diff
-    #{diff_contents()}
-    ```
-    """
-  end
+      parsed =
+        {:error,
+         {:parsed,
+          """
+          Claude API did not return a HTTP 200 response :-(
+          It was:
 
-  defp diff_contents do
-    """
-    --- a/lib/elixir/claude_ai_mode.ex
-    +++ b/lib/elixir/claude_ai_mode.ex
-    @@ -143,7 +143,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
-                next_action: :put_failure_msg
-              },
-              put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit},
-    -         bollocks: %Action{runnable: :put_sarcastic_success, next_action: :exit},
-              put_failure_msg: %Action{runnable: :put_insult, next_action: :exit}
-            }
-          }, server_state}
-    """
+          #{inspect(response)}
+          """}}
+
+      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
+               new_server_state
+    end
+
+    test "given some server state NOT containing a response whatsoever, return an error" do
+      server_state = ServerStateBuilder.build()
+
+      assert {1, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
+
+      parsed = {:error, {:parsed, "I have no Claude API response in my memory..."}}
+
+      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
+               new_server_state
+    end
   end
 end
