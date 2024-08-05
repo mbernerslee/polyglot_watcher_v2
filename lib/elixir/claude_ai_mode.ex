@@ -1,5 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
-  alias PolyglotWatcherV2.{Action, FilePath}
+  alias PolyglotWatcherV2.{Action, EnvironmentVariables, FilePath, FileSystem, Puts}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
   alias HTTPoison.{Request, Response}
 
@@ -95,8 +95,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          persist_test_file: %Action{
            runnable: {:persist_file, test_path, :test},
            next_action: %{
-             0 => :build_claude_api_request,
+             0 => :load_prompt,
              :fallback => :missing_file_msg
+           }
+         },
+         load_prompt: %Action{
+           runnable: :load_claude_ai_prompt,
+           next_action: %{
+             0 => :build_claude_api_request,
+             :fallback => :exit
            }
          },
          build_claude_api_request: %Action{
@@ -157,16 +164,106 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
      }, server_state}
   end
 
+  def load_prompt(server_state) do
+    {:ok, %{}}
+    |> and_then(:home, &get_home_env_var/1)
+    |> and_then(:custom_prompt, &read_custom_prompt_file/1)
+    |> case do
+      {:ok, %{custom_prompt: custom_prompt}} ->
+        Puts.on_new_line("Loading custom prompt from file...", :magenta)
+        {0, put_in(server_state, [:elixir, :claude_prompt], custom_prompt)}
+
+      {:error, :missing_custom_prompt_file} ->
+        Puts.on_new_line("No custom prompt file found, using default...", :magenta)
+        {0, put_in(server_state, [:elixir, :claude_prompt], default_prompt())}
+
+      {:error, :no_home_env_var} ->
+        Puts.on_new_line(
+          "I can't check if you've got a custom prompt, because $HOME doesn't exist... sort your system out to have $HOME, then try again?",
+          :red
+        )
+
+        {1, server_state}
+    end
+  end
+
+  def default_prompt do
+    """
+    <buffer>
+      <name>
+        Elixir Code
+      </name>
+      <filePath>
+        $LIB_PATH_PLACEHOLDER
+      </filePath>
+      <content>
+        $LIB_CONTENT_PLACEHOLDER
+      </content>
+    </buffer>
+
+    <buffer>
+      <name>
+        Elixir Test
+      </name>
+      <filePath>
+        $TEST_PATH_PLACEHOLDER
+      </filePath>
+      <content>
+        $TEST_CONTENT_PLACEHOLDER
+      </content>
+    </buffer>
+
+    <buffer>
+      <name>
+        Elixir Mix Test Output
+      </name>
+      <content>
+        $MIX_TEST_OUTPUT_PLACEHOLDER
+      </content>
+    </buffer>
+
+    *****
+
+    Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
+
+    """
+  end
+
+  defp get_home_env_var(_) do
+    case EnvironmentVariables.get_env("HOME") do
+      nil -> {:error, :no_home_env_var}
+      home -> {:ok, home}
+    end
+  end
+
+  defp read_custom_prompt_file(%{home: home}) do
+    path = home <> "/.config/polyglot_watcher_v2/prompt"
+
+    case FileSystem.read(path) do
+      {:ok, contents} -> {:ok, contents}
+      _ -> {:error, :missing_custom_prompt_file}
+    end
+  end
+
+  defp and_then({:ok, acc}, key, fun) do
+    case fun.(acc) do
+      {:ok, result} -> {:ok, Map.put(acc, key, result)}
+      error -> error
+    end
+  end
+
+  defp and_then(error, _key, _fun), do: error
+
   def build_api_request(
         %{
           files: %{lib: lib, test: test},
-          elixir: %{mix_test_output: mix_test_output},
+          elixir: %{mix_test_output: mix_test_output, claude_prompt: claude_prompt},
           env_vars: %{"ANTHROPIC_API_KEY" => claude_api_key}
         } = server_state
       )
       when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) and
              not is_nil(claude_api_key) do
-    request = build_api_request(lib, test, mix_test_output, claude_api_key)
+    request = build_api_request(lib, test, mix_test_output, claude_prompt, claude_api_key)
     {0, put_in(server_state, [:elixir, :claude_api_request], request)}
   end
 
@@ -222,7 +319,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
 
   # https://docs.anthropic.com/en/api/messages-examples
   # https://github.com/lebrunel/anthropix - use this instead?
-  defp build_api_request(lib, test, mix_test_output, claude_api_key) do
+  defp build_api_request(lib, test, mix_test_output, prompt, claude_api_key) do
     %Request{
       method: :post,
       url: "https://api.anthropic.com/v1/messages",
@@ -235,52 +332,19 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         Jason.encode!(%{
           max_tokens: 2048,
           model: "claude-3-5-sonnet-20240620",
-          messages: [%{role: "user", content: api_content(lib, test, mix_test_output)}]
+          messages: [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
         }),
       options: [recv_timeout: 30_000]
     }
   end
 
-  defp api_content(lib, test, mix_test_output) do
-    """
-    <buffer>
-      <name>
-        Elixir Code
-      </name>
-      <filePath>
-        #{lib.path}
-      </filePath>
-      <content>
-        #{lib.contents}
-      </content>
-    </buffer>
-
-    <buffer>
-      <name>
-        Elixir Test
-      </name>
-      <filePath>
-        #{test.path}
-      </filePath>
-      <content>
-        #{test.contents}
-      </content>
-    </buffer>
-
-    <buffer>
-      <name>
-        Elixir Mix Test Output
-      </name>
-      <content>
-      #{mix_test_output}
-      </content>
-    </buffer>
-
-    *****
-
-    Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
-
-    """
+  defp api_content(lib, test, prompt, mix_test_output) do
+    prompt
+    |> String.replace("$LIB_PATH_PLACEHOLDER", lib.path)
+    |> String.replace("$LIB_CONTENT_PLACEHOLDER", lib.contents)
+    |> String.replace("$TEST_PATH_PLACEHOLDER", test.path)
+    |> String.replace("$TEST_CONTENT_PLACEHOLDER", test.contents)
+    |> String.replace("$MIX_TEST_OUTPUT_PLACEHOLDER", mix_test_output)
   end
 
   defp cannot_determine_test_path_from_lib_path(lib_path) do

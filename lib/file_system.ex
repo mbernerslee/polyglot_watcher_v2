@@ -15,6 +15,8 @@ defmodule PolyglotWatcherV2.FileSystem do
     end
   end
 
+  def read(path), do: FileWrapper.read(path)
+
   defp persist_file(server_state, key, contents, path) do
     Map.update!(server_state, :files, fn files ->
       Map.put(files, key, %{contents: contents, path: path})

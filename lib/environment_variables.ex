@@ -11,4 +11,6 @@ defmodule PolyglotWatcherV2.EnvironmentVariables do
       env_var -> {0, put_in(server_state, [:env_vars, key], env_var)}
     end
   end
+
+  def get_env(key), do: SystemWrapper.get_env(key)
 end
