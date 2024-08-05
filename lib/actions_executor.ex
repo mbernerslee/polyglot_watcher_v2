@@ -62,6 +62,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
+  defp do_execute(:load_claude_ai_prompt, server_state) do
+    ClaudeAIMode.load_prompt(server_state)
+  end
+
   defp do_execute(:build_claude_api_request, server_state) do
     ClaudeAIMode.build_api_request(server_state)
   end

@@ -69,4 +69,14 @@ defmodule PolyglotWatcherV2.FileSystemTest do
                new_server_state
     end
   end
+
+  describe "read/1" do
+    test "if calls FileWrapper.read/1" do
+      Mimic.expect(FileWrapper, :read, fn "path" ->
+        {:ok, "contents"}
+      end)
+
+      assert FileWrapper.read("path") == {:ok, "contents"}
+    end
+  end
 end

@@ -82,4 +82,14 @@ defmodule PolyglotWatcherV2.EnvironmentVariablesTest do
       assert new_server_state.env_vars == %{env_var_key => new_env_var_value}
     end
   end
+
+  describe "get_env/1" do
+    test "it calls SystemWrapper.get_env/1" do
+      Mimic.expect(SystemWrapper, :get_env, fn "key" ->
+        "cool"
+      end)
+
+      assert EnvironmentVariables.get_env("key") == "cool"
+    end
+  end
 end

@@ -1,10 +1,13 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
   use ExUnit.Case, async: true
+  use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, ServerStateBuilder}
+  alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, Puts, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
   alias HTTPoison.{Request, Response}
+  alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
+  alias PolyglotWatcherV2.FileSystem.FileWrapper
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -44,6 +47,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_perist_files_msg,
         :persist_lib_file,
         :persist_test_file,
+        :load_prompt,
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
@@ -91,6 +95,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_perist_files_msg,
         :persist_lib_file,
         :persist_test_file,
+        :load_prompt,
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
@@ -148,6 +153,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       test_file = %{path: "test/cool_test.exs", contents: "cool test"}
       mix_test_output = "it failed mate. get good."
       api_key = "super-secret"
+      prompt = "cool prompt dude"
 
       server_state =
         ServerStateBuilder.build()
@@ -155,6 +161,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+        |> ServerStateBuilder.with_claude_prompt(prompt)
 
       assert {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 
@@ -177,7 +184,145 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       assert %{
                "max_tokens" => 2048,
                "model" => "claude-3-5-sonnet-20240620",
-               "messages" => [%{"role" => "user", "content" => _}]
+               "messages" => [%{"role" => "user", "content" => ^prompt}]
+             } = Jason.decode!(body)
+    end
+
+    test "prompt placeholders get populated" do
+      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
+      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
+      mix_test_output = "it failed mate. get good."
+      api_key = "super-secret"
+
+      prompt_with_placeholders = """
+        Hello
+        $LIB_PATH_PLACEHOLDER
+        mother
+        $LIB_CONTENT_PLACEHOLDER
+        how
+        $TEST_PATH_PLACEHOLDER
+        are
+        $TEST_CONTENT_PLACEHOLDER
+        you
+        $MIX_TEST_OUTPUT_PLACEHOLDER
+        today?
+      """
+
+      prompt_without_placeholders = """
+        Hello
+        lib/cool.ex
+        mother
+        cool lib
+        how
+        test/cool_test.exs
+        are
+        cool test
+        you
+        it failed mate. get good.
+        today?
+      """
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file(:lib, lib_file)
+        |> ServerStateBuilder.with_file(:test, test_file)
+        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
+        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+        |> ServerStateBuilder.with_claude_prompt(prompt_with_placeholders)
+
+      {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
+
+      %{elixir: %{claude_api_request: api_request}} = new_server_state
+
+      %Request{
+        method: :post,
+        url: "https://api.anthropic.com/v1/messages",
+        headers: [
+          {"x-api-key", ^api_key},
+          {"anthropic-version", "2023-06-01"},
+          {"content-type", "application/json"}
+        ],
+        body: body,
+        options: [recv_timeout: 30_000]
+      } = api_request
+
+      assert %{
+               "max_tokens" => 2048,
+               "model" => "claude-3-5-sonnet-20240620",
+               "messages" => [%{"role" => "user", "content" => ^prompt_without_placeholders}]
+             } = Jason.decode!(body)
+    end
+
+    test "prompt placeholders get populated, even when there are multiple" do
+      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
+      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
+      mix_test_output = "it failed mate. get good."
+      api_key = "super-secret"
+
+      prompt_with_placeholders = """
+        Hello
+        $LIB_PATH_PLACEHOLDER
+        $LIB_CONTENT_PLACEHOLDER
+        mother
+        $LIB_CONTENT_PLACEHOLDER
+        $TEST_CONTENT_PLACEHOLDER
+        how
+        $MIX_TEST_OUTPUT_PLACEHOLDER
+        $TEST_PATH_PLACEHOLDER
+        are
+        $LIB_PATH_PLACEHOLDER
+        $TEST_CONTENT_PLACEHOLDER
+        you
+        $MIX_TEST_OUTPUT_PLACEHOLDER
+        today?
+      """
+
+      prompt_without_placeholders = """
+        Hello
+        lib/cool.ex
+        cool lib
+        mother
+        cool lib
+        cool test
+        how
+        it failed mate. get good.
+        test/cool_test.exs
+        are
+        lib/cool.ex
+        cool test
+        you
+        it failed mate. get good.
+        today?
+      """
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file(:lib, lib_file)
+        |> ServerStateBuilder.with_file(:test, test_file)
+        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
+        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+        |> ServerStateBuilder.with_claude_prompt(prompt_with_placeholders)
+
+      {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
+
+      %{elixir: %{claude_api_request: api_request}} = new_server_state
+
+      %Request{
+        method: :post,
+        url: "https://api.anthropic.com/v1/messages",
+        headers: [
+          {"x-api-key", ^api_key},
+          {"anthropic-version", "2023-06-01"},
+          {"content-type", "application/json"}
+        ],
+        body: body,
+        options: [recv_timeout: 30_000]
+      } = api_request
+
+      assert %{
+               "max_tokens" => 2048,
+               "model" => "claude-3-5-sonnet-20240620",
+               "messages" => [%{"role" => "user", "content" => ^prompt_without_placeholders}]
              } = Jason.decode!(body)
     end
 
@@ -193,6 +338,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+        |> ServerStateBuilder.with_default_claude_prompt()
 
       assert {0, _} = ClaudeAIMode.build_api_request(server_state)
 
@@ -286,6 +432,73 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       parsed = {:error, {:parsed, "I have no Claude API response in my memory..."}}
 
       assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
+               new_server_state
+    end
+  end
+
+  describe "load_prompt/1" do
+    test "when there's a custom file, we read the HOME env var to read the file" do
+      home_path = "/home/el_dude"
+      prompt = "cool prompt"
+
+      server_state = ServerStateBuilder.build()
+
+      Mimic.expect(SystemWrapper, :get_env, fn "HOME" ->
+        home_path
+      end)
+
+      Mimic.expect(FileWrapper, :read, fn path ->
+        assert path == home_path <> "/.config/polyglot_watcher_v2/prompt"
+        {:ok, prompt}
+      end)
+
+      Mimic.expect(Puts, :on_new_line, fn msg, style ->
+        assert msg == "Loading custom prompt from file..."
+        assert style == :magenta
+      end)
+
+      assert {0, new_server_state} = ClaudeAIMode.load_prompt(server_state)
+
+      assert put_in(server_state, [:elixir, :claude_prompt], prompt) == new_server_state
+    end
+
+    test "when the HOME env var is missing, return error, & put error msg on the screen" do
+      server_state = ServerStateBuilder.build()
+
+      Mimic.expect(SystemWrapper, :get_env, fn "HOME" ->
+        nil
+      end)
+
+      Mimic.expect(Puts, :on_new_line, fn msg, style ->
+        assert msg ==
+                 "I can't check if you've got a custom prompt, because $HOME doesn't exist... sort your system out to have $HOME, then try again?"
+
+        assert style == :red
+      end)
+
+      assert {1, server_state} == ClaudeAIMode.load_prompt(server_state)
+    end
+
+    test "when there's no custom file, then we load the custom prompt, and put a msg saying so" do
+      home_path = "/home/el_dude"
+      server_state = ServerStateBuilder.build()
+
+      Mimic.expect(SystemWrapper, :get_env, fn "HOME" ->
+        home_path
+      end)
+
+      Mimic.expect(FileWrapper, :read, fn _path ->
+        {:error, :enoent}
+      end)
+
+      Mimic.expect(Puts, :on_new_line, fn msg, style ->
+        assert msg == "No custom prompt file found, using default..."
+        assert style == :magenta
+      end)
+
+      assert {0, new_server_state} = ClaudeAIMode.load_prompt(server_state)
+
+      assert put_in(server_state, [:elixir, :claude_prompt], ClaudeAIMode.default_prompt()) ==
                new_server_state
     end
   end
