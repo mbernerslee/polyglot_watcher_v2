@@ -453,7 +453,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       end)
 
       Mimic.expect(Puts, :on_new_line, fn msg, style ->
-        assert msg == "Loading custom prompt from file..."
+        assert msg == "Loading custom prompt from ~/.config/polyglot_watcher_v2/prompt ..."
         assert style == :magenta
       end)
 
