@@ -46,13 +46,20 @@ using the switches listed below...
 
 ## Elixir Claude Mode
 
+### Requirements
+
+Have a valid `ANTHROPIC_API_KEY` environment variable on your system.
+See [https://docs.anthropic.com/en/docs/welcome](https://docs.anthropic.com/en/docs/welcome)
+
+### What it does
+
 By default this mode will trigger the following on file save:
 
 - determine the equivalent lib / test file depending on which was saved
 - run `mix test <test_file>`
 - if the test fails, it will make an API call to Anthropic's Claude AI to ask it if it can fix the test
 
-The prompt is generated for you, and it splices in the lib file, test file and the output of the test run.
+The prompt is generated for you, and it splices the lib file, test file and the output of the test run into it.
 
 ### Custom prompt
 
