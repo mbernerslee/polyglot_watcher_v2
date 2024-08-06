@@ -13,7 +13,7 @@ if you're on Debian or Mac simply do:
 - `./install`
 - now you can run `polyglot_watcher_v2` from anywhere
 
-otherwise you'll have to look at how the `install` works and figure out how to install it on your OS.
+...otherwise you'll have to look at how the `install` script works and figure out how to install it on your OS.
 
 ## Watcher usage and modes
 
@@ -35,7 +35,7 @@ using the switches listed below...
 | Fix All | `ex fa` | Runs <br /><br /> 1. `mix test` <br /> 2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done |
 | Fix All For File | `ex faff [path]` | Runs <br /><br /> 1. `mix test [path]` <br /> 2. `mix test [path]:[one test line number only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done <br /><br /> OR without specifying `[path]` <br /><br /> Runs the above but using the most recently failed test file from memory |
 | Fixed Last | `ex fl` | Runs `mix test [the most recent failure in memory]` when any *.ex* or *.exs* files are saved. <br /> I do this by keeping track of which tests have failed as I go. <br /> This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on. <br /> Initialising in this mode is senseless because on startup my memory of failing tests is empty... <br /> So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one <br /> |
-| Claude | `ex cl` | The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test <br /> It auto-generates the prompt with the lib file, test file & mix test output for you. <br /> Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.<br /> |
+| Claude | `ex cl` | The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test <br /> It auto-generates the prompt with the lib file, test file & mix test output for you. <br /> Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.<br /> See below for more details |
 
 ### Rust
 
@@ -44,21 +44,44 @@ using the switches listed below...
 | Default | `rs d` | Will always run `cargo build` when any `.rs` file is saved |
 | Test | `rs t` | Will always run `cargo test` when any `.rs` file is saved |
 
+## Elixir Claude Mode
 
-## Quick guide to the codebase
+By default this mode will trigger the following on file save:
 
- The entrypoint for the codebase is polyglot_watcher_v2.ex, def main
- * It starts up a supervised GenServer process, as defined in the Server module
- Server:
- * uses a filesystem watcher to watch for any changes in the current directory, and also listens for
- user input
- * handle_info will handle any output from the filesystem watcher, and use that to determine next actions
- to run, and then run those actions
- * set_ignore_file_changes is used to set whether file changes are being responded to or not
- * listen_for_user_input listens for input from the user, determines actions based on that input, and then
- runs those actions
- The main other modules of interest are:
- * Determine - holds logic for determining what actions to take based on filesystem changes (mainly
- delegated to relevant modules for each language like ElixirLangDeterminer)
- * UserInput - same as determine, but for input received from the user
- * TraverseActionsTree - interprets a tree of actions and executes them
+- determine the equivalent lib / test file depending on which was saved
+- run `mix test <test_file>`
+- if the test fails, it will make an API call to Anthropic's Claude AI to ask it if it can fix the test
+
+The prompt is generated for you, and it splices in the lib file, test file and the output of the test run.
+
+### Custom prompt
+
+You can override the default prompt by placing a file at
+`~/.config/polyglot_watcher_v2/prompt`
+
+The following placeholders will get be replaced with the real thing at runtime:
+- `$LIB_PATH_PLACEHOLDER`
+- `$LIB_CONTENT_PLACEHOLDER`
+- `$TEST_PATH_PLACEHOLDER`
+- `$TEST_CONTENT_PLACEHOLDER`
+- `$MIX_TEST_OUTPUT_PLACEHOLDER`
+
+Meaning that you can have a prompt like this at `~/.config/polyglot_watcher_v2/prompt`:
+
+```
+Given the lib file at $LIB_PATH_PLACEHOLDER with the contents:
+$LIB_CONTENT_PLACEHOLDER
+
+and the test file at $TEST_PATH_PLACEHOLDER with the contents:
+$TEST_CONTENT_PLACEHOLDER
+
+and the output of the test run:
+$MIX_TEST_OUTPUT_PLACEHOLDER
+
+Can you fix the test, using this much superior prompt that I have come up with?
+Also while you're at it, can you please sound like a drunken pirate?
+```
+
+Then it will be used.
+If you change the prompt whilst the watcher is running, it will be respected because I reload it before each API call. No need to restart the watcher.
+

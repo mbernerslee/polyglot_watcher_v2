@@ -170,7 +170,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     |> and_then(:custom_prompt, &read_custom_prompt_file/1)
     |> case do
       {:ok, %{custom_prompt: custom_prompt}} ->
-        Puts.on_new_line("Loading custom prompt from file...", :magenta)
+        Puts.on_new_line(
+          "Loading custom prompt from ~/.config/polyglot_watcher_v2/prompt ...",
+          :magenta
+        )
+
         {0, put_in(server_state, [:elixir, :claude_prompt], custom_prompt)}
 
       {:error, :missing_custom_prompt_file} ->
