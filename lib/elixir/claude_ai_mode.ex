@@ -133,6 +133,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          },
          put_parsed_claude_api_response: %Action{
            runnable: :put_parsed_claude_api_response,
+           next_action: %{
+             0 => :write_codeblock_from_elixir_diff_to_file,
+             :fallback => :fallback_placeholder_error
+           }
+         },
+         write_codeblock_from_elixir_diff_to_file: %Action{
+           runnable: :write_codeblock_from_elixir_diff_to_file,
            next_action: %{0 => :exit, :fallback => :fallback_placeholder_error}
          },
          missing_file_msg: %Action{
@@ -188,6 +195,71 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         )
 
         {1, server_state}
+    end
+  end
+
+  def write_codeblock_from_elixir_diff_to_file(
+        %{
+          elixir: %{claude_api_response: {:ok, {:parsed, response}}},
+          files: %{lib: %{path: lib_path, contents: old_contents}}
+        } = server_state
+      ) do
+    {:ok, %{raw: response, lib_path: lib_path, old_lib_contents: old_contents}}
+    |> and_then(:backticked_elixir, &file_backticked_elixir_contents/1)
+    |> and_then(:new_contents, &generate_new_lib_contents/1)
+    |> and_then(:write_to_file, &write_new_contents_to_file/1)
+    |> case do
+      {:ok, %{write_to_file: :ok}} ->
+        {0, server_state}
+
+      _ ->
+        {1, server_state}
+    end
+  end
+
+  defp generate_new_lib_contents(%{
+         backticked_elixir: backticked_elixir,
+         lib_path: lib_path,
+         old_lib_contents: old_lib_contents
+       }) do
+    commented_old_contents =
+      old_lib_contents
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line -> "## #{line}" end)
+      |> Enum.join("\n")
+
+    commented_old_contents = """
+    ##########################
+    ## previous code version
+    ##########################
+    #{commented_old_contents}
+    ##########################
+    """
+
+    {:ok, backticked_elixir <> "\n" <> commented_old_contents}
+  end
+
+  defp write_new_contents_to_file(%{lib_path: lib_path, new_contents: new_contents}) do
+    case FileSystem.write(lib_path, new_contents) do
+      :ok -> {:ok, :ok}
+      _ -> {:error, :file_not_written}
+    end
+  end
+
+  defp file_backticked_elixir_contents(%{raw: api_response}) do
+    api_response
+    |> String.split("\n", trim: true)
+    |> Enum.reduce_while(nil, fn line, acc ->
+      case {line, acc} do
+        {"```elixir", nil} -> {:cont, []}
+        {_, nil} -> {:cont, nil}
+        {"```", acc} -> {:halt, {:ok, ["" | acc] |> Enum.reverse() |> Enum.join("\n")}}
+        {line, acc} -> {:cont, [line | acc]}
+      end
+    end)
+    |> case do
+      {:ok, contents} -> {:ok, contents}
+      _ -> :error
     end
   end
 
@@ -275,6 +347,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     {1, server_state}
   end
 
+  # TODO change this to IO.puts a claude API response error message. parse 529 errors (and others) better
+  # TODO split this module up, its massive
+  # TODO ask claude for the full file contents, but then generate our own diff and show that to the user & apply the diff?
   def parse_api_response(
         %{elixir: %{claude_api_response: {:ok, %Response{status_code: 200, body: body}}}} =
           server_state
@@ -338,7 +413,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
           model: "claude-3-5-sonnet-20240620",
           messages: [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
         }),
-      options: [recv_timeout: 30_000]
+      options: [recv_timeout: 180_000]
     }
   end
 

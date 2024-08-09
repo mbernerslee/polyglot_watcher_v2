@@ -75,7 +75,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
          %{elixir: %{claude_api_request: %Request{} = request}} = server_state
        ) do
     response = HTTPoison.request(request)
-
     {0, put_in(server_state, [:elixir, :claude_api_response], response)}
   end
 
@@ -85,6 +84,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:parse_claude_api_response, server_state) do
     ClaudeAIMode.parse_api_response(server_state)
+    |> IO.inspect()
+  end
+
+  defp do_execute(:write_codeblock_from_elixir_diff_to_file, server_state) do
+    ClaudeAIMode.write_codeblock_from_elixir_diff_to_file(server_state)
   end
 
   defp do_execute(:put_parsed_claude_api_response, server_state) do
