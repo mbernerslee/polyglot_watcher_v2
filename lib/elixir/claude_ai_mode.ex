@@ -205,7 +205,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         } = server_state
       ) do
     {:ok, %{raw: response, lib_path: lib_path, old_lib_contents: old_contents}}
-    |> and_then(:backticked_elixir, &file_backticked_elixir_contents/1)
+    |> and_then(:elixir_codeblock, &find_elixir_codeblock/1)
     |> and_then(:new_contents, &generate_new_lib_contents/1)
     |> and_then(:write_to_file, &write_new_contents_to_file/1)
     |> case do
@@ -218,17 +218,23 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   end
 
   defp generate_new_lib_contents(%{
-         backticked_elixir: backticked_elixir,
-         lib_path: lib_path,
+         elixir_codeblock: elixir_codeblock,
          old_lib_contents: old_lib_contents
        }) do
     commented_old_contents =
       old_lib_contents
       |> String.split("\n", trim: true)
-      |> Enum.map(fn line -> "## #{line}" end)
+      |> Enum.map(fn line ->
+        if String.starts_with?(line, "##") do
+          line
+        else
+          "## #{line}"
+        end
+      end)
       |> Enum.join("\n")
 
-    commented_old_contents = """
+    new_contents = """
+    #{elixir_codeblock}
     ##########################
     ## previous code version
     ##########################
@@ -236,7 +242,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     ##########################
     """
 
-    {:ok, backticked_elixir <> "\n" <> commented_old_contents}
+    {:ok, new_contents}
   end
 
   defp write_new_contents_to_file(%{lib_path: lib_path, new_contents: new_contents}) do
@@ -246,7 +252,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     end
   end
 
-  defp file_backticked_elixir_contents(%{raw: api_response}) do
+  defp find_elixir_codeblock(%{raw: api_response}) do
     api_response
     |> String.split("\n", trim: true)
     |> Enum.reduce_while(nil, fn line, acc ->

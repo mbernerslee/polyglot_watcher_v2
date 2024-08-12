@@ -84,7 +84,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:parse_claude_api_response, server_state) do
     ClaudeAIMode.parse_api_response(server_state)
-    |> IO.inspect()
   end
 
   defp do_execute(:write_codeblock_from_elixir_diff_to_file, server_state) do
