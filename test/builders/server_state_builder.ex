@@ -7,6 +7,7 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       port: nil,
       ignore_file_changes: false,
       elixir: %{mode: :default, failures: []},
+      claude_ai: %{},
       rust: %{mode: :default},
       os: :linux,
       watcher: Inotifywait,
@@ -24,8 +25,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:elixir, :failures], failures)
   end
 
-  def with_elixir_claude_api_response(server_state, response) do
-    put_in(server_state, [:elixir, :claude_api_response], response)
+  def with_claude_ai_response(server_state, response) do
+    put_in(server_state, [:claude_ai, :response], response)
   end
 
   def with_mix_test_output(server_state, mix_test_output) do
@@ -36,10 +37,7 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:rust, :mode], mode)
   end
 
-  def with_claude_api_key(server_state, claude_api_key) do
-    put_in(server_state, [:claude_api_key], claude_api_key)
-  end
-
+  # TODO rename to with_elixir_claude_prompt AND make the file be named something elixir specific
   def with_claude_prompt(server_state, prompt) do
     put_in(server_state, [:elixir, :claude_prompt], prompt)
   end
@@ -50,6 +48,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
 
   def with_env_var(server_state, key, value) do
     Map.update!(server_state, :env_vars, fn env_vars -> Map.put(env_vars, key, value) end)
+  end
+
+  def with_claude_api_key(server_state, api_key) do
+    with_env_var(server_state, "ANTHROPIC_API_KEY", api_key)
   end
 
   def with_file(server_state, key, %{contents: contents, path: path}) do

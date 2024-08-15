@@ -29,6 +29,8 @@ defmodule PolyglotWatcherV2.Puts do
 
   def on_new_line(message), do: on_new_line(message, :magenta)
 
+  def on_new_line_unstyled(message), do: IO.puts(message)
+
   def on_previous_line(message, style) do
     IO.puts(@overwrite_previous_line_code <> build(style, message))
   end

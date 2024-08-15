@@ -20,6 +20,7 @@ defmodule PolyglotWatcherV2.Server do
     ignore_file_changes: false,
     starting_dir: nil,
     elixir: %{mode: :default, failures: []},
+    claude_ai: %{},
     rust: %{mode: :default},
     env_vars: %{},
     files: %{}

@@ -1,7 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
-  alias PolyglotWatcherV2.{Action, EnvironmentVariables, FilePath, FileSystem, Puts}
+  alias PolyglotWatcherV2.{Action, ClaudeAI, EnvironmentVariables, FilePath, FileSystem, Puts}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
-  alias HTTPoison.{Request, Response}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -120,19 +119,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
            next_action: %{
-             0 => :parse_claude_api_response,
+             0 => :handle_claude_api_response,
              :fallback => :fallback_placeholder_error
            }
          },
-         parse_claude_api_response: %Action{
-           runnable: :parse_claude_api_response,
-           next_action: %{
-             0 => :put_parsed_claude_api_response,
-             :fallback => :fallback_placeholder_error
-           }
-         },
-         put_parsed_claude_api_response: %Action{
-           runnable: :put_parsed_claude_api_response,
+         handle_claude_api_response: %Action{
+           runnable: :handle_claude_api_response,
            next_action: %{
              0 => :write_codeblock_from_elixir_diff_to_file,
              :fallback => :fallback_placeholder_error
@@ -195,77 +187,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
         )
 
         {1, server_state}
-    end
-  end
-
-  def write_codeblock_from_elixir_diff_to_file(
-        %{
-          elixir: %{claude_api_response: {:ok, {:parsed, response}}},
-          files: %{lib: %{path: lib_path, contents: old_contents}}
-        } = server_state
-      ) do
-    {:ok, %{raw: response, lib_path: lib_path, old_lib_contents: old_contents}}
-    |> and_then(:elixir_codeblock, &find_elixir_codeblock/1)
-    |> and_then(:new_contents, &generate_new_lib_contents/1)
-    |> and_then(:write_to_file, &write_new_contents_to_file/1)
-    |> case do
-      {:ok, %{write_to_file: :ok}} ->
-        {0, server_state}
-
-      _ ->
-        {1, server_state}
-    end
-  end
-
-  defp generate_new_lib_contents(%{
-         elixir_codeblock: elixir_codeblock,
-         old_lib_contents: old_lib_contents
-       }) do
-    commented_old_contents =
-      old_lib_contents
-      |> String.split("\n", trim: true)
-      |> Enum.map(fn line ->
-        if String.starts_with?(line, "##") do
-          line
-        else
-          "## #{line}"
-        end
-      end)
-      |> Enum.join("\n")
-
-    new_contents = """
-    #{elixir_codeblock}
-    ##########################
-    ## previous code version
-    ##########################
-    #{commented_old_contents}
-    ##########################
-    """
-
-    {:ok, new_contents}
-  end
-
-  defp write_new_contents_to_file(%{lib_path: lib_path, new_contents: new_contents}) do
-    case FileSystem.write(lib_path, new_contents) do
-      :ok -> {:ok, :ok}
-      _ -> {:error, :file_not_written}
-    end
-  end
-
-  defp find_elixir_codeblock(%{raw: api_response}) do
-    api_response
-    |> String.split("\n", trim: true)
-    |> Enum.reduce_while(nil, fn line, acc ->
-      case {line, acc} do
-        {"```elixir", nil} -> {:cont, []}
-        {_, nil} -> {:cont, nil}
-        {"```", acc} -> {:halt, {:ok, ["" | acc] |> Enum.reverse() |> Enum.join("\n")}}
-        {line, acc} -> {:cont, [line | acc]}
-      end
-    end)
-    |> case do
-      {:ok, contents} -> {:ok, contents}
-      _ -> :error
     end
   end
 
@@ -339,88 +260,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   def build_api_request(
         %{
           files: %{lib: lib, test: test},
-          elixir: %{mix_test_output: mix_test_output, claude_prompt: claude_prompt},
-          env_vars: %{"ANTHROPIC_API_KEY" => claude_api_key}
+          elixir: %{mix_test_output: mix_test_output, claude_prompt: prompt}
         } = server_state
       )
-      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) and
-             not is_nil(claude_api_key) do
-    request = build_api_request(lib, test, mix_test_output, claude_prompt, claude_api_key)
-    {0, put_in(server_state, [:elixir, :claude_api_request], request)}
+      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) do
+    messages = [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
+
+    ClaudeAI.build_api_request(server_state, messages)
   end
 
   def build_api_request(server_state) do
     {1, server_state}
-  end
-
-  # TODO change this to IO.puts a claude API response error message. parse 529 errors (and others) better
-  # TODO split this module up, its massive
-  # TODO ask claude for the full file contents, but then generate our own diff and show that to the user & apply the diff?
-  def parse_api_response(
-        %{elixir: %{claude_api_response: {:ok, %Response{status_code: 200, body: body}}}} =
-          server_state
-      ) do
-    case Jason.decode(body) do
-      {:ok, %{"content" => [%{"text" => text} | _]}} ->
-        {0, put_in(server_state, [:elixir, :claude_api_response], {:ok, {:parsed, text}})}
-
-      _ ->
-        result =
-          {:error,
-           {:parsed,
-            """
-            I failed to decode the Claude API HTTP 200 response :-(
-            It was:
-
-            #{body}
-            """}}
-
-        {1, put_in(server_state, [:elixir, :claude_api_response], result)}
-    end
-  end
-
-  def parse_api_response(%{elixir: %{claude_api_response: response}} = server_state) do
-    result =
-      {:error,
-       {:parsed,
-        """
-        Claude API did not return a HTTP 200 response :-(
-        It was:
-
-        #{inspect(response)}
-        """}}
-
-    {1, put_in(server_state, [:elixir, :claude_api_response], result)}
-  end
-
-  def parse_api_response(server_state) do
-    {1,
-     put_in(
-       server_state,
-       [:elixir, :claude_api_response],
-       {:error, {:parsed, "I have no Claude API response in my memory..."}}
-     )}
-  end
-
-  # https://docs.anthropic.com/en/api/messages-examples
-  # https://github.com/lebrunel/anthropix - use this instead?
-  defp build_api_request(lib, test, mix_test_output, prompt, claude_api_key) do
-    %Request{
-      method: :post,
-      url: "https://api.anthropic.com/v1/messages",
-      headers: [
-        {"x-api-key", claude_api_key},
-        {"anthropic-version", "2023-06-01"},
-        {"content-type", "application/json"}
-      ],
-      body:
-        Jason.encode!(%{
-          max_tokens: 2048,
-          model: "claude-3-5-sonnet-20240620",
-          messages: [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
-        }),
-      options: [recv_timeout: 180_000]
-    }
   end
 
   defp api_content(lib, test, prompt, mix_test_output) do

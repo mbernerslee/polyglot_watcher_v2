@@ -9,8 +9,9 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
-  alias PolyglotWatcherV2.{EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
+  alias PolyglotWatcherV2.{ClaudeAI, EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
   alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures, MixTest}
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.Codeblock, as: ClaudeAIElixirCodeblock
   alias HTTPoison.Request
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
@@ -72,38 +73,22 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(
          :perform_claude_api_request,
-         %{elixir: %{claude_api_request: %Request{} = request}} = server_state
+         %{claude_ai: %{request: %Request{} = request}} = server_state
        ) do
     response = HTTPoison.request(request)
-    {0, put_in(server_state, [:elixir, :claude_api_response], response)}
+    {0, put_in(server_state, [:claude_ai, :response], response)}
   end
 
   defp do_execute(:perform_claude_api_request, server_state) do
     {{:error, :missing_or_invalid_request}, server_state}
   end
 
-  defp do_execute(:parse_claude_api_response, server_state) do
-    ClaudeAIMode.parse_api_response(server_state)
+  defp do_execute(:handle_claude_api_response, server_state) do
+    ClaudeAI.handle_api_response(server_state)
   end
 
   defp do_execute(:write_codeblock_from_elixir_diff_to_file, server_state) do
-    ClaudeAIMode.write_codeblock_from_elixir_diff_to_file(server_state)
-  end
-
-  defp do_execute(:put_parsed_claude_api_response, server_state) do
-    case server_state[:elixir][:claude_api_response] do
-      {:ok, {:parsed, response}} ->
-        IO.puts(response)
-        {0, server_state}
-
-      {:error, {:parsed, response}} ->
-        IO.puts(response)
-        {1, server_state}
-
-      other ->
-        IO.puts("Some kinda fail happened. \n#{inspect(other)}")
-        {1, server_state}
-    end
+    ClaudeAIElixirCodeblock.write_to_lib_file(server_state)
   end
 
   defp do_execute(:cargo_build, server_state) do
