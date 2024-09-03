@@ -15,7 +15,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.Codeblock do
       {:ok, %{write_to_file: :ok}} ->
         {0, server_state}
 
-      _ ->
+      x ->
+        IO.inspect(x)
         {1, server_state}
     end
   end
@@ -32,8 +33,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.Codeblock do
       end
     end)
     |> case do
-      {:ok, contents} -> {:ok, contents}
-      _ -> :error
+      {:ok, contents} ->
+        {:ok, contents}
+
+      x ->
+        IO.inspect(1)
+        IO.inspect(x)
+        :error
     end
   end
 
@@ -67,8 +73,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.Codeblock do
 
   defp write_new_contents_to_file(%{lib_path: lib_path, new_contents: new_contents}) do
     case FileSystem.write(lib_path, new_contents) do
-      :ok -> {:ok, :ok}
-      _ -> {:error, :file_not_written}
+      :ok ->
+        {:ok, :ok}
+
+      x ->
+        IO.inspect(2)
+        IO.inspect(x)
+        {:error, :file_not_written}
     end
   end
 
