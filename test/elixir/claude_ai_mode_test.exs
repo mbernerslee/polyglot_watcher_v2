@@ -51,7 +51,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_calling_claude_msg,
         :perform_claude_api_request,
         :handle_claude_api_response,
-        :write_codeblock_from_elixir_diff_to_file,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -99,7 +98,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_calling_claude_msg,
         :perform_claude_api_request,
         :handle_claude_api_response,
-        :write_codeblock_from_elixir_diff_to_file,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -160,7 +158,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_claude_prompt(prompt)
+        |> ServerStateBuilder.with_elixir_claude_prompt(prompt)
 
       assert {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 
@@ -215,7 +213,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_claude_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
       {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 
@@ -276,7 +274,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_claude_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
       {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 

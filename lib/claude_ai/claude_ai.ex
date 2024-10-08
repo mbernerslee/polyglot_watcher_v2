@@ -11,8 +11,6 @@ defmodule PolyglotWatcherV2.ClaudeAI do
     {1, server_state}
   end
 
-  # TODO ask claude for the full file contents, but then generate our own diff and show that to the user & apply the diff?
-  # https://stackoverflow.com/questions/34932508/git-one-liner-for-applying-a-patch-interactively
   def handle_api_response(
         %{claude_ai: %{response: {:ok, %Response{status_code: 200, body: body}}}} = server_state
       ) do

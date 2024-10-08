@@ -126,13 +126,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          handle_claude_api_response: %Action{
            runnable: :handle_claude_api_response,
            next_action: %{
-             0 => :write_codeblock_from_elixir_diff_to_file,
+             0 => :exit,
              :fallback => :fallback_placeholder_error
            }
-         },
-         write_codeblock_from_elixir_diff_to_file: %Action{
-           runnable: :write_codeblock_from_elixir_diff_to_file,
-           next_action: %{0 => :exit, :fallback => :fallback_placeholder_error}
          },
          missing_file_msg: %Action{
            runnable:

@@ -11,7 +11,6 @@ end
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{ClaudeAI, EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
   alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures, MixTest}
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.Codeblock, as: ClaudeAIElixirCodeblock
   alias HTTPoison.Request
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
@@ -85,10 +84,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:handle_claude_api_response, server_state) do
     ClaudeAI.handle_api_response(server_state)
-  end
-
-  defp do_execute(:write_codeblock_from_elixir_diff_to_file, server_state) do
-    ClaudeAIElixirCodeblock.write_to_lib_file(server_state)
   end
 
   defp do_execute(:cargo_build, server_state) do
