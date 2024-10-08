@@ -37,7 +37,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:rust, :mode], mode)
   end
 
-  # TODO rename to with_elixir_claude_prompt AND make the file be named something elixir specific
   def with_elixir_claude_prompt(server_state, prompt) do
     put_in(server_state, [:elixir, :claude_prompt], prompt)
   end
