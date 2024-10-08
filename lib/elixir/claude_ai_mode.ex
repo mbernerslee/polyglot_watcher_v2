@@ -1,7 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
-  alias PolyglotWatcherV2.{Action, EnvironmentVariables, FilePath, FileSystem, Puts}
+  alias PolyglotWatcherV2.{Action, ClaudeAI, EnvironmentVariables, FilePath, FileSystem, Puts}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
-  alias HTTPoison.{Request, Response}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -120,20 +119,16 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
            next_action: %{
-             0 => :parse_claude_api_response,
+             0 => :handle_claude_api_response,
              :fallback => :fallback_placeholder_error
            }
          },
-         parse_claude_api_response: %Action{
-           runnable: :parse_claude_api_response,
+         handle_claude_api_response: %Action{
+           runnable: :handle_claude_api_response,
            next_action: %{
-             0 => :put_parsed_claude_api_response,
+             0 => :exit,
              :fallback => :fallback_placeholder_error
            }
-         },
-         put_parsed_claude_api_response: %Action{
-           runnable: :put_parsed_claude_api_response,
-           next_action: %{0 => :exit, :fallback => :fallback_placeholder_error}
          },
          missing_file_msg: %Action{
            runnable:
@@ -261,85 +256,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
   def build_api_request(
         %{
           files: %{lib: lib, test: test},
-          elixir: %{mix_test_output: mix_test_output, claude_prompt: claude_prompt},
-          env_vars: %{"ANTHROPIC_API_KEY" => claude_api_key}
+          elixir: %{mix_test_output: mix_test_output, claude_prompt: prompt}
         } = server_state
       )
-      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) and
-             not is_nil(claude_api_key) do
-    request = build_api_request(lib, test, mix_test_output, claude_prompt, claude_api_key)
-    {0, put_in(server_state, [:elixir, :claude_api_request], request)}
+      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) do
+    messages = [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
+
+    ClaudeAI.build_api_request(server_state, messages)
   end
 
   def build_api_request(server_state) do
     {1, server_state}
-  end
-
-  def parse_api_response(
-        %{elixir: %{claude_api_response: {:ok, %Response{status_code: 200, body: body}}}} =
-          server_state
-      ) do
-    case Jason.decode(body) do
-      {:ok, %{"content" => [%{"text" => text} | _]}} ->
-        {0, put_in(server_state, [:elixir, :claude_api_response], {:ok, {:parsed, text}})}
-
-      _ ->
-        result =
-          {:error,
-           {:parsed,
-            """
-            I failed to decode the Claude API HTTP 200 response :-(
-            It was:
-
-            #{body}
-            """}}
-
-        {1, put_in(server_state, [:elixir, :claude_api_response], result)}
-    end
-  end
-
-  def parse_api_response(%{elixir: %{claude_api_response: response}} = server_state) do
-    result =
-      {:error,
-       {:parsed,
-        """
-        Claude API did not return a HTTP 200 response :-(
-        It was:
-
-        #{inspect(response)}
-        """}}
-
-    {1, put_in(server_state, [:elixir, :claude_api_response], result)}
-  end
-
-  def parse_api_response(server_state) do
-    {1,
-     put_in(
-       server_state,
-       [:elixir, :claude_api_response],
-       {:error, {:parsed, "I have no Claude API response in my memory..."}}
-     )}
-  end
-
-  # https://docs.anthropic.com/en/api/messages-examples
-  # https://github.com/lebrunel/anthropix - use this instead?
-  defp build_api_request(lib, test, mix_test_output, prompt, claude_api_key) do
-    %Request{
-      method: :post,
-      url: "https://api.anthropic.com/v1/messages",
-      headers: [
-        {"x-api-key", claude_api_key},
-        {"anthropic-version", "2023-06-01"},
-        {"content-type", "application/json"}
-      ],
-      body:
-        Jason.encode!(%{
-          max_tokens: 2048,
-          model: "claude-3-5-sonnet-20240620",
-          messages: [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
-        }),
-      options: [recv_timeout: 30_000]
-    }
   end
 
   defp api_content(lib, test, prompt, mix_test_output) do

@@ -5,7 +5,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
   alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, Puts, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
-  alias HTTPoison.{Request, Response}
   alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
@@ -51,8 +50,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
-        :parse_claude_api_response,
-        :put_parsed_claude_api_response,
+        :handle_claude_api_response,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -99,8 +97,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
-        :parse_claude_api_response,
-        :put_parsed_claude_api_response,
+        :handle_claude_api_response,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -161,29 +158,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_claude_prompt(prompt)
+        |> ServerStateBuilder.with_elixir_claude_prompt(prompt)
 
       assert {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 
-      assert %{elixir: %{claude_api_request: api_request}} = new_server_state
+      assert %{claude_ai: %{request: api_request}} = new_server_state
 
-      assert put_in(server_state, [:elixir, :claude_api_request], api_request) == new_server_state
+      assert put_in(server_state, [:claude_ai, :request], api_request) == new_server_state
 
-      assert %Request{
-               method: :post,
-               url: "https://api.anthropic.com/v1/messages",
-               headers: [
-                 {"x-api-key", ^api_key},
-                 {"anthropic-version", "2023-06-01"},
-                 {"content-type", "application/json"}
-               ],
-               body: body,
-               options: [recv_timeout: 30_000]
-             } = api_request
+      assert %{body: body} = api_request
 
       assert %{
-               "max_tokens" => 2048,
-               "model" => "claude-3-5-sonnet-20240620",
                "messages" => [%{"role" => "user", "content" => ^prompt}]
              } = Jason.decode!(body)
     end
@@ -228,27 +213,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_claude_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
       {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 
-      %{elixir: %{claude_api_request: api_request}} = new_server_state
+      %{claude_ai: %{request: api_request}} = new_server_state
 
-      %Request{
-        method: :post,
-        url: "https://api.anthropic.com/v1/messages",
-        headers: [
-          {"x-api-key", ^api_key},
-          {"anthropic-version", "2023-06-01"},
-          {"content-type", "application/json"}
-        ],
-        body: body,
-        options: [recv_timeout: 30_000]
-      } = api_request
+      %{body: body} = api_request
 
       assert %{
-               "max_tokens" => 2048,
-               "model" => "claude-3-5-sonnet-20240620",
                "messages" => [%{"role" => "user", "content" => ^prompt_without_placeholders}]
              } = Jason.decode!(body)
     end
@@ -301,27 +274,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_file(:test, test_file)
         |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_claude_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
       {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
 
-      %{elixir: %{claude_api_request: api_request}} = new_server_state
+      %{claude_ai: %{request: api_request}} = new_server_state
 
-      %Request{
-        method: :post,
-        url: "https://api.anthropic.com/v1/messages",
-        headers: [
-          {"x-api-key", ^api_key},
-          {"anthropic-version", "2023-06-01"},
-          {"content-type", "application/json"}
-        ],
-        body: body,
-        options: [recv_timeout: 30_000]
-      } = api_request
+      %{body: body} = api_request
 
       assert %{
-               "max_tokens" => 2048,
-               "model" => "claude-3-5-sonnet-20240620",
                "messages" => [%{"role" => "user", "content" => ^prompt_without_placeholders}]
              } = Jason.decode!(body)
     end
@@ -352,87 +313,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       Enum.each(bad_server_states, fn bad_server_state ->
         assert {1, bad_server_state} == ClaudeAIMode.build_api_request(bad_server_state)
       end)
-    end
-  end
-
-  describe "parse_api_response/2" do
-    test "given some server state containing a happy api response, put the parsed response into the server state" do
-      response_text = "some text"
-      body = Jason.encode!(%{"content" => [%{"text" => response_text}]})
-
-      response = {:ok, %Response{status_code: 200, body: body}}
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_claude_api_response(response)
-
-      assert {0, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
-
-      parsed = {:ok, {:parsed, response_text}}
-
-      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
-               new_server_state
-    end
-
-    test "given some server state containing a sad api response with an unparsable HTTP 200 body, put the parsed response into the server state" do
-      body = Jason.encode!(%{"nope" => [%{"sad" => "times"}]})
-
-      response = {:ok, %Response{status_code: 200, body: body}}
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_claude_api_response(response)
-
-      assert {1, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
-
-      parsed =
-        {:error,
-         {:parsed,
-          """
-          I failed to decode the Claude API HTTP 200 response :-(
-          It was:
-
-          #{body}
-          """}}
-
-      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
-               new_server_state
-    end
-
-    test "given some server state containing a sad api response with a non HTTP 200 response, put the parsed response into the server state" do
-      body = Jason.encode!(%{"its" => "wrecked"})
-
-      response = %Response{status_code: 500, body: body}
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_claude_api_response(response)
-
-      assert {1, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
-
-      parsed =
-        {:error,
-         {:parsed,
-          """
-          Claude API did not return a HTTP 200 response :-(
-          It was:
-
-          #{inspect(response)}
-          """}}
-
-      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
-               new_server_state
-    end
-
-    test "given some server state NOT containing a response whatsoever, return an error" do
-      server_state = ServerStateBuilder.build()
-
-      assert {1, new_server_state} = ClaudeAIMode.parse_api_response(server_state)
-
-      parsed = {:error, {:parsed, "I have no Claude API response in my memory..."}}
-
-      assert put_in(server_state, [:elixir, :claude_api_response], parsed) ==
-               new_server_state
     end
   end
 

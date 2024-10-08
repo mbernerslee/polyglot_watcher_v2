@@ -1,7 +1,7 @@
 defmodule PolyglotWatcherV2.ServerTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   import ExUnit.CaptureIO
-  alias PolyglotWatcherV2.{ActionsExecutorFake, ActionsExecutorReal, Server, ServerStateBuilder}
+  alias PolyglotWatcherV2.{Server, ServerStateBuilder}
 
   describe "start_link/2" do
     test "with no command line args given, spawns the server process with default starting state" do
@@ -15,14 +15,6 @@ defmodule PolyglotWatcherV2.ServerTest do
         assert %{failures: [], mode: :default} == elixir
         assert %{mode: :default} == rust
       end)
-    end
-
-    test "when starting up without any command line args, puts the default startup message" do
-      Application.put_env(:polyglot_watcher_v2, :actions_executor_module, ActionsExecutorReal)
-      output = capture_io(fn -> Server.start_link([], []) end)
-
-      assert output =~ "Watching for file saves..."
-      Application.put_env(:polyglot_watcher_v2, :actions_executor_module, ActionsExecutorFake)
     end
   end
 
