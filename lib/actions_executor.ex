@@ -10,7 +10,9 @@ end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{ClaudeAI, EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
-  alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures, MixTest}
+  alias PolyglotWatcherV2.Elixir.{Failures, MixTest}
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
   alias HTTPoison.Request
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
@@ -62,12 +64,22 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
-  defp do_execute(:load_claude_ai_prompt, server_state) do
-    ClaudeAIMode.load_prompt(server_state)
+  defp do_execute(:load_in_memory_prompt, server_state) do
+    ClaudeAIDefaultMode.load_in_memory_prompt(server_state)
   end
 
-  defp do_execute(:build_claude_api_request, server_state) do
-    ClaudeAIMode.build_api_request(server_state)
+  defp do_execute(:build_claude_api_request_from_in_memory_prompt, server_state) do
+    ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(server_state)
+  end
+
+  # TODO: continue here - make this exist
+  defp do_execute(:build_claude_replace_api_request, server_state) do
+    ClaudeAIReplaceMode.RequestBuilder.build(server_state)
+  end
+
+  # TODO: make this exist
+  defp do_execute(:parse_claude_replace_api_response, server_state) do
+    ClaudeAIReplaceMode.ResponseParser.parse(server_state)
   end
 
   defp do_execute(
@@ -82,8 +94,12 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {{:error, :missing_or_invalid_request}, server_state}
   end
 
-  defp do_execute(:handle_claude_api_response, server_state) do
-    ClaudeAI.handle_api_response(server_state)
+  defp do_execute(:parse_claude_api_response, server_state) do
+    ClaudeAI.parse_claude_api_response(server_state)
+  end
+
+  defp do_execute(:put_parsed_claude_api_response, server_state) do
+    ClaudeAI.put_parsed_response(server_state)
   end
 
   defp do_execute(:cargo_build, server_state) do

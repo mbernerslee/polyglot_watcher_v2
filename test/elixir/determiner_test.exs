@@ -367,6 +367,28 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
                tree.actions_tree.switch_mode
     end
 
+    test "switching to claude replace mode" do
+      server_state = ServerStateBuilder.build()
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex clr", server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_switch_mode_msg,
+        :switch_mode,
+        :persist_api_key,
+        :no_api_key_fail_msg,
+        :put_awaiting_file_save_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+
+      assert %Action{runnable: {:switch_mode, :elixir, :claude_ai_replace}} =
+               tree.actions_tree.switch_mode
+    end
+
     test "given nonsense user input, doesn't do anything" do
       server_state =
         ServerStateBuilder.build()

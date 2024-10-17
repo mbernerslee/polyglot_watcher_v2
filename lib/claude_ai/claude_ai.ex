@@ -11,12 +11,12 @@ defmodule PolyglotWatcherV2.ClaudeAI do
     {1, server_state}
   end
 
-  def handle_api_response(
+  # TODO decouple the putting of the raw txt from the handling of the response? Otherwise can't reuse this for replace mode
+  def parse_claude_api_response(
         %{claude_ai: %{response: {:ok, %Response{status_code: 200, body: body}}}} = server_state
       ) do
     case Jason.decode(body) do
       {:ok, %{"content" => [%{"text" => text} | _]}} ->
-        Puts.on_new_line_unstyled(text)
         {0, put_in(server_state, [:claude_ai, :response], {:ok, {:parsed, text}})}
 
       _ ->
@@ -27,11 +27,11 @@ defmodule PolyglotWatcherV2.ClaudeAI do
         #{body}
         """
 
-        handle_api_response_error(server_state, error)
+        store_parsed_response_error(server_state, error)
     end
   end
 
-  def handle_api_response(%{claude_ai: %{response: response}} = server_state) do
+  def parse_claude_api_response(%{claude_ai: %{response: response}} = server_state) do
     error = """
     Claude API did not return a HTTP 200 response :-(
     It was:
@@ -39,15 +39,53 @@ defmodule PolyglotWatcherV2.ClaudeAI do
     #{inspect(response)}
     """
 
-    handle_api_response_error(server_state, error)
+    store_parsed_response_error(server_state, error)
   end
 
-  def handle_api_response(server_state) do
-    handle_api_response_error(server_state, "I have no Claude API response in my memory...")
+  def parse_claude_api_response(server_state) do
+    store_parsed_response_error(server_state, "I have no Claude API response in my memory...")
   end
 
-  defp handle_api_response_error(server_state, error) do
+  def put_parsed_response(
+        %{claude_ai: %{response: {:error, {:parsed, error_msg}}}} = server_state
+      ) do
+    Puts.on_new_line(error_msg, :red)
+    {1, server_state}
+  end
+
+  def put_parsed_response(%{claude_ai: %{response: {:ok, {:parsed, response}}}} = server_state) do
+    Puts.on_new_line_unstyled(response)
+    {0, server_state}
+  end
+
+  def put_parsed_response(%{claude_ai: %{response: unparsed_response}} = server_state) do
+    error =
+      """
+        I was asked to put a Claude AI parsed response on the screen, but I don't have one in my memory...
+
+        What I did have was:
+        #{inspect(unparsed_response)}
+
+        This is probably due to a bug in my code sadly :-(
+      """
+
     Puts.on_new_line(error, :red)
+    {1, server_state}
+  end
+
+  def put_parsed_response(server_state) do
+    error =
+      """
+        I was asked to put a Claude AI parsed response on the screen, but I don't have one in my memory...
+
+        This is probably due to a bug in my code sadly :-(
+      """
+
+    Puts.on_new_line(error, :red)
+    {1, server_state}
+  end
+
+  defp store_parsed_response_error(server_state, error) do
     {1, put_in(server_state, [:claude_ai, :response], {:error, {:parsed, error}})}
   end
 

@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.ServerStateBuilder do
   alias PolyglotWatcherV2.Inotifywait
-  alias PolyglotWatcherV2.Elixir.ClaudeAIMode
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
 
   def build do
     %{
@@ -42,7 +42,7 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
   end
 
   def with_default_claude_prompt(server_state) do
-    put_in(server_state, [:elixir, :claude_prompt], ClaudeAIMode.default_prompt())
+    put_in(server_state, [:elixir, :claude_prompt], ClaudeAIDefaultMode.default_prompt())
   end
 
   def with_env_var(server_state, key, value) do
