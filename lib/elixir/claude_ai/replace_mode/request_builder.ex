@@ -63,106 +63,92 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
 
 
     <Instruction>
-      Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide *SEARCH/REPLACE/EXPLANATION* blocks for the Elixir Code file, which will fix the test?
+      Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide *SEARCH/REPLACE/EXPLANATION BLOCKS* for the Elixir Code file, which will fix the test?
 
-      1. Decide if you need to propose *SEARCH/REPLACE/EXPLANATION* to the Elixir Code file
+      1. Decide if you need to propose *SEARCH/REPLACE/EXPLANATION BLOCKS* to the Elixir Code file
 
-      2. Describe each change with a *SEARCH/REPLACE/EXPLANATION block* per the examples below.
+      2. Describe each change with a *SEARCH/REPLACE/EXPLANATION* list item within BLOCKS as per the examples below.
 
-      All changes to the Elixir Code file must use this *SEARCH/REPLACE/EXPLANATION block* format.
-      ONLY EVER RETURN CODE IN A *SEARCH/REPLACE/EXPLANATION BLOCK*!
+      All changes to the Elixir Code file must use this *SEARCH/REPLACE/EXPLANATION BLOCKS* format.
 
-      Here are some example *SEARCH/REPLACE/EXPLANATION* block examples:
+      ONLY EVER RETURN CODE IN SEARCH/REPLACE/EXPLANATION BLOCKS*!
 
-      <SEARCH>
-      Enum.map([1, 2, 3], fn x -> x * 2 end)
-      </SEARCH>
-      <REPLACE>
-      Enum.map([1, 2, 3], fn x -> x * x end)
-      </REPLACE>
-      <EXPLANATION>
-      It looks we like were incorrectly multiplying the numbers by 2, rather than squaring them.
-      </EXPLANATION>
+      Here are some example *SEARCH/REPLACE/EXPLANATION BLOCKS* examples:
 
-      <SEARCH>
-        words
-      </SEARCH>
-      <REPLACE>
-        words
-        |> Enum.map(fn word -> "cool " <> word end)
-        |> MapSet.new()
-      </REPLACE>
-      <EXPLANATION>
-      We need to prepend "cool " to each element in the list, and then convert the list into a MapSet.
-      </EXPLANATION>
+      **********
+      {
+        "BLOCKS": [
+          {
+            "SEARCH": "It looks we like were incorrectly multiplying the numbers by 2, rather than squaring them.",
+            "REPLACE": "Enum.map([1, 2, 3], fn x -> x * x end)",
+            "EXPLANATION": "Enum.map([1, 2, 3], fn x -> x * 2 end)"
+          }
+        ]
+      }
+      **********
 
-      <SEARCH>
-      words
-      |> MapSet.new()
-      </SEARCH>
-      <REPLACE>
-      words
-      |> Enum.map(fn word -> "ice cold " <> word end)
-      |> MapSet.new()
-      </REPLACE>
-      <EXPLANATION>
-      We need to prepend "ice cold " to each element in the list before converting the list into a MapSet.
-      </EXPLANATION>
+      **********
+      {
+        "BLOCKS": [
+          {
+            "SEARCH": "  words",
+            "REPLACE": "  words\n  |> Enum.map(fn word -> \"cool \" <> word end)\n |> MapSet.new()",
+            "EXPLANATION": "We need to prepend \"cool \" to each element in the list, and then convert the list into a MapSet."
+          },
+          {
+            "SEARCH": "  words\n |> MapSet.new()",
+            "REPLACE": " words\n |> Enum.map(fn word -> \"ice cold \" <> word end)\n |> MapSet.new()",
+            "EXPLANATION": "We need to prepend \"ice cold \" to each element in the list before converting the list into a MapSet."
+          }
+        ]
+      }
+      **********
 
 
-      ## Full Example Response:
+      # Full Example Response:
 
-      <SEARCH>
-        list
-        |> Enum.map(fn item -> "dude " <> item end)
-      </SEARCH>
-      <REPLACE>
-        list
-        |> Enum.map(fn item -> "dude " <> item end)
-        |> MapSet.new()
-      </REPLACE>
-      <EXPLANATION>
-      We need to convert the list into a MapSet.
-      </EXPLANATION>
+      It looks like
+      - we're not making a list a MapSet
+      - we're missing a closing quote
 
-      <SEARCH>
-        set
-        |> MapSet.to_list()
-        |> Enum.join("\n)
-      </SEARCH>
-      <REPLACE>
-        set
-        |> MapSet.to_list()
-        |> Enum.join("\n")
-      </REPLACE>
-      <EXPLANATION>
-      We are missing a closing double quote.
-      </EXPLANATION>
+      **********
+      {
+        "BLOCKS": [
+          {
+            "SEARCH": " list\n |> Enum.map(fn item -> \"dude \" <> item end)\n",
+            "REPLACE": " list\n |> Enum.map(fn item -> \"dude \" <> item end)\n |> MapSet.new()",
+            "EXPLANATION": "We need to convert the list into a MapSet."
+          },
+          {
+            "SEARCH": " set\n |> MapSet.to_list()\n |> Enum.join(\"\n)",
+            "REPLACE": " set\n |> MapSet.to_list()\n |> Enum.join(\"\n\")",
+            "EXPLANATION": "We are missing a closing double quote."
+          }
+        ]
+      }
+      **********
 
-      # *SEARCH/REPLACE/EXPLANATION block* Rules:
+      # *SEARCH/REPLACE/EXPLANATION BLOCKS* Rules:
 
-      Every *SEARCH/REPLACE/EXPLANATION block* must use this format:
-      1. The start of search block: <SEARCH>
-      2. A contiguous chunk of lines to search for in the existing source code
-      3. The end of the search block: </SEARCH>
-      4. The start of replace block: <REPLACE>
-      5. The lines to replace into the source code
-      6. The end of the replace block: </REPLACE>
-      7. The start of explanation block: <EXPLANATION>
-      8. A few lines explaining what the replacement code will do and how it fixes the test
-      9. The end of the explanation block: </EXPLANATION>
+      Every list item with *SEARCH/REPLACE/EXPLANATION BLOCKS* must use this format:
+      1. The line before the JSON starts, there must be a line containing only "**********"
+      2. All blocks must be valid JSON
+      3. The list of blocks must have the root element of "BLOCKS"
+      4. The "BLOCKS" root element may only contain list items with the keys ["SEARCH", "REPLACE", "EXPLANATION"]
+      5. The line after the JSON ends, there must be a line containing only "**********"
 
-      Every *SEARCH* section must *EXACTLY MATCH* the existing file content, character for character, including all comments, docstrings, etc.
+      Every *SEARCH* section must *EXACTLY MATCH* the existing file content, character for character, including all comments, docstrings, newlines, whitespace, etc.
+
       If the file contains code or other data wrapped/escaped in json/xml/quotes or other containers, you need to propose edits to the literal contents of the file, including the container markup.
 
-      *SEARCH/REPLACE/EXPLANATION* blocks will replace *all* matching occurrences.
-      Include enough lines to make the SEARCH blocks uniquely match the lines to change.
+      *SEARCH/REPLACE/EXPLANATION BLOCKS* will replace *all* matching occurrences.
+      Include enough lines to make the SEARCH content uniquely match the lines to change.
 
       *DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
-      Keep *SEARCH/REPLACE/EXPLANATION* blocks concise.
+      Keep each *SEARCH/REPLACE/EXPLANATION* block concise.
       Break large *SEARCH/REPLACE/EXPLANATION* blocks into a series of smaller blocks that each change a small portion of the file.
 
-      Empty <SEARCH> blocks mean that the replacement code must go at the top of the file.
+      The contents of SEARCH may be empty to signify that the REPLACE code must go at the top of the file.
 
     </Instruction>
 
@@ -323,106 +309,92 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
 
 
     <Instruction>
-      Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide *SEARCH/REPLACE/EXPLANATION* blocks for the Elixir Code file, which will fix the test?
+    Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide *SEARCH/REPLACE/EXPLANATION BLOCKS* for the Elixir Code file, which will fix the test?
 
-      1. Decide if you need to propose *SEARCH/REPLACE/EXPLANATION* to the Elixir Code file
+    1. Decide if you need to propose *SEARCH/REPLACE/EXPLANATION BLOCKS* to the Elixir Code file
 
-      2. Describe each change with a *SEARCH/REPLACE/EXPLANATION block* per the examples below.
+    2. Describe each change with a *SEARCH/REPLACE/EXPLANATION* list item within BLOCKS as per the examples below.
 
-      All changes to the Elixir Code file must use this *SEARCH/REPLACE/EXPLANATION block* format.
-      ONLY EVER RETURN CODE IN A *SEARCH/REPLACE/EXPLANATION BLOCK*!
+    All changes to the Elixir Code file must use this *SEARCH/REPLACE/EXPLANATION BLOCKS* format.
 
-      Here are some example *SEARCH/REPLACE/EXPLANATION* block examples:
+    ONLY EVER RETURN CODE IN SEARCH/REPLACE/EXPLANATION BLOCKS*!
 
-      <SEARCH>
-      Enum.map([1, 2, 3], fn x -> x * 2 end)
-      </SEARCH>
-      <REPLACE>
-      Enum.map([1, 2, 3], fn x -> x * x end)
-      </REPLACE>
-      <EXPLANATION>
-      It looks we like were incorrectly multiplying the numbers by 2, rather than squaring them.
-      </EXPLANATION>
+    Here are some example *SEARCH/REPLACE/EXPLANATION BLOCKS* examples:
 
-      <SEARCH>
-        words
-      </SEARCH>
-      <REPLACE>
-        words
-        |> Enum.map(fn word -> "cool " <> word end)
-        |> MapSet.new()
-      </REPLACE>
-      <EXPLANATION>
-      We need to prepend "cool " to each element in the list, and then convert the list into a MapSet.
-      </EXPLANATION>
+    **********
+    {
+      "BLOCKS": [
+        {
+          "SEARCH": "It looks we like were incorrectly multiplying the numbers by 2, rather than squaring them.",
+          "REPLACE": "Enum.map([1, 2, 3], fn x -> x * x end)",
+          "EXPLANATION": "Enum.map([1, 2, 3], fn x -> x * 2 end)"
+        }
+      ]
+    }
+    **********
 
-      <SEARCH>
-      words
-      |> MapSet.new()
-      </SEARCH>
-      <REPLACE>
-      words
-      |> Enum.map(fn word -> "ice cold " <> word end)
-      |> MapSet.new()
-      </REPLACE>
-      <EXPLANATION>
-      We need to prepend "ice cold " to each element in the list before converting the list into a MapSet.
-      </EXPLANATION>
+    **********
+    {
+      "BLOCKS": [
+        {
+          "SEARCH": "  words",
+          "REPLACE": "  words\n  |> Enum.map(fn word -> \"cool \" <> word end)\n |> MapSet.new()",
+          "EXPLANATION": "We need to prepend \"cool \" to each element in the list, and then convert the list into a MapSet."
+        },
+        {
+          "SEARCH": "  words\n |> MapSet.new()",
+          "REPLACE": " words\n |> Enum.map(fn word -> \"ice cold \" <> word end)\n |> MapSet.new()",
+          "EXPLANATION": "We need to prepend \"ice cold \" to each element in the list before converting the list into a MapSet."
+        }
+      ]
+    }
+    **********
 
 
-      ## Full Example Response:
+    # Full Example Response:
 
-      <SEARCH>
-        list
-        |> Enum.map(fn item -> "dude " <> item end)
-      </SEARCH>
-      <REPLACE>
-        list
-        |> Enum.map(fn item -> "dude " <> item end)
-        |> MapSet.new()
-      </REPLACE>
-      <EXPLANATION>
-      We need to convert the list into a MapSet.
-      </EXPLANATION>
+    It looks like
+    - we're not making a list a MapSet
+    - we're missing a closing quote
 
-      <SEARCH>
-        set
-        |> MapSet.to_list()
-        |> Enum.join("\n)
-      </SEARCH>
-      <REPLACE>
-        set
-        |> MapSet.to_list()
-        |> Enum.join("\n")
-      </REPLACE>
-      <EXPLANATION>
-      We are missing a closing double quote.
-      </EXPLANATION>
+    **********
+    {
+      "BLOCKS": [
+        {
+          "SEARCH": " list\n |> Enum.map(fn item -> \"dude \" <> item end)\n",
+          "REPLACE": " list\n |> Enum.map(fn item -> \"dude \" <> item end)\n |> MapSet.new()",
+          "EXPLANATION": "We need to convert the list into a MapSet."
+        },
+        {
+          "SEARCH": " set\n |> MapSet.to_list()\n |> Enum.join(\"\n)",
+          "REPLACE": " set\n |> MapSet.to_list()\n |> Enum.join(\"\n\")",
+          "EXPLANATION": "We are missing a closing double quote."
+        }
+      ]
+    }
+    **********
 
-      # *SEARCH/REPLACE/EXPLANATION block* Rules:
+    # *SEARCH/REPLACE/EXPLANATION BLOCKS* Rules:
 
-      Every *SEARCH/REPLACE/EXPLANATION block* must use this format:
-      1. The start of search block: <SEARCH>
-      2. A contiguous chunk of lines to search for in the existing source code
-      3. The end of the search block: </SEARCH>
-      4. The start of replace block: <REPLACE>
-      5. The lines to replace into the source code
-      6. The end of the replace block: </REPLACE>
-      7. The start of explanation block: <EXPLANATION>
-      8. A few lines explaining what the replacement code will do and how it fixes the test
-      9. The end of the explanation block: </EXPLANATION>
+    Every list item with *SEARCH/REPLACE/EXPLANATION BLOCKS* must use this format:
+    1. The line before the JSON starts, there must be a line containing only "**********"
+    2. All blocks must be valid JSON
+    3. The list of blocks must have the root element of "BLOCKS"
+    4. The "BLOCKS" root element may only contain list items with the keys ["SEARCH", "REPLACE", "EXPLANATION"]
+    5. The line after the JSON ends, there must be a line containing only "**********"
 
-      Every *SEARCH* section must *EXACTLY MATCH* the existing file content, character for character, including all comments, docstrings, etc.
-      If the file contains code or other data wrapped/escaped in json/xml/quotes or other containers, you need to propose edits to the literal contents of the file, including the container markup.
+    Every *SEARCH* section must *EXACTLY MATCH* the existing file content, character for character, including all comments, docstrings, newlines, whitespace, etc.
 
-      *SEARCH/REPLACE/EXPLANATION* blocks will replace *all* matching occurrences.
-      Include enough lines to make the SEARCH blocks uniquely match the lines to change.
+    If the file contains code or other data wrapped/escaped in json/xml/quotes or other containers, you need to propose edits to the literal contents of the file, including the container markup.
 
-      *DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
-      Keep *SEARCH/REPLACE/EXPLANATION* blocks concise.
-      Break large *SEARCH/REPLACE/EXPLANATION* blocks into a series of smaller blocks that each change a small portion of the file.
+    *SEARCH/REPLACE/EXPLANATION BLOCKS* will replace *all* matching occurrences.
+    Include enough lines to make the SEARCH content uniquely match the lines to change.
 
-      Empty <SEARCH> blocks mean that the replacement code must go at the top of the file.
+    *DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
+    Keep each *SEARCH/REPLACE/EXPLANATION* block concise.
+    Break large *SEARCH/REPLACE/EXPLANATION* blocks into a series of smaller blocks that each change a small portion of the file.
+
+    The contents of SEARCH may be empty to signify that the REPLACE code must go at the top of the file.
 
     </Instruction>
 

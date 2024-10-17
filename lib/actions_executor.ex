@@ -72,14 +72,42 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(server_state)
   end
 
-  # TODO: continue here - make this exist
   defp do_execute(:build_claude_replace_api_request, server_state) do
     ClaudeAIReplaceMode.RequestBuilder.build(server_state)
   end
 
-  # TODO: make this exist
   defp do_execute(:parse_claude_replace_api_response, server_state) do
     ClaudeAIReplaceMode.ResponseParser.parse(server_state)
+  end
+
+  defp do_execute(:put_claude_replace_response, server_state) do
+    case server_state do
+      %{claude_ai: %{response: {:ok, {:replace, %{blocks: blocks, pre: pre, post: post}}}}} ->
+        IO.puts(pre)
+
+        Enum.each(blocks, fn block ->
+          IO.puts("********INSPECT***************")
+          IO.puts("SEARCH")
+          IO.inspect(block.search)
+          IO.puts("REPLACE")
+          IO.inspect(block.replace)
+          IO.puts("EXPLANATION")
+          IO.inspect(block.explanation)
+          IO.puts("********PUTS***************")
+          IO.puts("SEARCH")
+          IO.puts(block.search)
+          IO.puts("REPLACE")
+          IO.puts(block.replace)
+          IO.puts("EXPLANATION")
+          IO.puts(block.explanation)
+        end)
+
+        IO.puts(post)
+        {0, server_state}
+
+      _ ->
+        {1, server_state}
+    end
   end
 
   defp do_execute(
