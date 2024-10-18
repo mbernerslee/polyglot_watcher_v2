@@ -1,10 +1,28 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParser do
+defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilder do
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.{ReplaceBlocks, ReplaceBlock}
+  @ten_asterisks "(\\*){10}"
+  @regex ~r|(?<pre>.*)#{@ten_asterisks}(?<json>.*)#{@ten_asterisks}(?<post>.*)|s
+
   def parse(%{claude_ai: %{response: {:ok, {:parsed, response}}}} = server_state) do
-    response
-    |> String.split("**********", trim: true)
+    @regex
+    |> Regex.named_captures(response, capture: :all)
     |> case do
-      [pre, json, post] ->
+      %{"json" => json, "pre" => pre, "post" => post} ->
         finalise(json, pre, post, server_state)
+
+      nil ->
+        error =
+          {:error,
+           {:replace,
+            """
+            Failed to decode the Claude response.
+            My regex capture to grab JSON between two lines of asterisks didn't work.
+            The raw response was:
+
+            #{response}
+            """}}
+
+        {1, put_in(server_state, [:claude_ai, :response], error)}
     end
   end
 
@@ -13,7 +31,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParser do
       {:ok, blocks} ->
         pre = String.trim(pre)
         post = String.trim(post)
-        response = {:ok, {:replace, %{pre: pre, blocks: blocks, post: post}}}
+        response = {:ok, {:replace, %ReplaceBlocks{pre: pre, blocks: blocks, post: post}}}
         {0, put_in(server_state, [:claude_ai, :response], response)}
 
       {:error, reason} ->
@@ -60,7 +78,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParser do
     |> Enum.reduce_while({:ok, []}, fn block, {:ok, acc} ->
       case block do
         %{"SEARCH" => search, "REPLACE" => replace, "EXPLANATION" => explanation} ->
-          {:cont, {:ok, [%{search: search, replace: replace, explanation: explanation} | acc]}}
+          {:cont,
+           {:ok,
+            [%ReplaceBlock{search: search, replace: replace, explanation: explanation} | acc]}}
 
         _ ->
           {:halt,

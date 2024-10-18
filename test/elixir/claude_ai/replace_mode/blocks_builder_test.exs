@@ -1,7 +1,12 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
+defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilderTest do
   use ExUnit.Case, async: true
   alias PolyglotWatcherV2.ServerStateBuilder
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParser
+
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.{
+    BlocksBuilder,
+    ReplaceBlock,
+    ReplaceBlocks
+  }
 
   describe "parse/1" do
     test "given expected input with pre and 1 block, it works (single string variant)" do
@@ -35,7 +40,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {0, new_server_state} = ResponseParser.parse(server_state)
+      assert {0, new_server_state} = BlocksBuilder.parse(server_state)
 
       expected_search = ""
 
@@ -61,12 +66,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
 
       assert {:ok,
               {:replace,
-               %{
+               %ReplaceBlocks{
                  pre: actual_pre,
                  blocks: [block]
                }}} = new_server_state[:claude_ai][:response]
 
-      assert %{
+      assert %ReplaceBlock{
                search: actual_search,
                replace: actual_replace,
                explanation: actual_explanation
@@ -111,22 +116,22 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {0, new_server_state} = ResponseParser.parse(server_state)
+      assert {0, new_server_state} = BlocksBuilder.parse(server_state)
 
       expected =
         {:ok,
          {:replace,
-          %{
+          %ReplaceBlocks{
             pre:
               "Based on the provided Elixir Test and Mix Test Output, it's clear that we need to implement the `Fib.sequence/1` function in the Elixir Code file. Here's the proposed change:",
             post: "Some kinda post msg",
             blocks: [
-              %{
+              %ReplaceBlock{
                 search: "search 1 cool",
                 replace: "replace 1 cool",
                 explanation: "explanation 1 cool"
               },
-              %{
+              %ReplaceBlock{
                 search: "search 2 cool",
                 replace: "replace 2 cool",
                 explanation: "explanation 2 cool"
@@ -158,7 +163,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {1, new_server_state} = ResponseParser.parse(server_state)
+      assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
       assert {:error, {:replace, error}} = new_server_state[:claude_ai][:response]
 
@@ -191,7 +196,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {1, new_server_state} = ResponseParser.parse(server_state)
+      assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
       assert {:error, {:replace, error}} = new_server_state[:claude_ai][:response]
 
@@ -222,7 +227,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {1, new_server_state} = ResponseParser.parse(server_state)
+      assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
       assert {:error, {:replace, error}} = new_server_state[:claude_ai][:response]
 
@@ -254,7 +259,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {0, _} = ResponseParser.parse(server_state)
+      assert {0, _} = BlocksBuilder.parse(server_state)
     end
 
     test "error case from the terminal" do
@@ -285,7 +290,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {0, _} = ResponseParser.parse(server_state)
+      assert {0, _} = BlocksBuilder.parse(server_state)
     end
 
     test "handle newline characters being in the SEARCH body" do
@@ -313,7 +318,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_claude_ai_response(response)
 
-      assert {0, new_server_state} = ResponseParser.parse(server_state)
+      assert {0, new_server_state} = BlocksBuilder.parse(server_state)
 
       assert {:ok, {:replace, %{pre: pre, post: post, blocks: [%{search: search}]}}} =
                new_server_state[:claude_ai][:response]
@@ -323,8 +328,121 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ResponseParserTest do
       assert search == "hello\nmother"
     end
 
-    # TODO test pre not being there
-    # TODO test post not being there
+    test "when there's no pre(amble) but valid JSON, its ok" do
+      raw_response =
+        """
+        **********
+        {
+          "BLOCKS": [
+            {
+              "SEARCH": "search",
+              "REPLACE": "replace",
+              "EXPLANATION": "explanation"
+            }
+          ]
+        }
+        **********
+        post
+        """
+
+      response = {:ok, {:parsed, raw_response}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_claude_ai_response(response)
+
+      assert {0, new_server_state} = BlocksBuilder.parse(server_state)
+
+      assert {:ok,
+              {:replace,
+               %{
+                 pre: pre,
+                 post: post,
+                 blocks: [%{search: search, replace: replace, explanation: explanation}]
+               }}} =
+               new_server_state[:claude_ai][:response]
+
+      assert pre == ""
+      assert post == "post"
+      assert search == "search"
+      assert replace == "replace"
+      assert explanation == "explanation"
+    end
+
+    test "when there's no post(amble) but valid JSON, its ok" do
+      raw_response =
+        """
+        pre
+        **********
+        {
+          "BLOCKS": [
+            {
+              "SEARCH": "search",
+              "REPLACE": "replace",
+              "EXPLANATION": "explanation"
+            }
+          ]
+        }
+        **********
+        """
+        |> String.trim_trailing()
+
+      response = {:ok, {:parsed, raw_response}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_claude_ai_response(response)
+
+      assert {0, new_server_state} = BlocksBuilder.parse(server_state)
+
+      assert {:ok,
+              {:replace,
+               %{
+                 pre: pre,
+                 post: post,
+                 blocks: [%{search: search, replace: replace, explanation: explanation}]
+               }}} =
+               new_server_state[:claude_ai][:response]
+
+      assert pre == "pre"
+      assert post == ""
+      assert search == "search"
+      assert replace == "replace"
+      assert explanation == "explanation"
+    end
+
+    test "when *'s are missing, return error" do
+      raw_response =
+        """
+        pre
+        {
+          "BLOCKS": [
+            {
+              "SEARCH": "search",
+              "REPLACE": "replace",
+              "EXPLANATION": "explanation"
+            }
+          ]
+        }
+        post
+        """
+        |> String.trim_trailing()
+
+      response = {:ok, {:parsed, raw_response}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_claude_ai_response(response)
+
+      assert {1, new_server_state} = BlocksBuilder.parse(server_state)
+
+      assert {:error, {:replace, error}} =
+               new_server_state[:claude_ai][:response]
+
+      assert error =~ "Failed to decode the Claude response"
+      assert error =~ "My regex capture to grab JSON between two lines of asterisks didn't work."
+    end
+
     # TODO check there's a test for *'s missing
   end
 end

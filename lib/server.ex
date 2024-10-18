@@ -61,7 +61,7 @@ defmodule PolyglotWatcherV2.Server do
       Puts.on_new_line(watcher.startup_message, :magenta)
     end
 
-    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command)
+    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
 
     server_state =
       Map.merge(

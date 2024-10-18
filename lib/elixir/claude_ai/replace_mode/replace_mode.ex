@@ -113,19 +113,19 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
            next_action: %{
-             0 => :initial_parse_claude_api_response,
+             0 => :parse_claude_response,
              :fallback => :fallback_placeholder_error
            }
          },
-         initial_parse_claude_api_response: %Action{
+         parse_claude_response: %Action{
            runnable: :parse_claude_api_response,
            next_action: %{
-             0 => :second_parse_claude_api_response,
+             0 => :build_replace_blocks,
              :fallback => :fallback_placeholder_error
            }
          },
-         second_parse_claude_api_response: %Action{
-           runnable: :parse_claude_replace_api_response,
+         build_replace_blocks: %Action{
+           runnable: :build_claude_replace_blocks,
            next_action: %{
              # TODO remove this :put_replace_response. only put it in temporarily to see some output
              0 => :put_replace_response,

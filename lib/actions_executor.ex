@@ -76,8 +76,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAIReplaceMode.RequestBuilder.build(server_state)
   end
 
-  defp do_execute(:parse_claude_replace_api_response, server_state) do
-    ClaudeAIReplaceMode.ResponseParser.parse(server_state)
+  defp do_execute(:build_claude_replace_blocks, server_state) do
+    ClaudeAIReplaceMode.BlocksBuilder.parse(server_state)
   end
 
   defp do_execute(:put_claude_replace_response, server_state) do
