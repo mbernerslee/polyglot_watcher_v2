@@ -13,7 +13,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       watcher: Inotifywait,
       starting_dir: "./",
       files: %{},
-      env_vars: %{}
+      env_vars: %{},
+      stored_actions: nil
     }
   end
 

@@ -141,6 +141,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
 
       If the file contains code or other data wrapped/escaped in json/xml/quotes or other containers, you need to propose edits to the literal contents of the file, including the container markup.
 
+      *DO* Keep *SEARCH* and *REPLACE* blocks small. Keep them to a maximum of 20 lines each. Break them up into multiple *BLOCKS* in order to abide by this rule.
+
       *SEARCH/REPLACE/EXPLANATION BLOCKS* will replace *all* matching occurrences.
       Include enough lines to make the SEARCH content uniquely match the lines to change.
 
@@ -154,6 +156,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
 
     """
   end
+
+  # TODO consider removing the max 20 lines clause above
 
   @doc """
   Untested hack

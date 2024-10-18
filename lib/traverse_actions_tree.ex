@@ -16,7 +16,17 @@ defmodule PolyglotWatcherV2.TraverseActionsTree do
     case next_action_name do
       :exit -> server_state
       :quit_the_program -> System.stop(0)
+      # TODO test this or remove it
+      :execute_stored_actions -> execute_stored_actions(server_state)
       next_action_name -> execute_all(next_action_name, actions_tree, server_state)
+    end
+  end
+
+  # TODO test this or remove it
+  defp execute_stored_actions(server_state) do
+    case server_state[:stored_actions] do
+      nil -> {1, server_state}
+      tree -> execute_all({tree, server_state})
     end
   end
 

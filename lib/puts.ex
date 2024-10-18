@@ -4,6 +4,8 @@ defmodule PolyglotWatcherV2.Puts do
     light_magenta: IO.ANSI.light_magenta(),
     light_green: IO.ANSI.light_green(),
     green: IO.ANSI.green(),
+    dark_green_background: IO.ANSI.color_background(0, 1, 0),
+    dark_red_background: IO.ANSI.color_background(1, 0, 0),
     red: IO.ANSI.red(),
     cyan: IO.ANSI.cyan(),
     light_cyan: IO.ANSI.light_cyan(),

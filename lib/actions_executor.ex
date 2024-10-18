@@ -77,7 +77,12 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp do_execute(:build_claude_replace_blocks, server_state) do
+    # TODO rename parse to build
     ClaudeAIReplaceMode.BlocksBuilder.parse(server_state)
+  end
+
+  defp do_execute(:build_claude_replace_actions, server_state) do
+    ClaudeAIReplaceMode.ActionsBuilder.build(server_state)
   end
 
   defp do_execute(:put_claude_replace_response, server_state) do

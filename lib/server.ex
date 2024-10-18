@@ -23,7 +23,8 @@ defmodule PolyglotWatcherV2.Server do
     claude_ai: %{},
     rust: %{mode: :default},
     env_vars: %{},
-    files: %{}
+    files: %{},
+    stored_actions: nil
   }
 
   @supported_oss %{
