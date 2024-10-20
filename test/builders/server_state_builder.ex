@@ -14,7 +14,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       starting_dir: "./",
       files: %{},
       env_vars: %{},
-      stored_actions: nil
+      stored_actions: nil,
+      action_error: nil
     }
   end
 

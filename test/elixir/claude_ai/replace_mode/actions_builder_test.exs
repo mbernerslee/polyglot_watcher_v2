@@ -11,31 +11,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
   }
 
   describe "build/1" do
-    test "x" do
-      lib_contents =
-        """
-        defmodule CoolDude do
-          def make_cool(dude) do
-            dude
-          end
-        end
-        """
+    test "with 1 block, returns the expected actions tree" do
+      lib_path = "lib/cool.ex"
 
-      test_contents =
-        """
-        defmodule CoolDudeTest do
-          use ExUnit.Case, async: true
-
-          describe "make_cool/1" do
-            test "prepends 'cool'" do
-              assert CoolDude.make_cool("dave") == "cool dave"
-            end
-          end
-        end
-        """
-
-      lib_file = %{path: "lib/cool.ex", contents: lib_contents}
-      test_file = %{path: "test/cool_test.exs", contents: test_contents}
+      lib_file = %{path: lib_path, contents: "irrelevent lib contents"}
+      test_file = %{path: "test/cool_test.exs", contents: "irrelevent test contents"}
 
       search =
         """
@@ -62,7 +42,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
         explanation: explanation
       }
 
-      blocks = {:ok, {:replace, %ReplaceBlocks{pre: "pre", blocks: [block], post: "post"}}}
+      pre = "pre"
+
+      blocks =
+        {:ok, {:replace, %ReplaceBlocks{pre: pre, blocks: [block], post: "irrelevent post"}}}
 
       server_state =
         ServerStateBuilder.build()
@@ -75,16 +58,154 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
       tree = new_server_state[:stored_actions]
 
       assert %{
-               entry_point: :block_puts_1,
+               entry_point: :put_pre,
                actions_tree: %{
-                 block_puts_1: %Action{
-                   runnable: {:puts, _block_puts_1},
+                 put_pre: %Action{runnable: {:puts, :magenta, pre}, next_action: :git_diff_1},
+                 git_diff_1: %Action{
+                   runnable: {:git_diff, lib_path, search, replace},
+                   next_action: %{0 => :put_explanation_1, :fallback => :exit}
+                 },
+                 put_explanation_1: %Action{
+                   runnable: {:puts, :magenta, explanation},
                    next_action: :exit
                  }
                }
-             } = tree
+             } == tree
 
       ActionsTreeValidator.validate(tree)
     end
+
+    test "with 2 blocks, returns the expected actions tree" do
+      lib_path = "lib/cool.ex"
+
+      lib_file = %{path: lib_path, contents: "irrelevent lib contents"}
+      test_file = %{path: "test/cool_test.exs", contents: "irrelevent test contents"}
+
+      search_1 =
+        """
+          def make_cool(dude) do
+        """
+
+      replace_1 =
+        """
+          def make_not_cool(dude) do
+        """
+
+      explanation_1 =
+        """
+        We need to change the function name to be less cool
+        """
+
+      block_1 = %ReplaceBlock{
+        search: search_1,
+        replace: replace_1,
+        explanation: explanation_1
+      }
+
+      search_2 =
+        """
+            dude
+          end
+        """
+
+      replace_2 =
+        """
+            "uncool " <> dude
+          end
+        """
+
+      explanation_2 =
+        """
+        We need to prepend 'uncool ' to the inputted string to make the test pass.
+        """
+
+      block_2 = %ReplaceBlock{
+        search: search_2,
+        replace: replace_2,
+        explanation: explanation_2
+      }
+
+      pre = "pre"
+
+      blocks =
+        {:ok,
+         {:replace, %ReplaceBlocks{pre: pre, blocks: [block_1, block_2], post: "irrelevent post"}}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file(:lib, lib_file)
+        |> ServerStateBuilder.with_file(:test, test_file)
+        |> ServerStateBuilder.with_claude_ai_response(blocks)
+
+      assert {0, new_server_state} = ActionsBuilder.build(server_state)
+
+      tree = new_server_state[:stored_actions]
+
+      assert %{
+               entry_point: :put_pre,
+               actions_tree: %{
+                 put_pre: %Action{runnable: {:puts, :magenta, pre}, next_action: :git_diff_1},
+                 git_diff_1: %Action{
+                   runnable: {:git_diff, lib_path, search_1, replace_1},
+                   next_action: %{0 => :put_explanation_1, :fallback => :exit}
+                 },
+                 put_explanation_1: %Action{
+                   runnable: {:puts, :magenta, explanation_1},
+                   next_action: :git_diff_2
+                 },
+                 git_diff_2: %Action{
+                   runnable: {:git_diff, lib_path, search_2, replace_2},
+                   next_action: %{0 => :put_explanation_2, :fallback => :exit}
+                 },
+                 put_explanation_2: %Action{
+                   runnable: {:puts, :magenta, explanation_2},
+                   next_action: :exit
+                 }
+               }
+             } == tree
+
+      ActionsTreeValidator.validate(tree)
+    end
+
+    test "with 0 blocks, the special 'there're no blocks' action tree in the server_state" do
+      lib_file = %{path: "lib/cool.ex", contents: "irrelevent lib contents"}
+      test_file = %{path: "test/cool_test.exs", contents: "irrelevent test contents"}
+
+      pre = "pre"
+
+      blocks =
+        {:ok, {:replace, %ReplaceBlocks{pre: pre, blocks: [], post: "irrelevent post"}}}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file(:lib, lib_file)
+        |> ServerStateBuilder.with_file(:test, test_file)
+        |> ServerStateBuilder.with_claude_ai_response(blocks)
+
+      assert {0, new_server_state} = ActionsBuilder.build(server_state)
+
+      tree = new_server_state[:stored_actions]
+
+      expected_message =
+        """
+        Claude offered no code changes, only some words of advice:
+
+        #{pre}
+        """
+
+      assert %{
+               entry_point: :put_no_blocks_message,
+               actions_tree: %{
+                 put_no_blocks_message: %Action{
+                   runnable: {:puts, :magenta, expected_message},
+                   next_action: :exit
+                 }
+               }
+             } == tree
+
+      ActionsTreeValidator.validate(tree)
+    end
+
+    # TODO add unexpected server_state tests. Add an error to action_error ?
   end
 end

@@ -36,6 +36,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {exit_code, server_state}
   end
 
+  defp do_execute({:git_diff, _file_path, _search, _replace}, server_state) do
+    # TODO write this
+    {0, server_state}
+  end
+
   defp do_execute({:puts, messages}, server_state) do
     {Puts.on_new_line(messages), server_state}
   end

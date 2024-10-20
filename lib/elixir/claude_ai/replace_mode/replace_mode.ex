@@ -139,14 +139,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
              :fallback => :fallback_placeholder_error
            }
          },
-         # TODO remove this :put_replace_response
-         stored_actoins: %Action{
-           runnable: :stored_actions,
-           next_action: %{
-             0 => :exit,
-             :fallback => :fallback_placeholder_error
-           }
-         },
          missing_file_msg: %Action{
            runnable:
              {:puts, :red,

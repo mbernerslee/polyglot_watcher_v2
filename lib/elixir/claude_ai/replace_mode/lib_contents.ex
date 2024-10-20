@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.LibContents do
+  # TODO this is uncalled right now. wire it into the new plan (git_diff action)
   def replace(block, lib) do
     replace =
       block.replace

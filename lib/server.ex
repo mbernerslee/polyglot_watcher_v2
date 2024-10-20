@@ -24,7 +24,8 @@ defmodule PolyglotWatcherV2.Server do
     rust: %{mode: :default},
     env_vars: %{},
     files: %{},
-    stored_actions: nil
+    stored_actions: nil,
+    action_error: nil
   }
 
   @supported_oss %{
