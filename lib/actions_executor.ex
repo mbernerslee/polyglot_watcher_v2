@@ -38,6 +38,14 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute({:git_diff, _file_path, _search, _replace}, server_state) do
     # TODO write this
+    # Plan is that this will
+    # - read the file
+    # - search it
+    # - generate replacement contents (replace "search" with "replace")
+    # - write original & replacement to separate tmp files
+    # - run git diff --no-index to generate a diff
+    # - write the diff to the terminal
+    # - rm -rf the /tmp/polyglot_watcher_v2 dir at the end and recreate it at the start as the real step one (so that every time we execute this we clean up after ourselves)
     {0, server_state}
   end
 
