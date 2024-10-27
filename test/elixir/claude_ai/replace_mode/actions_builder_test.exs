@@ -167,7 +167,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    test "with 0 blocks, the special 'there're no blocks' action tree in the server_state" do
+    test "with 0 blocks, put the special 'there're no blocks' action tree in the server_state" do
       lib_file = %{path: "lib/cool.ex", contents: "irrelevent lib contents"}
       test_file = %{path: "test/cool_test.exs", contents: "irrelevent test contents"}
 
@@ -206,6 +206,21 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    # TODO add unexpected server_state tests. Add an error to action_error ?
+    test "when the server state is missing key expected data, put an error into actions error" do
+      server_state = ServerStateBuilder.build()
+
+      assert {1, new_server_state} = ActionsBuilder.build(server_state)
+
+      expected_error =
+        """
+        ClaudeAI ReplaceMode Actions Builder was called with some expected data missing.
+
+        If you see this message it's due to a serious bug in the code and should be reported and fixed.
+
+        Please raise a github issue.
+        """
+
+      assert Map.put(server_state, :action_error, expected_error) == new_server_state
+    end
   end
 end

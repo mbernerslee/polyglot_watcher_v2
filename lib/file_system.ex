@@ -1,6 +1,7 @@
 defmodule PolyglotWatcherV2.FileSystem.FileWrapper do
   def read(path), do: File.read(path)
   def write(path, content), do: File.write(path, content)
+  def rm_rf(path), do: File.rm_rf(path)
 end
 
 defmodule PolyglotWatcherV2.FileSystem do
@@ -19,6 +20,7 @@ defmodule PolyglotWatcherV2.FileSystem do
   def read(path), do: FileWrapper.read(path)
 
   def write(path, content), do: FileWrapper.write(path, content)
+  def rm_rf(path), do: FileWrapper.rm_rf(path)
 
   defp persist_file(server_state, key, contents, path) do
     Map.update!(server_state, :files, fn files ->

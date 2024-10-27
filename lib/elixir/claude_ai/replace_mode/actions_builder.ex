@@ -17,6 +17,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilder do
     {0, put_in(server_state, [:stored_actions], actions_tree)}
   end
 
+  def build(server_state) do
+    {1, Map.put(server_state, :action_error, error_msg())}
+  end
+
+  defp error_msg do
+    """
+    ClaudeAI ReplaceMode Actions Builder was called with some expected data missing.
+
+    If you see this message it's due to a serious bug in the code and should be reported and fixed.
+
+    Please raise a github issue.
+    """
+  end
+
   defp actions([], _lib_path, pre) do
     message =
       """
