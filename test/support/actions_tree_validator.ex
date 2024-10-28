@@ -37,6 +37,7 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
       end)
       |> MapSet.new()
       |> MapSet.delete(:exit)
+      |> MapSet.delete(:execute_stored_actions)
       |> MapSet.put(entry_point)
 
     unless actions_that_exist == next_actions do
