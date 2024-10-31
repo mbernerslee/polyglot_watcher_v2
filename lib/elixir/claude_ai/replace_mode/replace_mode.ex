@@ -81,10 +81,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          },
          put_claude_init_msg: %Action{
            runnable: {:puts, :magenta, "Doing some Claude setup..."},
-           next_action: :put_perist_files_msg
-         },
-         put_perist_files_msg: %Action{
-           runnable: {:puts, :magenta, "Saving the lib & test files to memory..."},
            next_action: :persist_lib_file
          },
          persist_lib_file: %Action{
@@ -102,10 +98,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          build_claude_replace_api_request: %Action{
            runnable: :build_claude_replace_api_request,
            next_action: %{
-             0 => :put_calling_claude_msg,
-             :fallback => :fallback_placeholder_error
+             0 => :put_calling_claude_msg
+             # TODO make sure TraverseActions tree can handle there being no fallback if its using the :action_error stuff
            }
          },
+         # TODO continue here. Get rid of :fallback_placeholder_error. Make anything that was using instead put an explicit :action_error string
          put_calling_claude_msg: %Action{
            runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
            next_action: :perform_claude_api_request

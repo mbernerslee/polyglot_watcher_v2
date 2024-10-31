@@ -14,6 +14,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilder do
         } = server_state
       ) do
     actions_tree = actions(blocks, lib_path, pre)
+
     {0, put_in(server_state, [:stored_actions], actions_tree)}
   end
 
@@ -63,7 +64,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilder do
 
     wrapper_actions = %{
       put_pre: %Action{
-        runnable: {:puts, :magenta, acc.pre},
+        runnable: {:puts, [], format_pre(acc.pre)},
         next_action: @first_block_action_key
       }
     }
@@ -96,6 +97,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilder do
        }}
 
     %{acc | tree: [git_diff, explanation | tree], index: index + 1}
+  end
+
+  defp format_pre(pre) do
+    """
+    *******************************
+    ******* Claude Response *******
+    *******************************
+    #{pre}
+    """
   end
 
   ## functioning hack to get a git diff working

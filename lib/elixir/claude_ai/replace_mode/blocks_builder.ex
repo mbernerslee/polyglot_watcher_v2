@@ -12,17 +12,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilder do
 
       nil ->
         error =
-          {:error,
-           {:replace,
-            """
-            Failed to decode the Claude response.
-            My regex capture to grab JSON between two lines of asterisks didn't work.
-            The raw response was:
+          """
+          I failed to decode the Claude response.
+          My regex capture to grab JSON between two lines of asterisks didn't work.
+          The raw response was:
 
-            #{response}
-            """}}
+          #{response}
+          """
 
-        {1, put_in(server_state, [:claude_ai, :response], error)}
+        {1, %{server_state | action_error: error}}
     end
   end
 
@@ -34,9 +32,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilder do
         response = {:ok, {:replace, %ReplaceBlocks{pre: pre, blocks: blocks, post: post}}}
         {0, put_in(server_state, [:claude_ai, :response], response)}
 
-      {:error, reason} ->
-        response = {:error, {:replace, reason}}
-        {1, put_in(server_state, [:claude_ai, :response], response)}
+      {:error, error} ->
+        {1, %{server_state | action_error: error}}
     end
   end
 
@@ -52,16 +49,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilder do
       {:ok, _} ->
         {:error,
          """
-         Failed to parse JSON.
-         The root element was not "BLOCKS"
+         I failed to parse the JSON that I asked Claude to return
+         The root element was requested to be "BLOCKS" in the prompt, but instead it gave us the JSON below.
+
+         This a terminal error sadly. Claude failed us :-(
 
          #{encoded}
          """}
 
-      error ->
+      {:error, error} ->
         {:error,
          """
-         Failed to decode JSON.
+         I failed to decode the JSON that I asked Claude to return, because it was invalid.
+         This a terminal error sadly. Claude failed us :-(
+
          The decoding error was:
 
          #{inspect(error)}

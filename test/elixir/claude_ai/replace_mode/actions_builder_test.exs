@@ -57,10 +57,18 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
 
       tree = new_server_state[:stored_actions]
 
+      expected_pre =
+        """
+        *******************************
+        ******* Claude Response *******
+        *******************************
+        #{pre}
+        """
+
       assert %{
                entry_point: :put_pre,
                actions_tree: %{
-                 put_pre: %Action{runnable: {:puts, :magenta, pre}, next_action: :git_diff_1},
+                 put_pre: %Action{runnable: {:puts, [], expected_pre}, next_action: :git_diff_1},
                  git_diff_1: %Action{
                    runnable: {:git_diff, lib_path, search, replace},
                    next_action: %{0 => :put_explanation_1, :fallback => :exit}
@@ -127,6 +135,14 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
 
       pre = "pre"
 
+      expected_pre =
+        """
+        *******************************
+        ******* Claude Response *******
+        *******************************
+        pre
+        """
+
       blocks =
         {:ok,
          {:replace, %ReplaceBlocks{pre: pre, blocks: [block_1, block_2], post: "irrelevent post"}}}
@@ -144,7 +160,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilderTest do
       assert %{
                entry_point: :put_pre,
                actions_tree: %{
-                 put_pre: %Action{runnable: {:puts, :magenta, pre}, next_action: :git_diff_1},
+                 put_pre: %Action{
+                   runnable: {:puts, [], expected_pre},
+                   next_action: :git_diff_1
+                 },
                  git_diff_1: %Action{
                    runnable: {:git_diff, lib_path, search_1, replace_1},
                    next_action: %{0 => :put_explanation_1, :fallback => :exit}

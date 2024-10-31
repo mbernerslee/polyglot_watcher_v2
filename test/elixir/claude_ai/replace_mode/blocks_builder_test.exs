@@ -165,11 +165,28 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilderTest do
 
       assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
-      assert {:error, {:replace, error}} = new_server_state[:claude_ai][:response]
+      expected_error =
+        """
+        I failed to decode the JSON that I asked Claude to return, because it was invalid.
+        This a terminal error sadly. Claude failed us :-(
 
-      assert error =~ "Failed to decode JSON.\nThe decoding error was:"
-      assert error =~ "%Jason.DecodeError{"
-      assert error =~ "The raw response was:"
+        The decoding error was:
+
+        %Jason.DecodeError{position: 77, token: nil, data: "{\\"BLOCKS\\":[{\\"SEARCH\\":\\"search\\",\\"REPLACE\\":\\"replace\\",\\"EXPLANATION\\":\\"explanation\\""}
+
+        The raw response was:
+
+
+        {
+         "BLOCKS": [
+           {
+             "SEARCH": "search",
+             "REPLACE": "replace",
+             "EXPLANATION": "explanation"
+
+        """
+
+      assert Map.put(server_state, :action_error, expected_error) == new_server_state
     end
 
     test "when the JSON doesn't have BLOCKS as the root, return error" do
@@ -198,10 +215,27 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilderTest do
 
       assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
-      assert {:error, {:replace, error}} = new_server_state[:claude_ai][:response]
+      expected_error =
+        """
+        I failed to parse the JSON that I asked Claude to return
+        The root element was requested to be "BLOCKS" in the prompt, but instead it gave us the JSON below.
 
-      assert error =~ "Failed to parse JSON."
-      assert error =~ "The root element was not \"BLOCKS\""
+        This a terminal error sadly. Claude failed us :-(
+
+
+        {
+         "FAIL": [
+           {
+             "SEARCH": "search",
+             "REPLACE": "replace",
+             "EXPLANATION": "explanation"
+           }
+          ]
+        }
+
+        """
+
+      assert Map.put(server_state, :action_error, expected_error) == new_server_state
     end
 
     test "when the the blocks have keys missing, return error" do
@@ -229,10 +263,25 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilderTest do
 
       assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
-      assert {:error, {:replace, error}} = new_server_state[:claude_ai][:response]
+      expected_error =
+        """
+        Failed to parse JSON.
+        At least one of the "BLOCKS" was missing a mandatory key.
+        The raw response was:
 
-      assert error =~ "Failed to parse JSON."
-      assert error =~ "At least one of the \"BLOCKS\" was missing a mandatory key."
+
+        {
+         "BLOCKS": [
+           {
+             "SEARCH": "search",
+             "REPLACE": "replace"
+           }
+          ]
+        }
+
+        """
+
+      assert Map.put(server_state, :action_error, expected_error) == new_server_state
     end
 
     test "mid way } don't spuriously count as the end of the JSON" do
@@ -436,13 +485,26 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.BlocksBuilderTest do
 
       assert {1, new_server_state} = BlocksBuilder.parse(server_state)
 
-      assert {:error, {:replace, error}} =
-               new_server_state[:claude_ai][:response]
+      expected_error =
+        """
+        I failed to decode the Claude response.
+        My regex capture to grab JSON between two lines of asterisks didn't work.
+        The raw response was:
 
-      assert error =~ "Failed to decode the Claude response"
-      assert error =~ "My regex capture to grab JSON between two lines of asterisks didn't work."
+        pre
+        {
+          "BLOCKS": [
+            {
+              "SEARCH": "search",
+              "REPLACE": "replace",
+              "EXPLANATION": "explanation"
+            }
+          ]
+        }
+        post
+        """
+
+      assert Map.put(server_state, :action_error, expected_error) == new_server_state
     end
-
-    # TODO check there's a test for *'s missing
   end
 end
