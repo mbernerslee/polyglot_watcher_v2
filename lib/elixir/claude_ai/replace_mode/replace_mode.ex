@@ -97,44 +97,29 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          # TODO get rid of this "placeholder error" in all files. more descriptive errors please
          build_claude_replace_api_request: %Action{
            runnable: :build_claude_replace_api_request,
-           next_action: %{
-             0 => :put_calling_claude_msg
+           next_action: :put_calling_claude_msg
              # TODO make sure TraverseActions tree can handle there being no fallback if its using the :action_error stuff
-           }
          },
-         # TODO continue here. Get rid of :fallback_placeholder_error. Make anything that was using instead put an explicit :action_error string
+         # TODO remove the msg it sends before "Waiting for Claude API call response..." because its pointless spam really
          put_calling_claude_msg: %Action{
            runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
            next_action: :perform_claude_api_request
          },
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
-           next_action: %{
-             0 => :parse_claude_response,
-             :fallback => :fallback_placeholder_error
-           }
+           next_action: :parse_claude_response
          },
          parse_claude_response: %Action{
            runnable: :parse_claude_api_response,
-           next_action: %{
-             0 => :build_replace_blocks,
-             :fallback => :fallback_placeholder_error
-           }
+           next_action: :build_replace_blocks
          },
          build_replace_blocks: %Action{
            runnable: :build_claude_replace_blocks,
-           next_action: %{
-             0 => :build_replace_actions,
-             :fallback => :fallback_placeholder_error
-           }
+           next_action: :build_replace_actions
          },
          build_replace_actions: %Action{
            runnable: :build_claude_replace_actions,
-           next_action: %{
-             # TODO remove this :execute_stored_actions. or test it
-             0 => :execute_stored_actions,
-             :fallback => :fallback_placeholder_error
-           }
+           next_action: :execute_stored_actions
          },
          missing_file_msg: %Action{
            runnable:
@@ -147,15 +132,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
 
               So you're beyond this particular Claude integrations help until both exist.
               Create the missing one please!
-              """},
-           next_action: :put_failure_msg
-         },
-         fallback_placeholder_error: %Action{
-           runnable:
-             {:puts, :red,
-              """
-              Claude fallback error
-              Oh no!
               """},
            next_action: :put_failure_msg
          },

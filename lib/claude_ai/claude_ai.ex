@@ -11,7 +11,23 @@ defmodule PolyglotWatcherV2.ClaudeAI do
     {1, server_state}
   end
 
-  # TODO decouple the putting of the raw txt from the handling of the response? Otherwise can't reuse this for replace mode
+  # TODO test this
+  def perform_api_call(%{claude_ai: %{request: %Request{} = request}} = server_state) do
+    response = HTTPoison.request(request)
+    {0, put_in(server_state, [:claude_ai, :response], response)}
+  end
+
+  def perform_api_call(server_state) do
+    action_error =
+      """
+      I was asked to perform an API call to ClaudeAI, but I don't have a request in my memory.
+
+      This is a bug! I should never be called in this state!
+      """
+
+    {1, %{server_state | action_error: action_error}}
+  end
+
   def parse_claude_api_response(
         %{claude_ai: %{response: {:ok, %Response{status_code: 200, body: body}}}} = server_state
       ) do
@@ -20,30 +36,38 @@ defmodule PolyglotWatcherV2.ClaudeAI do
         {0, put_in(server_state, [:claude_ai, :response], {:ok, {:parsed, text}})}
 
       _ ->
-        error = """
-        I failed to decode the Claude API HTTP 200 response :-(
-        It was:
+        action_error =
+          """
+          I failed to decode the Claude API HTTP 200 response :-(
+          It was:
 
-        #{body}
-        """
+          #{body}
+          """
 
-        store_parsed_response_error(server_state, error)
+        {1, %{server_state | action_error: action_error}}
     end
   end
 
   def parse_claude_api_response(%{claude_ai: %{response: response}} = server_state) do
-    error = """
+    action_error = """
     Claude API did not return a HTTP 200 response :-(
     It was:
 
     #{inspect(response)}
     """
 
-    store_parsed_response_error(server_state, error)
+    {1, %{server_state | action_error: action_error}}
   end
 
   def parse_claude_api_response(server_state) do
-    store_parsed_response_error(server_state, "I have no Claude API response in my memory...")
+    action_error =
+      """
+      I was asked to parse a Claude API response, but I don't have one in my memory.
+
+      This should never happen and is a bug in the code most likely :-(
+      """
+
+    {1, %{server_state | action_error: action_error}}
   end
 
   def put_parsed_response(
@@ -83,10 +107,6 @@ defmodule PolyglotWatcherV2.ClaudeAI do
 
     Puts.on_new_line(error, :red)
     {1, server_state}
-  end
-
-  defp store_parsed_response_error(server_state, error) do
-    {1, put_in(server_state, [:claude_ai, :response], {:error, {:parsed, error}})}
   end
 
   # https://docs.anthropic.com/en/api/messages-examples

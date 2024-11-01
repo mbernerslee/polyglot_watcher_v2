@@ -21,7 +21,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.Elixir.{Failures, MixTest}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
-  alias HTTPoison.Request
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
   @log Application.compile_env(:polyglot_watcher_v2, :log_executor_commands)
@@ -97,6 +96,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAIReplaceMode.ActionsBuilder.build(server_state)
   end
 
+  # TODO delete this & where its called from! it is a hack!
   defp do_execute(:put_claude_replace_response, server_state) do
     case server_state do
       %{claude_ai: %{response: {:ok, {:replace, %{blocks: blocks, pre: pre, post: post}}}}} ->
@@ -127,16 +127,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     end
   end
 
-  defp do_execute(
-         :perform_claude_api_request,
-         %{claude_ai: %{request: %Request{} = request}} = server_state
-       ) do
-    response = HTTPoison.request(request)
-    {0, put_in(server_state, [:claude_ai, :response], response)}
-  end
-
   defp do_execute(:perform_claude_api_request, server_state) do
-    {{:error, :missing_or_invalid_request}, server_state}
+    ClaudeAI.perform_api_call(server_state)
   end
 
   defp do_execute(:parse_claude_api_response, server_state) do
