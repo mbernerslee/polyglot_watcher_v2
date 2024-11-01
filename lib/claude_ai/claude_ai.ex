@@ -11,7 +11,6 @@ defmodule PolyglotWatcherV2.ClaudeAI do
     {1, server_state}
   end
 
-  # TODO test this
   def perform_api_call(%{claude_ai: %{request: %Request{} = request}} = server_state) do
     response = HTTPoison.request(request)
     {0, put_in(server_state, [:claude_ai, :response], response)}

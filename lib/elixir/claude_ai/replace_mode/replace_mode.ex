@@ -5,6 +5,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   @ex Determiner.ex()
   @exs Determiner.exs()
 
+  # TODO add this mode to the README and help outputs
+
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
@@ -77,11 +79,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, test_path},
-           next_action: %{0 => :put_success_msg, :fallback => :put_claude_init_msg}
-         },
-         put_claude_init_msg: %Action{
-           runnable: {:puts, :magenta, "Doing some Claude setup..."},
-           next_action: :persist_lib_file
+           next_action: %{0 => :put_success_msg, :fallback => :persist_lib_file}
          },
          persist_lib_file: %Action{
            runnable: {:persist_file, lib_path, :lib},
@@ -94,13 +92,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
              :fallback => :missing_file_msg
            }
          },
-         # TODO get rid of this "placeholder error" in all files. more descriptive errors please
          build_claude_replace_api_request: %Action{
            runnable: :build_claude_replace_api_request,
            next_action: :put_calling_claude_msg
-             # TODO make sure TraverseActions tree can handle there being no fallback if its using the :action_error stuff
          },
-         # TODO remove the msg it sends before "Waiting for Claude API call response..." because its pointless spam really
          put_calling_claude_msg: %Action{
            runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
            next_action: :perform_claude_api_request

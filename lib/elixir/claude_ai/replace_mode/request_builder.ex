@@ -157,8 +157,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
     """
   end
 
-  # TODO consider removing the max 20 lines clause above
-
   @doc """
   Untested hack
   Purely here for the sake of having an easier way to quickly iterate on the prompt within iex

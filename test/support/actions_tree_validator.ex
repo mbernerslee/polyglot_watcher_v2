@@ -32,8 +32,28 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
       actions_tree
       |> Map.values()
       |> Enum.flat_map(fn
-        %{next_action: %{} = next_action} -> Map.values(next_action)
-        %{next_action: next_action} -> [next_action]
+        %{next_action: %{fallback: _} = next_action} ->
+          Map.values(next_action)
+
+        %{next_action: %{} = next_action} ->
+          error =
+            """
+            I require next_actions to be either:
+
+            - an atom
+                Signifying that no matter what happened, run the action with this key
+            - a map
+                Which MUST contain the :fallback key, signifying what to do if there is no matching exit_code found in the next_actions map
+
+            And sadly I found a map which did not contain :fallback as a next action in the tree!
+
+            The bad next_action was #{inspect(next_action)}
+            """
+
+          raise InvalidActionsTreeError, error
+
+        %{next_action: next_action} ->
+          [next_action]
       end)
       |> MapSet.new()
       |> MapSet.delete(:exit)

@@ -41,7 +41,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :put_claude_init_msg,
         :persist_lib_file,
         :persist_test_file,
         :build_claude_replace_api_request,
@@ -51,7 +50,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :build_replace_blocks,
         :build_replace_actions,
         :missing_file_msg,
-        :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
       ]
@@ -88,7 +86,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :put_claude_init_msg,
         :persist_lib_file,
         :persist_test_file,
         :build_claude_replace_api_request,
@@ -98,7 +95,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :build_replace_blocks,
         :build_replace_actions,
         :missing_file_msg,
-        :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
       ]

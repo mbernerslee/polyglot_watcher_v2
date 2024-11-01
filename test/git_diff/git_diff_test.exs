@@ -5,7 +5,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
   alias PolyglotWatcherV2.{GitDiff, Puts, ServerStateBuilder, SystemCall}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
-  # TODO make sure we're generating a proper replacement file.. including the unchanged parts of the time. Probably are but we need to check
   describe "run/4" do
     test "given a file path, search and replacement texts and server_state, puts a git diff onto the screen" do
       file_path = "lib/cool.ex"

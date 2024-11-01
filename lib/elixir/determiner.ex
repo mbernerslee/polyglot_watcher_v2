@@ -196,7 +196,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       :claude_ai ->
         ClaudeAIDefaultMode.determine_actions(file_path, server_state)
 
-      # TODO test this line!
       :claude_ai_replace ->
         ClaudeAIReplaceMode.determine_actions(file_path, server_state)
     end

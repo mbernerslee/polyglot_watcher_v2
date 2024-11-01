@@ -107,31 +107,4 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilder do
     #{pre}
     """
   end
-
-  ## functioning hack to get a git diff working
-  # TODO remove this later once the real thing is done
-
-  # tmp_dir = "/tmp/polyglot_watcher_v2"
-  # lib_path = tmp_dir <> "/lib"
-  # new_lib_path = tmp_dir <> "/new_lib"
-  # File.mkdir_p(tmp_dir)
-  # File.write!(lib_path, Enum.join(lib, "\n"))
-  # File.write!(new_lib_path, Enum.join(new_lib, "\n"))
-
-  # {std_out, exit_code} =
-  #  System.cmd("git", ["diff", "--no-index", "--color", lib_path, new_lib_path],
-  #    stderr_to_stdout: true
-  #  )
-
-  ## IO.inspect "exit code #{exit_code}"
-  # IO.puts(std_out)
-  # IO.puts(" Explanation ****************************")
-  # IO.puts(block.explanation)
-
-  # defp build_block_actions(block, lib, _block_number) do
-  #  with {:ok, new_lib} <- LibContents.replace(block, lib),
-  #       {:ok, diff} <- Diff.build(new_lib, lib) do
-  #    {:ok, new_lib, diff}
-  #  end
-  # end
 end

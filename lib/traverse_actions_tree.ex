@@ -15,23 +15,19 @@ defmodule PolyglotWatcherV2.TraverseActionsTree do
 
     case next_action_name do
       :exit -> server_state
-      # TODO test this thing
       :execute_stored_actions -> execute_stored_actions(server_state)
       :quit_the_program -> System.stop(0)
       next_action_name -> execute_all(next_action_name, actions_tree, server_state)
     end
   end
 
-  # TODO test the :action_error mechanic here
   defp execute_all(_action_name, _actions_tree, %{action_error: error} = server_state) do
     {_, server_state} = ActionsExecutor.execute({:puts, :red, error}, server_state)
-    server_state
+    %{server_state | action_error: nil}
   end
 
-  # TODO test this thing
   defp execute_stored_actions(%{stored_actions: stored_actions} = server_state) do
-    server_state = put_in(server_state, [:stored_actions], nil)
-    execute_all({stored_actions, server_state})
+    execute_all({stored_actions, %{server_state | stored_actions: nil}})
   end
 
   defp execute_one(%Action{runnable: runnable, next_action: next_action}, server_state) do

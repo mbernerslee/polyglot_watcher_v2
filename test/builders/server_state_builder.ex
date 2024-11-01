@@ -51,6 +51,14 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:elixir, :claude_prompt], ClaudeAIDefaultMode.default_prompt())
   end
 
+  def with_stored_actions(server_state, stored_actions) do
+    put_in(server_state, [:stored_actions], stored_actions)
+  end
+
+  def with_action_error(server_state, action_error) do
+    put_in(server_state, [:action_error], action_error)
+  end
+
   def with_env_var(server_state, key, value) do
     Map.update!(server_state, :env_vars, fn env_vars -> Map.put(env_vars, key, value) end)
   end
