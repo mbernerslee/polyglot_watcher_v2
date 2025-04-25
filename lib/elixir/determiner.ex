@@ -93,7 +93,11 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:white,
        "  It auto-generates the prompt with the lib file, test file & mix test output for you.\n"},
       {:white,
-       "  Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.\n"}
+       "  Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.\n"},
+      {:light_magenta, "ex clr\n"},
+      {:white, "  Claude Replace\n"},
+      {:white,
+       "The same as the above mode, but uses a hard-coded prompt resulting in find/replace suggestion codeblocks to fix the test"}
     ]
   end
 

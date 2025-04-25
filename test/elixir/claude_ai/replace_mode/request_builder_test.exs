@@ -37,7 +37,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilderTest do
       assert prompt =~ mix_test_output
     end
 
-    # TODO split this placeholder stuff into a common module & test it this granuraly there instead
     test "prompt placeholders get populated" do
       lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
       test_file = %{path: "test/cool_test.exs", contents: "cool test"}

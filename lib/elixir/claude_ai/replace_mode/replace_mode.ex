@@ -5,8 +5,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   @ex Determiner.ex()
   @exs Determiner.exs()
 
-  # TODO add this mode to the README and help outputs
-
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,

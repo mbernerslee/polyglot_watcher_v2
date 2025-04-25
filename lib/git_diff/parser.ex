@@ -1,6 +1,4 @@
 defmodule PolyglotWatcherV2.GitDiff.Parser do
-  # TODO what if multple hunks? parse many? write tests for that??
-
   @line_count_regex ~r|@@ \-(?<line_number>[0-9]+),(?<line_count>[0-9]+)\s\+[0-9]+,[0-9]+ @@|
   @one_line_regex ~r|@@ \-(?<line_number>[0-9]+)\s\+[0-9]+ @@|
 
