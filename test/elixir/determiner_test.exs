@@ -138,6 +138,22 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       ActionsTreeValidator.validate(tree)
     end
+
+    test "returns the Claude AI Replace Mode actions when in that state" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key("SECRET")
+
+      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
+
+      assert %{entry_point: :clear_screen, actions_tree: actions_tree} = tree
+
+      # check an arbitrarily chosen action exists in the tree
+      assert actions_tree[:build_replace_actions] != nil
+
+      ActionsTreeValidator.validate(tree)
+    end
   end
 
   describe "user_input_actions/2" do
@@ -364,6 +380,28 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.validate(tree)
 
       assert %Action{runnable: {:switch_mode, :elixir, :claude_ai}} =
+               tree.actions_tree.switch_mode
+    end
+
+    test "switching to claude replace mode" do
+      server_state = ServerStateBuilder.build()
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex clr", server_state)
+
+      assert %{entry_point: :clear_screen} = tree
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_switch_mode_msg,
+        :switch_mode,
+        :persist_api_key,
+        :no_api_key_fail_msg,
+        :put_awaiting_file_save_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+
+      assert %Action{runnable: {:switch_mode, :elixir, :claude_ai_replace}} =
                tree.actions_tree.switch_mode
     end
 

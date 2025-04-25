@@ -9,9 +9,18 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
-  alias PolyglotWatcherV2.{ClaudeAI, EnvironmentVariables, FileSystem, Puts, ShellCommandRunner}
-  alias PolyglotWatcherV2.Elixir.{ClaudeAIMode, Failures, MixTest}
-  alias HTTPoison.Request
+  alias PolyglotWatcherV2.{
+    ClaudeAI,
+    EnvironmentVariables,
+    FileSystem,
+    GitDiff,
+    Puts,
+    ShellCommandRunner
+  }
+
+  alias PolyglotWatcherV2.Elixir.{Failures, MixTest}
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
   @log Application.compile_env(:polyglot_watcher_v2, :log_executor_commands)
@@ -32,6 +41,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   defp do_execute({:run_sys_cmd, cmd, args}, server_state) do
     {_std_out, exit_code} = System.cmd(cmd, args, into: IO.stream(:stdio, :line))
     {exit_code, server_state}
+  end
+
+  defp do_execute({:git_diff, file_path, search, replacement}, server_state) do
+    GitDiff.run(file_path, search, replacement, server_state)
   end
 
   defp do_execute({:puts, messages}, server_state) do
@@ -62,28 +75,36 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
-  defp do_execute(:load_claude_ai_prompt, server_state) do
-    ClaudeAIMode.load_prompt(server_state)
+  defp do_execute(:load_in_memory_prompt, server_state) do
+    ClaudeAIDefaultMode.load_in_memory_prompt(server_state)
   end
 
-  defp do_execute(:build_claude_api_request, server_state) do
-    ClaudeAIMode.build_api_request(server_state)
+  defp do_execute(:build_claude_api_request_from_in_memory_prompt, server_state) do
+    ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(server_state)
   end
 
-  defp do_execute(
-         :perform_claude_api_request,
-         %{claude_ai: %{request: %Request{} = request}} = server_state
-       ) do
-    response = HTTPoison.request(request)
-    {0, put_in(server_state, [:claude_ai, :response], response)}
+  defp do_execute(:build_claude_replace_api_request, server_state) do
+    ClaudeAIReplaceMode.RequestBuilder.build(server_state)
+  end
+
+  defp do_execute(:build_claude_replace_blocks, server_state) do
+    ClaudeAIReplaceMode.BlocksBuilder.parse(server_state)
+  end
+
+  defp do_execute(:build_claude_replace_actions, server_state) do
+    ClaudeAIReplaceMode.ActionsBuilder.build(server_state)
   end
 
   defp do_execute(:perform_claude_api_request, server_state) do
-    {{:error, :missing_or_invalid_request}, server_state}
+    ClaudeAI.perform_api_call(server_state)
   end
 
-  defp do_execute(:handle_claude_api_response, server_state) do
-    ClaudeAI.handle_api_response(server_state)
+  defp do_execute(:parse_claude_api_response, server_state) do
+    ClaudeAI.parse_claude_api_response(server_state)
+  end
+
+  defp do_execute(:put_parsed_claude_api_response, server_state) do
+    ClaudeAI.put_parsed_response(server_state)
   end
 
   defp do_execute(:cargo_build, server_state) do

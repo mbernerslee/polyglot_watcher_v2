@@ -11,44 +11,101 @@ defmodule PolyglotWatcherV2.ClaudeAI do
     {1, server_state}
   end
 
-  def handle_api_response(
+  def perform_api_call(%{claude_ai: %{request: %Request{} = request}} = server_state) do
+    response = HTTPoison.request(request)
+    {0, put_in(server_state, [:claude_ai, :response], response)}
+  end
+
+  def perform_api_call(server_state) do
+    action_error =
+      """
+      I was asked to perform an API call to ClaudeAI, but I don't have a request in my memory.
+
+      This is a bug! I should never be called in this state!
+      """
+
+    {1, %{server_state | action_error: action_error}}
+  end
+
+  def parse_claude_api_response(
         %{claude_ai: %{response: {:ok, %Response{status_code: 200, body: body}}}} = server_state
       ) do
     case Jason.decode(body) do
       {:ok, %{"content" => [%{"text" => text} | _]}} ->
-        Puts.on_new_line_unstyled(text)
         {0, put_in(server_state, [:claude_ai, :response], {:ok, {:parsed, text}})}
 
       _ ->
-        error = """
-        I failed to decode the Claude API HTTP 200 response :-(
-        It was:
+        action_error =
+          """
+          I failed to decode the Claude API HTTP 200 response :-(
+          It was:
 
-        #{body}
-        """
+          #{body}
+          """
 
-        handle_api_response_error(server_state, error)
+        {1, %{server_state | action_error: action_error}}
     end
   end
 
-  def handle_api_response(%{claude_ai: %{response: response}} = server_state) do
-    error = """
+  def parse_claude_api_response(%{claude_ai: %{response: response}} = server_state) do
+    action_error = """
     Claude API did not return a HTTP 200 response :-(
     It was:
 
     #{inspect(response)}
     """
 
-    handle_api_response_error(server_state, error)
+    {1, %{server_state | action_error: action_error}}
   end
 
-  def handle_api_response(server_state) do
-    handle_api_response_error(server_state, "I have no Claude API response in my memory...")
+  def parse_claude_api_response(server_state) do
+    action_error =
+      """
+      I was asked to parse a Claude API response, but I don't have one in my memory.
+
+      This should never happen and is a bug in the code most likely :-(
+      """
+
+    {1, %{server_state | action_error: action_error}}
   end
 
-  defp handle_api_response_error(server_state, error) do
+  def put_parsed_response(
+        %{claude_ai: %{response: {:error, {:parsed, error_msg}}}} = server_state
+      ) do
+    Puts.on_new_line(error_msg, :red)
+    {1, server_state}
+  end
+
+  def put_parsed_response(%{claude_ai: %{response: {:ok, {:parsed, response}}}} = server_state) do
+    Puts.on_new_line_unstyled(response)
+    {0, server_state}
+  end
+
+  def put_parsed_response(%{claude_ai: %{response: unparsed_response}} = server_state) do
+    error =
+      """
+        I was asked to put a Claude AI parsed response on the screen, but I don't have one in my memory...
+
+        What I did have was:
+        #{inspect(unparsed_response)}
+
+        This is probably due to a bug in my code sadly :-(
+      """
+
     Puts.on_new_line(error, :red)
-    {1, put_in(server_state, [:claude_ai, :response], {:error, {:parsed, error}})}
+    {1, server_state}
+  end
+
+  def put_parsed_response(server_state) do
+    error =
+      """
+        I was asked to put a Claude AI parsed response on the screen, but I don't have one in my memory...
+
+        This is probably due to a bug in my code sadly :-(
+      """
+
+    Puts.on_new_line(error, :red)
+    {1, server_state}
   end
 
   # https://docs.anthropic.com/en/api/messages-examples

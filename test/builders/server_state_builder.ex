@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.ServerStateBuilder do
   alias PolyglotWatcherV2.Inotifywait
-  alias PolyglotWatcherV2.Elixir.ClaudeAIMode
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
 
   def build do
     %{
@@ -13,7 +13,9 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       watcher: Inotifywait,
       starting_dir: "./",
       files: %{},
-      env_vars: %{}
+      env_vars: %{},
+      stored_actions: nil,
+      action_error: nil
     }
   end
 
@@ -29,6 +31,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:claude_ai, :response], response)
   end
 
+  def with_claude_ai_request(server_state, request) do
+    put_in(server_state, [:claude_ai, :request], request)
+  end
+
   def with_mix_test_output(server_state, mix_test_output) do
     put_in(server_state, [:elixir, :mix_test_output], mix_test_output)
   end
@@ -42,7 +48,15 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
   end
 
   def with_default_claude_prompt(server_state) do
-    put_in(server_state, [:elixir, :claude_prompt], ClaudeAIMode.default_prompt())
+    put_in(server_state, [:elixir, :claude_prompt], ClaudeAIDefaultMode.default_prompt())
+  end
+
+  def with_stored_actions(server_state, stored_actions) do
+    put_in(server_state, [:stored_actions], stored_actions)
+  end
+
+  def with_action_error(server_state, action_error) do
+    put_in(server_state, [:action_error], action_error)
   end
 
   def with_env_var(server_state, key, value) do

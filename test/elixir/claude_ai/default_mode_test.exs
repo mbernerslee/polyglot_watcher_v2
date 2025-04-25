@@ -1,10 +1,11 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
+defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
   use ExUnit.Case, async: true
   use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, Puts, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.{Determiner, ClaudeAIMode}
+  alias PolyglotWatcherV2.Elixir.{Determiner, DefaultMode}
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode
   alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
@@ -16,7 +17,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
   describe "switch/1" do
     test "given a valid server state, switches to ClaudeAI mode" do
-      assert {tree, @server_state_normal_mode} = ClaudeAIMode.switch(@server_state_normal_mode)
+      assert {tree, @server_state_normal_mode} = DefaultMode.switch(@server_state_normal_mode)
 
       expected_action_tree_keys = [
         :clear_screen,
@@ -36,7 +37,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
   describe "determine_actions/1" do
     test "given a lib file, returns a valid action tree" do
       {tree, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
+        DefaultMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
 
       expected_action_tree_keys = [
         :clear_screen,
@@ -46,11 +47,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_perist_files_msg,
         :persist_lib_file,
         :persist_test_file,
-        :load_prompt,
+        :load_in_memory_prompt,
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
-        :handle_claude_api_response,
+        :parse_claude_api_response,
+        :put_parsed_claude_api_response,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -64,7 +66,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
     test "given a lib file, puts the correct test file path" do
       {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
+        DefaultMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
 
       assert actions_tree.persist_test_file.runnable ==
                {:persist_file, "test/cool_test.exs", :test}
@@ -72,7 +74,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
     test "given a test file, puts the correct lib file path" do
       {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(
+        DefaultMode.determine_actions(
           %FilePath{path: "test/elixir/claude_ai_mode_test", extension: @exs},
           @server_state_normal_mode
         )
@@ -83,7 +85,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
     test "given a test file, returns a valid action tree" do
       {tree, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
+        DefaultMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
 
       expected_action_tree_keys = [
         :clear_screen,
@@ -93,11 +95,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         :put_perist_files_msg,
         :persist_lib_file,
         :persist_test_file,
-        :load_prompt,
+        :load_in_memory_prompt,
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
-        :handle_claude_api_response,
+        :parse_claude_api_response,
+        :put_parsed_claude_api_response,
         :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
@@ -111,7 +114,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
     test "given a lib file, but in an invalid format, returns an error actions tree" do
       {tree, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(
+        DefaultMode.determine_actions(
           %FilePath{path: "not_lib/not_cool", extension: @ex},
           @server_state_normal_mode
         )
@@ -128,7 +131,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
 
     test "given a test file, but in an invalid format, returns an error actions tree" do
       {tree, @server_state_normal_mode} =
-        ClaudeAIMode.determine_actions(
+        DefaultMode.determine_actions(
           %FilePath{path: "not_test/not_cool", extension: @exs},
           @server_state_normal_mode
         )
@@ -144,7 +147,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
     end
   end
 
-  describe "build_api_request/2" do
+  describe "build_api_request_from_in_memory_prompt/2" do
     test "given server_state that contains the required info to build the API call, then it is built and stored in the server_state" do
       lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
       test_file = %{path: "test/cool_test.exs", contents: "cool test"}
@@ -160,7 +163,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_elixir_claude_prompt(prompt)
 
-      assert {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
+      assert {0, new_server_state} =
+               DefaultMode.build_api_request_from_in_memory_prompt(server_state)
 
       assert %{claude_ai: %{request: api_request}} = new_server_state
 
@@ -215,7 +219,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
-      {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
+      {0, new_server_state} = DefaultMode.build_api_request_from_in_memory_prompt(server_state)
 
       %{claude_ai: %{request: api_request}} = new_server_state
 
@@ -276,7 +280,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
-      {0, new_server_state} = ClaudeAIMode.build_api_request(server_state)
+      {0, new_server_state} = DefaultMode.build_api_request_from_in_memory_prompt(server_state)
 
       %{claude_ai: %{request: api_request}} = new_server_state
 
@@ -301,7 +305,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_default_claude_prompt()
 
-      assert {0, _} = ClaudeAIMode.build_api_request(server_state)
+      assert {0, _} = DefaultMode.build_api_request_from_in_memory_prompt(server_state)
 
       bad_server_states = [
         ServerStateBuilder.with_file(server_state, :lib, nil),
@@ -311,12 +315,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
       ]
 
       Enum.each(bad_server_states, fn bad_server_state ->
-        assert {1, bad_server_state} == ClaudeAIMode.build_api_request(bad_server_state)
+        assert {1, bad_server_state} ==
+                 DefaultMode.build_api_request_from_in_memory_prompt(bad_server_state)
       end)
     end
   end
 
-  describe "load_prompt/1" do
+  describe "load_in_memory_prompt/1" do
     test "when there's a custom file, we read the HOME env var to read the file" do
       home_path = "/home/el_dude"
       prompt = "cool prompt"
@@ -337,7 +342,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         assert style == :magenta
       end)
 
-      assert {0, new_server_state} = ClaudeAIMode.load_prompt(server_state)
+      assert {0, new_server_state} = DefaultMode.load_in_memory_prompt(server_state)
 
       assert put_in(server_state, [:elixir, :claude_prompt], prompt) == new_server_state
     end
@@ -356,7 +361,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         assert style == :red
       end)
 
-      assert {1, server_state} == ClaudeAIMode.load_prompt(server_state)
+      assert {1, server_state} == DefaultMode.load_in_memory_prompt(server_state)
     end
 
     test "when there's no custom file, then we load the custom prompt, and put a msg saying so" do
@@ -376,9 +381,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIModeTest do
         assert style == :magenta
       end)
 
-      assert {0, new_server_state} = ClaudeAIMode.load_prompt(server_state)
+      assert {0, new_server_state} = DefaultMode.load_in_memory_prompt(server_state)
 
-      assert put_in(server_state, [:elixir, :claude_prompt], ClaudeAIMode.default_prompt()) ==
+      assert put_in(server_state, [:elixir, :claude_prompt], DefaultMode.default_prompt()) ==
                new_server_state
     end
   end

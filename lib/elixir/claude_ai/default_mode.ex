@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
+defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
   alias PolyglotWatcherV2.{Action, ClaudeAI, EnvironmentVariables, FilePath, FileSystem, Puts}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
 
@@ -94,19 +94,19 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          persist_test_file: %Action{
            runnable: {:persist_file, test_path, :test},
            next_action: %{
-             0 => :load_prompt,
+             0 => :load_in_memory_prompt,
              :fallback => :missing_file_msg
            }
          },
-         load_prompt: %Action{
-           runnable: :load_claude_ai_prompt,
+         load_in_memory_prompt: %Action{
+           runnable: :load_in_memory_prompt,
            next_action: %{
              0 => :build_claude_api_request,
              :fallback => :exit
            }
          },
          build_claude_api_request: %Action{
-           runnable: :build_claude_api_request,
+           runnable: :build_claude_api_request_from_in_memory_prompt,
            next_action: %{
              0 => :put_calling_claude_msg,
              :fallback => :fallback_placeholder_error
@@ -119,15 +119,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
          perform_claude_api_request: %Action{
            runnable: :perform_claude_api_request,
            next_action: %{
-             0 => :handle_claude_api_response,
+             0 => :parse_claude_api_response,
              :fallback => :fallback_placeholder_error
            }
          },
-         handle_claude_api_response: %Action{
-           runnable: :handle_claude_api_response,
+         parse_claude_api_response: %Action{
+           runnable: :parse_claude_api_response,
            next_action: %{
-             0 => :exit,
-             :fallback => :fallback_placeholder_error
+             :fallback => :put_parsed_claude_api_response
+           }
+         },
+         put_parsed_claude_api_response: %Action{
+           runnable: :put_parsed_claude_api_response,
+           next_action: %{
+             :fallback => :exit
            }
          },
          missing_file_msg: %Action{
@@ -159,7 +164,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
      }, server_state}
   end
 
-  def load_prompt(server_state) do
+  def load_in_memory_prompt(server_state) do
     {:ok, %{}}
     |> and_then(:home, &get_home_env_var/1)
     |> and_then(:custom_prompt, &read_custom_prompt_file/1)
@@ -253,7 +258,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
 
   defp and_then(error, _key, _fun), do: error
 
-  def build_api_request(
+  def build_api_request_from_in_memory_prompt(
         %{
           files: %{lib: lib, test: test},
           elixir: %{mix_test_output: mix_test_output, claude_prompt: prompt}
@@ -265,7 +270,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAIMode do
     ClaudeAI.build_api_request(server_state, messages)
   end
 
-  def build_api_request(server_state) do
+  def build_api_request_from_in_memory_prompt(server_state) do
     {1, server_state}
   end
 
