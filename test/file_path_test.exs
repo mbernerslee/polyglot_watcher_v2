@@ -2,7 +2,13 @@ defmodule PolyglotWatcherV2.FilePathTest do
   use ExUnit.Case, async: true
   alias PolyglotWatcherV2.FilePath
 
+  # TODO add a test about absolute paths working
   describe "build/2" do
+    test "works with legit looking file paths with extensions and a relative path" do
+      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
+               FilePath.build("lib/server.ex")
+    end
+
     test "works with legit looking file paths with extensions and a relative path" do
       assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
                FilePath.build("lib/server.ex")
