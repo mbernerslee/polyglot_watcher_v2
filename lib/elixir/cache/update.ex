@@ -1,34 +1,57 @@
 defmodule PolyglotWatcherV2.Elixir.Cache.Update do
-  alias PolyglotWatcherV2.Elixir.Cache.{File, LibFile, TestFile}
+  alias PolyglotWatcherV2.Elixir.Cache.{
+    FailedTestLineNumbers,
+    File,
+    LibFile,
+    TestFile,
+    MixTestOutputParser,
+    FixedTests
+  }
+
   alias PolyglotWatcherV2.Elixir.EquivalentPath
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
-  # TODO test this here
-  # TODO deal with test_path = :all
-  # TODO we don't need test_path ... except for knowing which failed tests we can delete or sth
-  #TODO continue here - wire in MixTestOutputParser to find failed tests lines etc etc
-  def run(files, :all, _mix_test_output, _exit_code) do
-    files
+  def run(files, mix_test_args, mix_test_output, exit_code) do
+    mix_test_output
+    |> MixTestOutputParser.run()
+    |> combine(files)
+    |> handle_fixed_tests(mix_test_args, exit_code)
   end
 
-  def run(files, test_path, mix_test_output, _exit_code) do
-    {test_path, line_number} = parse_test_path(test_path)
+  defp handle_fixed_tests(files, mix_test_args, exit_code) do
+    case FixedTests.determine(mix_test_args, exit_code) do
+      nil ->
+        files
 
-    existing_line_numbers = existing_line_numbers(files, test_path)
+      :all ->
+        %{}
 
-    files
-    |> update_files(test_path, mix_test_output, line_number, existing_line_numbers)
-    |> increment_ranks()
-  end
+      {test_path, :all} ->
+        Map.delete(files, test_path)
 
-  defp existing_line_numbers(files, test_path) do
-    case Map.get(files, test_path) do
-      %{test: %TestFile{failed_line_numbers: failed_line_numbers}} -> failed_line_numbers
-      nil -> []
+      {test_path, line} ->
+        update_in(files, [test_path, :test, :failed_line_numbers], fn lines ->
+          Enum.reject(lines, fn n -> n == line end)
+        end)
     end
   end
 
-  defp update_files(files, test_path, mix_test_output, line_number, existing_line_numbers) do
+  defp combine(mix_test_results, files) do
+    rank_adjustment = map_size(mix_test_results)
+
+    mix_test_results
+    |> Enum.reduce(files, fn {test_path, result}, files ->
+      update_test_path(files, test_path, result, rank_adjustment)
+    end)
+    |> adjust_ranks(rank_adjustment)
+  end
+
+  defp update_test_path(files, test_path, mix_test_result, rank_adjustment) do
+    %{rank: rank, failure_line_numbers: new_n, raw: file_specific_mix_test_output} =
+      mix_test_result
+
+    existing_n = old_failed_test_line_numbers(files, test_path)
+
     case read_test_file(test_path) do
       {:ok, test_contents} ->
         lib_path = equivalent_lib_path(test_path)
@@ -39,11 +62,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
             test: %TestFile{
               path: test_path,
               contents: test_contents,
-              failed_line_numbers: Enum.uniq([line_number | existing_line_numbers])
+              failed_line_numbers: FailedTestLineNumbers.update(existing_n, new_n)
             },
             lib: %LibFile{path: lib_path, contents: lib_contents},
-            mix_test_output: mix_test_output,
-            rank: 0
+            mix_test_output: file_specific_mix_test_output,
+            rank: rank - rank_adjustment
           }
 
         Map.put(files, test_path, file)
@@ -53,12 +76,20 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
     end
   end
 
-  defp increment_ranks(files) do
+  defp old_failed_test_line_numbers(files, test_path) do
+    case Map.get(files, test_path) do
+      %{test: %TestFile{failed_line_numbers: failed_line_numbers}} -> failed_line_numbers
+      nil -> []
+    end
+  end
+
+  defp adjust_ranks(files, adjustment) do
     Map.new(files, fn {test_path, file} ->
-      {test_path, Map.update!(file, :rank, &(&1 + 1))}
+      {test_path, Map.update!(file, :rank, &(&1 + adjustment))}
     end)
   end
 
+  # TODO continue here - deal with this duplication
   ###############################
   #### copied from init.ex
   ###############################
@@ -84,65 +115,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
     case FileWrapper.read(path) do
       {:ok, contents} -> contents
       {:error, _error} -> nil
-    end
-  end
-
-  ###############################
-  #### copied from failures.ex
-  ###############################
-  defp test_path_parsers do
-    [
-      &test_without_color_parser/1,
-      &test_with_colon_then_line_number_parser/1,
-      &max_failures_for_file_parser/1,
-      &max_failures_all_parser/1
-    ]
-  end
-
-  defp parse_test_path(test_path) do
-    Enum.reduce_while(test_path_parsers(), nil, fn parser, _acc ->
-      case parser.(test_path) do
-        {:ok, result} -> {:halt, result}
-        _ -> {:cont, nil}
-      end
-    end)
-  end
-
-  defp test_without_color_parser(test) do
-    case Regex.named_captures(~r|^.*(?<test>test/[^ :]+)$|, test) do
-      %{"test" => test_path} ->
-        {:ok, {test_path, :all}}
-
-      _ ->
-        :error
-    end
-  end
-
-  defp max_failures_for_file_parser(test) do
-    case Regex.named_captures(~r|^.*(?<test>test/.+) --max-failures [0-9]+$|, test) do
-      %{"test" => test_path} ->
-        {:ok, {test_path, :all}}
-
-      _ ->
-        :error
-    end
-  end
-
-  defp max_failures_all_parser(test) do
-    if Regex.match?(~r|[^test] --max-failures [0-9]+$|, test) do
-      {:ok, {:all, :all}}
-    else
-      :error
-    end
-  end
-
-  defp test_with_colon_then_line_number_parser(test) do
-    case Regex.named_captures(~r|^.*(?<test>test/.+):(?<line>[0-9]+).*|, test) do
-      %{"test" => test_path, "line" => line} ->
-        {:ok, {test_path, String.to_integer(line)}}
-
-      _ ->
-        :error
     end
   end
 end

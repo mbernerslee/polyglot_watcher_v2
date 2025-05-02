@@ -4,8 +4,6 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
   alias PolyglotWatcherV2.Elixir.Cache
 
   def run(test_path, server_state) do
-    IO.inspect(test_path)
-
     {mix_test_output, exit_code} =
       case test_path do
         :all -> ShellCommandRunner.run("mix test --color")

@@ -2,12 +2,17 @@ defmodule PolyglotWatcherV2.Elixir.Cache.MixTestOutputParser do
   def run(mix_test_output) do
     lines =
       mix_test_output
+      |> remove_ansi_escape_sequences()
       |> String.split("\n")
       |> Enum.reverse()
 
     %{tests: %{}, path: nil, unclaimed_lines: [], rank: 1}
     |> run(lines)
     |> format_result()
+  end
+
+  defp remove_ansi_escape_sequences(text) do
+    Regex.replace(~r/\e\[[0-9;]*[a-zA-Z]/, text, "")
   end
 
   defp format_result(%{tests: tests}) do

@@ -44,13 +44,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     end
   end
 
-  defp debug_log(msg) do
-    Logger.debug("#{__MODULE__} #{inspect(msg)}")
-  end
-
-  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp alive?(name) when is_atom(name), do: name |> Process.whereis() |> is_pid()
-
   # Callbacks
 
   @impl GenServer
@@ -66,14 +59,22 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
       |> Map.replace!(:status, :loaded)
       |> Map.put(:files, Init.run())
 
-    debug_log("init. files from manifest count = #{state.files |> Map.keys() |> length()}")
+    debug_log("init - #{map_size(state.files)} file(s)")
 
     {:noreply, state}
   end
 
   @impl GenServer
   def handle_call({:update, test_path, mix_test_output, exit_code}, _from, state) do
-    {:reply, :ok,
-     %{state | files: Update.run(state.files, test_path, mix_test_output, exit_code)}}
+    files = Update.run(state.files, test_path, mix_test_output, exit_code)
+    debug_log("update - #{map_size(files)} file(s)")
+    {:reply, :ok, %{state | files: files}}
   end
+
+  defp debug_log(msg) do
+    Logger.debug("#{__MODULE__} #{msg}")
+  end
+
+  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp alive?(name) when is_atom(name), do: name |> Process.whereis() |> is_pid()
 end

@@ -1,4 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.Cache.TestFile do
+  use PolyglotWatcherV2.AccessBehaviour
+
   @enforce_keys [:path, :contents, :failed_line_numbers]
   defstruct [:path, :contents, :failed_line_numbers]
 
@@ -10,6 +12,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFile do
 end
 
 defmodule PolyglotWatcherV2.Elixir.Cache.LibFile do
+  use PolyglotWatcherV2.AccessBehaviour
+
   @enforce_keys [:path, :contents]
   defstruct [:path, :contents]
 
@@ -20,6 +24,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.LibFile do
 end
 
 defmodule PolyglotWatcherV2.Elixir.Cache.File do
+  use PolyglotWatcherV2.AccessBehaviour
   alias PolyglotWatcherV2.Elixir.Cache.{LibFile, TestFile}
 
   @enforce_keys [:test, :lib, :mix_test_output, :rank]
