@@ -7,17 +7,9 @@ defmodule PolyglotWatcherV2.FilePath do
         :ignore
 
       %{path: path, extension: extension} ->
-        extension = trim_extension(extension)
+        extension = String.trim(extension, "~")
         {:ok, %__MODULE__{path: path, extension: extension}}
     end
-  end
-
-  def exists?(%__MODULE__{} = file_path) do
-    file_path |> stringify() |> exists?()
-  end
-
-  def exists?(file_path) do
-    File.exists?(file_path)
   end
 
   def stringify(%__MODULE__{path: path, extension: extension}) do
@@ -50,9 +42,5 @@ defmodule PolyglotWatcherV2.FilePath do
       end)
 
     %{path: Enum.join(path), extension: Enum.join(extension)}
-  end
-
-  defp trim_extension(extension) do
-    String.trim(extension, "~")
   end
 end

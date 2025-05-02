@@ -2,18 +2,21 @@ defmodule PolyglotWatcherV2.FileSystem.FileWrapper.Real do
   def read(path), do: File.read(path)
   def write(path, content), do: File.write(path, content)
   def rm_rf(path), do: File.rm_rf(path)
+  def cwd!, do: File.cwd!()
 end
 
 defmodule PolyglotWatcherV2.FileSystem.FileWrapper.Fake do
   def read(_path), do: {:ok, "default fake mocked file contents"}
   def write(_path, _content), do: :ok
   def rm_rf(_path), do: :ok
+  def cwd!, do: "/home/mocked/fake/response"
 end
 
 defmodule PolyglotWatcherV2.FileSystem.FileWrapper do
   def read(path), do: module().read(path)
   def write(path, content), do: module().write(path, content)
   def rm_rf(path), do: module().rm_rf(path)
+  def cwd!, do: module().cwd!()
 
   defp module do
     if Application.get_env(:polyglot_watcher_v2, :use_real_file_wrapper_module, true) do
