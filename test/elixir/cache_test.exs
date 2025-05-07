@@ -120,6 +120,89 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
                }
              } == :sys.get_state(pid).files
     end
+
+    test "silently does nothing if the genserver is not running" do
+      nil = Process.whereis(:elixir_cache)
+      assert :ok == Cache.update(:elixir_cache, "test/path_tests.exs", "it failed", 1)
+
+      assert {:ok, pid} = Cache.start_link([])
+      :ok = GenServer.stop(pid)
+      assert :ok == Cache.update(pid, "test/path_tests.exs", "it failed", 1)
+    end
+  end
+
+  describe "get/2" do
+    test "when there's the given test_path in the state, return the most recent test failure line" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      files = %{
+        "test/cool_test.exs" => %File{
+          test: %TestFile{
+            path: "test/cool_test.exs",
+            contents: "test contents",
+            failed_line_numbers: [6, 7, 8]
+          },
+          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+
+      assert {:ok, {"test/cool_test.exs", 6}} == Cache.get(pid, "test/cool_test.exs")
+    end
+
+    test "when the given test_path is in the state but has no failing tests, return error" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      files = %{
+        "test/cool_test.exs" => %File{
+          test: %TestFile{
+            path: "test/cool_test.exs",
+            contents: "test contents",
+            failed_line_numbers: []
+          },
+          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+
+      assert {:error, :not_found} == Cache.get(pid, "test/cool_test.exs")
+    end
+
+    test "when the given test_path is not in the state, return error" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      files = %{
+        "test/cool_test.exs" => %File{
+          test: %TestFile{
+            path: "test/cool_test.exs",
+            contents: "test contents",
+            failed_line_numbers: [6, 7, 8]
+          },
+          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+
+      assert {:error, :not_found} == Cache.get(pid, "test/DIFFERENT_test.exs")
+    end
+
+    test "returns not found if there cache process is not up" do
+      nil = Process.whereis(:elixir_cache)
+      assert {:error, :not_found} == Cache.get(:elixir_cache, "test/path_tests.exs")
+
+      assert {:ok, pid} = Cache.start_link([])
+      :ok = GenServer.stop(pid)
+      assert {:error, :not_found} == Cache.get(pid, "test/path_tests.exs")
+    end
   end
 
   describe "child_spec/0" do

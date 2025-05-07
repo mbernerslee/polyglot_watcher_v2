@@ -113,22 +113,40 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
       test
       |> to_string()
       |> String.trim_leading("test ")
-      |> find_line_number(test_lines)
-      |> case do
-        :not_found -> acc
-        {:found, line_number} -> [line_number | acc]
-      end
+      |> find_line_numbers(test_lines)
+      |> Kernel.++(acc)
     end)
+    |> Enum.sort()
     |> Enum.uniq()
   end
 
-  defp find_line_number(test, test_lines) do
-    Enum.reduce_while(test_lines, nil, fn {line, line_number}, _ ->
-      if Regex.match?(~r|^\s+test\s\"#{test}\"|, line) do
-        {:halt, {:found, line_number}}
+  # handling with and without the describe blocking being in the manifest:
+  # a test of the same name being in / not in a describe block called "sequence/0":
+  # :"test sequence/0 can generate 0 items of the Fibonacci sequence"
+  # :"test can generate 0 items of the Fibonacci sequence"
+  # crudly trimming the 2nd word in the string to get both
+  defp find_line_numbers(test, test_lines) do
+    trimmed_test = trim_leading_word(test)
+
+    Enum.reduce(test_lines, [], fn {line, line_number}, acc ->
+      regex_1 = ~r|^\s+test\s\"#{test}\"|
+      regex_2 = ~r|^\s+test\s\"#{trimmed_test}\"|
+
+      if Regex.match?(regex_1, line) || Regex.match?(regex_2, line) do
+        [line_number | acc]
       else
-        {:cont, :not_found}
+        acc
       end
     end)
+  end
+
+  defp trim_leading_word(string) do
+    string
+    |> String.split(" ")
+    |> case do
+      [_leading_word | rest] -> rest
+      other -> other
+    end
+    |> Enum.join(" ")
   end
 end

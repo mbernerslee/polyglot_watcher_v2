@@ -89,10 +89,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
     end)
   end
 
-  # TODO continue here - deal with this duplication
-  ###############################
-  #### copied from init.ex
-  ###############################
   defp read_test_file(path) do
     case FileWrapper.read(path) do
       {:ok, contents} -> {:ok, contents}

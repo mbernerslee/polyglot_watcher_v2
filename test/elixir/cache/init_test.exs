@@ -95,11 +95,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
   """
 
-  setup do
-    # TODO move this into each individual test
-    :ok
-  end
-
   # TODO handle cwd & absolute paths not lining up. ignore them
   describe "run/0" do
     test "reads the ExUnit test failures manifest, parses it & updates it in the GenServer state" do
@@ -152,6 +147,77 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
                Init.run()
 
       assert Enum.sort([rank_1, rank_2]) == [1, 2]
+    end
+
+    test "handles describe blocks which change the ExUnit Failure manifest structure to have the test named prefixed by it" do
+      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+        {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
+      end)
+
+      Mimic.expect(FileWrapper, :cwd!, fn -> "/home/berners/src/fib" end)
+
+      test_contents = """
+        defmodule FibTest do
+          use ExUnit.Case
+          doctest Fib
+
+          describe "sequence/1" do
+            test "can generate 0 items of the Fibonacci sequence" do
+              assert Fib.sequence(0) == []
+            end
+
+            test "can generate 1 item of the Fibonacci sequence" do
+              assert Fib.sequence(1) == [1]
+            end
+          end
+
+          test "can generate 1 item of the Fibonacci sequence" do
+            assert Fib.sequence(1) == [1]
+          end
+
+          test "can cool 0" do
+            assert Fib.cool(0) == []
+          end
+
+          describe "cool/1" do
+            test "can cool 0" do
+              assert Fib.cool(0) == []
+            end
+
+            test "can cool 1" do
+              assert Fib.cool(1) == [1]
+            end
+          end
+        end
+      """
+
+      Mimic.expect(ExUnitFailuresManifest, :read, fn _ ->
+        %{
+          {FibTest, :"test sequence/0 can generate 0 items of the Fibonacci sequence"} =>
+            @test_path_abs_1,
+          {FibTest, :"test sequence/0 can generate 1 item of the Fibonacci sequence"} =>
+            @test_path_abs_1,
+          {FibTest, :"test can generate 1 item of the Fibonacci sequence"} => @test_path_abs_1,
+          {FibTest, :"test can cool/0"} => @test_path_abs_1,
+          {FibTest, :"test cool/0 can cool 0"} => @test_path_abs_1,
+          {FibTest, :"test cool/0 can cool 1"} => @test_path_abs_1
+        }
+      end)
+
+      Mimic.expect(FileWrapper, :read, 2, fn
+        @test_path_rel_1 -> {:ok, test_contents}
+        @lib_path_rel_1 -> {:ok, @lib_contents_1}
+      end)
+
+      assert %{
+               @test_path_rel_1 => %File{
+                 test: %TestFile{
+                   failed_line_numbers: actual_failed_line_numbers
+                 }
+               }
+             } = Init.run()
+
+      assert [6, 10, 15, 19, 24, 28] == actual_failed_line_numbers
     end
 
     test "returns no files when no manifest file was found by 'find'" do

@@ -1,6 +1,7 @@
 defmodule PolyglotWatcherV2.Elixir.FailedTestActionChain do
   alias PolyglotWatcherV2.Action
 
+  # TODO delete
   def build(failures, fail_action, next_action, mode \\ :all)
 
   def build([], _fail_action, next_action, _mode) do

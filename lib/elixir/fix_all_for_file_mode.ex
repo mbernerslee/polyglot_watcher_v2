@@ -1,7 +1,8 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   alias PolyglotWatcherV2.Action
-  alias PolyglotWatcherV2.Elixir.{FailedTestActionChain, Failures}
 
+  # TODO continue here tomorrow
+  # TODO update switching behaviour to read the cache etc
   def switch(server_state) do
     case server_state.elixir.failures do
       [{test_path, _} | _] ->
@@ -103,84 +104,48 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
     {%{entry_point: :clear_screen, actions_tree: switch_mode_actions_tree}, server_state}
   end
 
-  def determine_actions(
-        %{elixir: %{failures: failures, mode: {:fix_all_for_file, test_path}}} = server_state
-      ) do
-    failures
-    |> Failures.for_file(test_path)
-    |> determine_actions_with_failures(server_state, test_path)
-  end
-
-  defp determine_actions_with_failures([], server_state, test_path) do
+  def determine_actions(%{elixir: %{mode: {:fix_all_for_file, test_path}}} = server_state) do
     {%{
-       entry_point: :clear_screen,
        actions_tree: %{
-         clear_screen: %Action{
-           runnable: :clear_screen,
-           next_action: :put_mix_test_msg
+         :clear_screen => %Action{
+           next_action: :mix_test_next,
+           runnable: :clear_screen
          },
-         put_mix_test_msg: %Action{
+         :mix_test_next => %Action{
+           runnable: {:mix_test_next, test_path},
+           next_action: %{
+             {:cache, :miss} => :put_mix_test_all_for_file_msg,
+             {:mix_test, :passed} => :mix_test_next,
+             {:mix_test, :failed} => :exit,
+             {:mix_test, :error} => :put_mix_test_all_for_file_msg,
+             :fallback => :put_mix_test_all_for_file_msg
+           }
+         },
+         :put_mix_test_all_for_file_msg => %Action{
            runnable: {:puts, :magenta, "Running mix test #{test_path}"},
-           next_action: :mix_test
+           next_action: :mix_test_all_for_file
          },
-         mix_test: %Action{
+         :mix_test_all_for_file => %Action{
            runnable: {:mix_test, test_path},
-           next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg}
+           next_action: %{
+             0 => :put_sarcastic_success,
+             2 => :mix_test_next,
+             1 => :put_mix_test_error,
+             :fallback => :put_mix_test_error
+           }
          },
-         put_sarcastic_success: %Action{
-           runnable: :put_sarcastic_success,
-           next_action: :exit
-         },
-         put_failure_msg: %Action{
+         :put_mix_test_error => %Action{
+           next_action: :exit,
            runnable:
              {:puts, :red,
-              "At least one test in #{test_path} is busted. I'll run only one failure at a time"},
-           next_action: :exit
+              "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"}
+         },
+         :put_sarcastic_success => %Action{
+           next_action: :exit,
+           runnable: :put_sarcastic_success
          }
-       }
+       },
+       entry_point: :clear_screen
      }, server_state}
-  end
-
-  defp determine_actions_with_failures(failures, server_state, test_path) do
-    failed_test_action_chain =
-      FailedTestActionChain.build(
-        failures,
-        :put_failure_msg,
-        %{0 => :put_mix_test_msg, :fallback => :put_failure_msg},
-        test_path
-      )
-
-    actions = %{
-      clear_screen: %Action{
-        runnable: :clear_screen,
-        next_action: {:mix_test_puts, 0}
-      },
-      put_mix_test_msg: %Action{
-        runnable: {:puts, :magenta, "Running mix test #{test_path}"},
-        next_action: :mix_test
-      },
-      mix_test: %Action{
-        runnable: {:mix_test, test_path},
-        next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg}
-      },
-      put_sarcastic_success: %Action{
-        runnable: :put_sarcastic_success,
-        next_action: :exit
-      },
-      put_failure_msg: %Action{
-        runnable:
-          {:puts, :red,
-           "At least one test in #{test_path} is busted. I'll run it exclusively until you fix it... (unless you break another one in the process)"},
-        next_action: :exit
-      }
-    }
-
-    {
-      %{
-        entry_point: :clear_screen,
-        actions_tree: Map.merge(actions, failed_test_action_chain)
-      },
-      server_state
-    }
   end
 end

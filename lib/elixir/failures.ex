@@ -24,6 +24,7 @@ defmodule PolyglotWatcherV2.Elixir.Failures do
     FailureMerger.merge(failures, new_failures)
   end
 
+  # TODO delete
   def for_file(failures, file_path) do
     Enum.filter(failures, &is_file_path?(&1, file_path))
   end

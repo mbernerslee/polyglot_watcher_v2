@@ -18,7 +18,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ShellCommandRunner
   }
 
-  alias PolyglotWatcherV2.Elixir.{Failures, MixTest}
+  alias PolyglotWatcherV2.Elixir.{Failures, MixTest, MixTestNext}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
@@ -65,6 +65,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:mix_test, server_state) do
     MixTest.run(:all, server_state)
+  end
+
+  defp do_execute({:mix_test_next, test_path}, server_state) do
+    MixTestNext.run(test_path, server_state)
   end
 
   defp do_execute({:persist_env_var, key}, server_state) do
