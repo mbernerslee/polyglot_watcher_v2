@@ -23,6 +23,13 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @default_options [name: @process_name]
 
   # TODO take care about running out of memory. Do cleanup? max MB limit? If you ran mix test on a massive repo and all tests failed this could be enormous.
+  # TODO don't check its alive for every call... ensure that in a better way
+  # TODO wire this into other modes:
+  # - ex f (fixed mode)
+  # - ex fa
+  # - ex fl
+  # TODO delete dead code (at the end). Look at a diff to determine what's dead?
+
   def child_spec do
     %{
       id: __MODULE__,
@@ -86,19 +93,47 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   @impl GenServer
-  def handle_call({:get, test_path}, _from, state) do
-    case Map.get(state.files, test_path) do
-      %File{test: %TestFile{failed_line_numbers: [line_number | _]}} ->
-        debug_log("get - OK")
-        {:reply, {:ok, {test_path, line_number}}, state}
+  def handle_call({:get, :latest}, _from, state) do
+    state.files
+    |> lowest_rank_test_path()
+    |> get_latest_failure(state.files)
+    |> case do
+      {:ok, {test_path, line_number}} -> {:reply, {:ok, {test_path, line_number}}, state}
+      {:error, :not_found} -> {:reply, {:error, :not_found}, state}
+    end
+  end
 
-      _ ->
-        debug_log("get - failed")
-        {:reply, {:error, :not_found}, state}
+  def handle_call({:get, test_path}, _from, state) do
+    case get_latest_failure({:ok, test_path}, state.files) do
+      {:ok, {test_path, line_number}} -> {:reply, {:ok, {test_path, line_number}}, state}
+      {:error, :not_found} -> {:reply, {:error, :not_found}, state}
     end
   end
 
   # Private
+
+  defp lowest_rank_test_path(files) do
+    files
+    |> Enum.min_by(fn {_test_path, file} -> file.rank end, &<=/2, fn -> {:error, :not_found} end)
+    |> case do
+      {:error, :not_found} -> {:error, :not_found}
+      {test_path, _file} -> {:ok, test_path}
+    end
+  end
+
+  defp get_latest_failure({:ok, test_path}, files) do
+    case Map.get(files, test_path) do
+      %File{test: %TestFile{failed_line_numbers: [line_number | _]}} ->
+        {:ok, {test_path, line_number}}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  defp get_latest_failure(error, _files) do
+    error
+  end
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
   defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)

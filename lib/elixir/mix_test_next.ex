@@ -12,14 +12,43 @@ defmodule PolyglotWatcherV2.Elixir.MixTestNext do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.ActionsExecutor
 
-  def run(test_path, server_state) do
-    test_path
+  @doc """
+    Finds the next failing test file & runs `mix test <test_path> --max-failures 1`
+  """
+  def run(server_state) do
+    :latest
     |> get_next_from_cache(server_state)
+    |> mix_test_max_failures_1_args()
     |> run_mix_test()
   end
 
-  defp run_mix_test({:ok, {test_path, line_number, server_state}}) do
-    mix_test_args = "#{test_path}:#{line_number}"
+  @doc """
+    Finds the next failing test file & runs `mix test <test_path>:<next_line_number>`
+  """
+  def run(test_path, server_state) do
+    test_path
+    |> get_next_from_cache(server_state)
+    |> mix_test_specific_line_args()
+    |> run_mix_test()
+  end
+
+  defp mix_test_max_failures_1_args({:ok, {test_path, _line_number, server_state}}) do
+    {:ok, {"#{test_path} --max-failures 1", server_state}}
+  end
+
+  defp mix_test_max_failures_1_args(error) do
+    error
+  end
+
+  defp mix_test_specific_line_args({:ok, {test_path, line_number, server_state}}) do
+    {:ok, {"#{test_path}:#{line_number}", server_state}}
+  end
+
+  defp mix_test_specific_line_args(error) do
+    error
+  end
+
+  defp run_mix_test({:ok, {mix_test_args, server_state}}) do
     ActionsExecutor.execute({:puts, :magenta, "Running mix test #{mix_test_args}"}, server_state)
 
     case ActionsExecutor.execute({:mix_test, mix_test_args}, server_state) do

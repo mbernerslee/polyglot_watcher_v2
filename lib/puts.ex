@@ -19,6 +19,7 @@ defmodule PolyglotWatcherV2.Puts do
 
   @overwrite_previous_line_code "\e[1A\e[K"
 
+  # TODO test this
   def on_new_line(message, style) do
     style |> build(message) |> IO.puts()
   end

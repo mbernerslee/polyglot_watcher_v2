@@ -67,6 +67,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     MixTest.run(:all, server_state)
   end
 
+  defp do_execute(:mix_test_next, server_state) do
+    MixTestNext.run(server_state)
+  end
+
   defp do_execute({:mix_test_next, test_path}, server_state) do
     MixTestNext.run(test_path, server_state)
   end

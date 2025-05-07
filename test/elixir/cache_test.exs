@@ -205,6 +205,70 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
+  describe "get/2 - with latest" do
+    test "retuns the failing test with the lowest (latest) rank" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      files = %{
+        "test/cool_test.exs" => %File{
+          test: %TestFile{
+            path: "test/cool_test.exs",
+            contents: "test contents",
+            failed_line_numbers: [6, 7, 8]
+          },
+          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        },
+        "test/other_test.exs" => %File{
+          test: %TestFile{
+            path: "test/other_test.exs",
+            contents: "other test contents",
+            failed_line_numbers: [1, 2, 3]
+          },
+          lib: %LibFile{path: "lib/other.ex", contents: "other lib contents"},
+          mix_test_output: "other tests failed sadly",
+          rank: 2
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+
+      assert {:ok, {"test/cool_test.exs", 6}} == Cache.get(pid, :latest)
+    end
+
+    test "with no files, returns error" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      files = %{}
+
+      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+
+      assert {:error, :not_found} == Cache.get(pid, :latest)
+    end
+
+    test "with no test failures, returns error" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      files = %{
+        "test/cool_test.exs" => %File{
+          test: %TestFile{
+            path: "test/cool_test.exs",
+            contents: "test contents",
+            failed_line_numbers: []
+          },
+          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+
+      assert {:error, :not_found} == Cache.get(pid, :latest)
+    end
+  end
+
   describe "child_spec/0" do
     test "returns the default genserver options" do
       assert %{id: Cache, start: {Cache, :start_link, [[name: :elixir_cache]]}} ==

@@ -1,10 +1,11 @@
 defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
   use ExUnit.Case, async: true
+  use Mimic
 
   require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, FilePath, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.Determiner
+  alias PolyglotWatcherV2.Elixir.{Cache, Determiner}
 
   @ex Determiner.ex()
   @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
@@ -93,16 +94,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode({:fix_all_for_file, "test/x_test.exs"})
-        |> ServerStateBuilder.with_elixir_failures([
-          {"test/x_test.exs", 1},
-          {"test/x_test.exs", 2},
-          {"test/x_test.exs", 3},
-          {"test/x_test.exs", 4},
-          {"test/x_test.exs", 5},
-          {"test/x_test.exs", 6},
-          {"test/x_test.exs", 7},
-          {"test/x_test.exs", 8}
-        ])
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
@@ -110,16 +101,11 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        {:mix_test, 0},
-        {:mix_test_puts, 0},
-        {:put_elixir_failures_count, 0},
-        {:mix_test, 1},
-        {:mix_test_puts, 1},
-        {:put_elixir_failures_count, 1},
-        :put_mix_test_msg,
-        :mix_test,
-        :put_sarcastic_success,
-        :put_failure_msg
+        :mix_test_next,
+        :put_mix_test_all_for_file_msg,
+        :mix_test_all_for_file,
+        :put_mix_test_error,
+        :put_sarcastic_success
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -312,53 +298,58 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
     test "switching to fix_all_for_file mode, returns the expected actions tree" do
       server_state = ServerStateBuilder.build()
+      test_path = "test/cool_test.exs"
 
       assert {tree, ^server_state} =
-               Determiner.user_input_actions("ex faff test/x_test.exs", server_state)
+               Determiner.user_input_actions("ex faff #{test_path}", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
-      expected_action_tree_keys = [
-        :clear_screen,
-        :check_file_exists,
-        :switch_mode,
-        :put_no_file_msg,
-        :put_switch_success_msg,
-        :mix_test,
-        :put_running_latest_failure_msg,
-        :put_sarcastic_success
-      ]
+      ActionsTreeValidator.assert_exact_keys(
+        tree,
+        [
+          :clear_screen,
+          :switch_mode,
+          :put_mode_switch_msg,
+          :mix_test_next,
+          :put_mix_test_all_for_file_msg,
+          :mix_test_all_for_file,
+          :put_mix_test_error,
+          :put_sarcastic_success
+        ]
+      )
 
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
-
-      assert %Action{runnable: {:switch_mode, :elixir, {:fix_all_for_file, "test/x_test.exs"}}} =
-               tree.actions_tree.switch_mode
     end
 
-    test "switching to fix_all_for_file mode uses the last failure file if no path is provided" do
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 1}])
+    test "switching to fix_all_for_file mode works (tested more thoroughly lower in the stack)" do
+      server_state = ServerStateBuilder.build()
+      test_path = "test/cool_test.exs"
+      line_number = 10
+
+      Mimic.expect(Cache, :get, fn :latest ->
+        {:ok, {test_path, line_number}}
+      end)
 
       assert {tree, ^server_state} = Determiner.user_input_actions("ex faff", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
-      expected_action_tree_keys = [
-        :clear_screen,
-        :switch_mode,
-        :put_switch_success_msg,
-        :mix_test,
-        :put_running_latest_failure_msg,
-        :put_sarcastic_success
-      ]
+      ActionsTreeValidator.assert_exact_keys(
+        tree,
+        [
+          :clear_screen,
+          :switch_mode,
+          :put_mode_switch_msg,
+          :mix_test_next,
+          :put_mix_test_all_for_file_msg,
+          :mix_test_all_for_file,
+          :put_mix_test_error,
+          :put_sarcastic_success
+        ]
+      )
 
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
-
-      assert %Action{runnable: {:switch_mode, :elixir, {:fix_all_for_file, "test/x_test.exs"}}} =
-               tree.actions_tree.switch_mode
     end
 
     test "switching to claude mode" do
