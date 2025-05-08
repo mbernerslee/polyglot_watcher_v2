@@ -24,15 +24,13 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
-  @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
-
   def execute(command, server_state) do
     Logger.debug("#{__MODULE__} running: #{inspect(command)}")
     do_execute(command, server_state)
   end
 
   defp do_execute(:clear_screen, server_state) do
-    if @actually_clear_screen do
+    if actually_clear_screen?() do
       do_execute({:run_sys_cmd, "tput", ["reset"]}, server_state)
     else
       {0, server_state}
@@ -177,5 +175,9 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
       "Wow, it actually passed... and with you at the helm... incredible",
       "Congratulations... this particular set of tests... at this particular time... are not broken (yet)"
     ]
+  end
+
+  defp actually_clear_screen? do
+    Application.get_env(:polyglot_watcher_v2, :actually_clear_screen) |> IO.inspect()
   end
 end

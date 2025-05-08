@@ -22,9 +22,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @process_name :elixir_cache
   @default_options [name: @process_name]
 
-  # TODO take care about running out of memory. Do cleanup? max MB limit? If you ran mix test on a massive repo and all tests failed this could be enormous.
-  # TODO delete dead code (at the end). Look at a diff to determine what's dead?
-
   def child_spec do
     %{
       id: __MODULE__,
@@ -95,6 +92,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   # Private
 
   # TODO change this & get_latest_failure to handle failed_line_numbers == [], and skipping to the next rank if so
+  # TODO wire in oustading modes:
+  # - ex cl
+  # - ex clr
   defp lowest_rank_test_path(cache_items) do
     cache_items
     |> Enum.min_by(fn {_test_path, file} -> file.rank end, &<=/2, fn -> {:error, :not_found} end)

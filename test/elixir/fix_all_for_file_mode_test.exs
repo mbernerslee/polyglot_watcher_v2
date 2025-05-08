@@ -61,7 +61,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    # TODO don't return error & instead wait for a file save to determine the test_path?
     test "given no explicit file to use, with a cache miss, returns error" do
       server_state = ServerStateBuilder.build()
 
