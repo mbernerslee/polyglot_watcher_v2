@@ -12,7 +12,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
   alias PolyglotWatcherV2.Elixir.EquivalentPath
   alias PolyglotWatcherV2.FileSystem.FileWrapper
-  alias PolyglotWatcherV2.Elixir.Cache.{File, LibFile, TestFile}
+  alias PolyglotWatcherV2.Elixir.Cache.CacheItem
 
   def run do
     case find_manifest_file() do
@@ -44,36 +44,32 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   end
 
   defp read_manifest_files(manifest) do
-    {files, _next_rank} =
-      Enum.reduce(manifest, {%{}, 1}, fn {test_path, tests}, {files, next_rank} ->
-        read_test_and_lib_files(files, test_path, next_rank, tests)
+    {cache, _next_rank} =
+      Enum.reduce(manifest, {%{}, 1}, fn {test_path, tests}, {cache, next_rank} ->
+        cache_from_files(cache, test_path, next_rank, tests)
       end)
 
-    files
+    cache
   end
 
-  defp read_test_and_lib_files(files, test_path, next_rank, tests) do
+  defp cache_from_files(cache, test_path, next_rank, tests) do
     case read_test_file(test_path) do
       {:ok, test_contents} ->
         lib_path = equivalent_lib_path(test_path)
-        lib_contents = read_lib_file(lib_path)
 
-        file =
-          %File{
-            test: %TestFile{
-              path: test_path,
-              contents: test_contents,
-              failed_line_numbers: failed_line_numbers(test_contents, tests)
-            },
-            lib: %LibFile{path: lib_path, contents: lib_contents},
+        cache_item =
+          %CacheItem{
+            test_path: test_path,
+            failed_line_numbers: failed_line_numbers(test_contents, tests),
+            lib_path: lib_path,
             mix_test_output: nil,
             rank: next_rank
           }
 
-        {Map.put(files, test_path, file), next_rank + 1}
+        {Map.put(cache, test_path, cache_item), next_rank + 1}
 
       {:error, :no_test_file} ->
-        {files, next_rank}
+        {cache, next_rank}
     end
   end
 
@@ -88,17 +84,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
     case FileWrapper.read(path) do
       {:ok, contents} -> {:ok, contents}
       {:error, _error} -> {:error, :no_test_file}
-    end
-  end
-
-  defp read_lib_file(nil) do
-    nil
-  end
-
-  defp read_lib_file(path) do
-    case FileWrapper.read(path) do
-      {:ok, contents} -> contents
-      {:error, _error} -> nil
     end
   end
 

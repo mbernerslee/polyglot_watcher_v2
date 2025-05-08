@@ -17,7 +17,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   use GenServer
   require Logger
 
-  alias PolyglotWatcherV2.Elixir.Cache.{File, Init, TestFile, Update}
+  alias PolyglotWatcherV2.Elixir.Cache.{CacheItem, Init, Update}
 
   @process_name :elixir_cache
   @default_options [name: @process_name]
@@ -49,7 +49,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @impl GenServer
   def init(_) do
     debug_log("starting up")
-    {:ok, %{status: :loading, files: %{}}, {:continue, :load}}
+    {:ok, %{status: :loading, cache_items: %{}}, {:continue, :load}}
   end
 
   @impl GenServer
@@ -59,25 +59,22 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     state =
       state
       |> Map.replace!(:status, :loaded)
-      |> Map.put(:files, Init.run())
-
-    debug_log_stats(state.files)
+      |> Map.put(:cache_items, Init.run())
 
     {:noreply, state}
   end
 
   @impl GenServer
   def handle_call({:update, mix_test_args, mix_test_output, exit_code}, _from, state) do
-    files = Update.run(state.files, mix_test_args, mix_test_output, exit_code)
-    debug_log_stats(files)
-    {:reply, :ok, %{state | files: files}}
+    cache_items = Update.run(state.cache_items, mix_test_args, mix_test_output, exit_code)
+    {:reply, :ok, %{state | cache_items: cache_items}}
   end
 
   @impl GenServer
   def handle_call({:get, :latest}, _from, state) do
-    state.files
+    state.cache_items
     |> lowest_rank_test_path()
-    |> get_latest_failure(state.files)
+    |> get_latest_failure(state.cache_items)
     |> case do
       {:ok, {test_path, line_number}} -> {:reply, {:ok, {test_path, line_number}}, state}
       {:error, :not_found} -> {:reply, {:error, :not_found}, state}
@@ -85,7 +82,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   def handle_call({:get, test_path}, _from, state) do
-    case get_latest_failure({:ok, test_path}, state.files) do
+    case get_latest_failure({:ok, test_path}, state.cache_items) do
       {:ok, {test_path, line_number}} -> {:reply, {:ok, {test_path, line_number}}, state}
       {:error, :not_found} -> {:reply, {:error, :not_found}, state}
     end
@@ -94,8 +91,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   # Private
 
   # TODO change this & get_latest_failure to handle failed_line_numbers == [], and skipping to the next rank if so
-  defp lowest_rank_test_path(files) do
-    files
+  defp lowest_rank_test_path(cache_items) do
+    cache_items
     |> Enum.min_by(fn {_test_path, file} -> file.rank end, &<=/2, fn -> {:error, :not_found} end)
     |> case do
       {:error, :not_found} -> {:error, :not_found}
@@ -103,9 +100,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     end
   end
 
-  defp get_latest_failure({:ok, test_path}, files) do
-    case Map.get(files, test_path) do
-      %File{test: %TestFile{failed_line_numbers: [line_number | _]}} ->
+  defp get_latest_failure({:ok, test_path}, cache_items) do
+    case Map.get(cache_items, test_path) do
+      %CacheItem{failed_line_numbers: [line_number | _]} ->
         {:ok, {test_path, line_number}}
 
       _ ->
@@ -113,70 +110,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     end
   end
 
-  defp get_latest_failure(error, _files) do
+  defp get_latest_failure(error, _cache_items) do
     error
   end
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
-
-  defp debug_log_stats(files) do
-    if Logger.level() == :debug do
-      %{
-        test_file_count: test_file_count,
-        failing_tests: failing_tests,
-        in_memory_file_count: in_memory_file_count
-      } =
-        Enum.reduce(
-          files,
-          %{test_file_count: 0, failing_tests: 0, in_memory_file_count: 0},
-          fn {_file_path, file}, acc ->
-            %{
-              test: %{contents: test_contents, failed_line_numbers: failed_line_numbers},
-              lib: %{contents: lib_contents}
-            } = file
-
-            acc
-            |> Map.update!(:test_file_count, &(&1 + 1))
-            |> Map.update!(:failing_tests, &(&1 + length(failed_line_numbers)))
-            |> Map.update!(
-              :in_memory_file_count,
-              &(&1 + file_load_count(test_contents) + file_load_count(lib_contents))
-            )
-          end
-        )
-
-      {:memory, memory_usage_in_bytes} = Process.info(self(), :memory)
-
-      Logger.debug("""
-
-      **************************
-      #{__MODULE__} Stats:
-      **************************
-      #{failing_tests} failing test(s)
-      #{test_file_count} test file(s)
-      #{in_memory_file_count} file(s) held in memory
-      #{inspect(memory_usage_in_bytes)} [bytes] memory used =~ #{memory_usage_magnitude(memory_usage_in_bytes)}
-      **************************
-      """)
-    end
-  end
-
-  defp file_load_count(nil), do: 0
-  defp file_load_count(_), do: 1
-
-  defp memory_usage_magnitude(memory_usage_in_bytes) do
-    magnitude = :math.log10(memory_usage_in_bytes)
-
-    cond do
-      magnitude >= 10 -> "10's of GB or more!!"
-      magnitude >= 9 -> "few GB!!"
-      magnitude >= 8 -> "100's of MB"
-      magnitude >= 7 -> "10's of MB"
-      magnitude >= 6 -> "few MB"
-      magnitude >= 5 -> "100's of kB"
-      magnitude >= 4 -> "10's of kB"
-      magnitude >= 3 -> "few kB"
-      true -> "few bytes (peanuts)"
-    end
-  end
 end

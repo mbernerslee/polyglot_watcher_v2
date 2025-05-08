@@ -3,26 +3,12 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
   use Mimic
   alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
-  alias PolyglotWatcherV2.Elixir.Cache.{Init, File, LibFile, TestFile}
+  alias PolyglotWatcherV2.Elixir.Cache.{CacheItem, Init}
 
   @cwd "/home/berners/src/fib"
   @lib_path_rel_1 "lib/fib.ex"
   @test_path_abs_1 "/home/berners/src/fib/test/fib_test.exs"
   @test_path_rel_1 "test/fib_test.exs"
-  @lib_contents_1 """
-  defmodule Fib do
-    def sequence(0), do: []
-    def sequence(1), do: [2]
-    def sequence(2), do: [1, 1]
-
-    def sequence(n) when n > 2 do
-      Enum.reduce(3..n, [1, 1], fn _, [a, b | _] = acc ->
-        [a + b | acc]
-      end)
-      |> Enum.reverse()
-    end
-  end
-  """
   @test_contents_1 """
   defmodule FibTest do
     use ExUnit.Case
@@ -77,11 +63,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
   @lib_path_rel_2 "lib/another.ex"
   @test_path_abs_2 "/home/berners/src/fib/test/another_test.exs"
   @test_path_rel_2 "test/another_test.exs"
-  @lib_contents_2 """
-    defmodule Fib.Another do
-      def hello, do: :world
-    end
-  """
   @test_contents_2 """
     defmodule Fib.AnotherTest do
       use ExUnit.Case
@@ -114,31 +95,23 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
         }
       end)
 
-      Mimic.expect(FileWrapper, :read, 4, fn
+      Mimic.expect(FileWrapper, :read, 2, fn
         @test_path_rel_1 -> {:ok, @test_contents_1}
-        @lib_path_rel_1 -> {:ok, @lib_contents_1}
         @test_path_rel_2 -> {:ok, @test_contents_2}
-        @lib_path_rel_2 -> {:ok, @lib_contents_2}
       end)
 
       assert %{
-               @test_path_rel_1 => %File{
-                 test: %TestFile{
-                   path: @test_path_rel_1,
-                   contents: @test_contents_1,
-                   failed_line_numbers: [11, 15, 19]
-                 },
-                 lib: %LibFile{path: @lib_path_rel_1, contents: @lib_contents_1},
+               @test_path_rel_1 => %CacheItem{
+                 test_path: @test_path_rel_1,
+                 failed_line_numbers: [11, 15, 19],
+                 lib_path: @lib_path_rel_1,
                  mix_test_output: nil,
                  rank: rank_1
                },
-               @test_path_rel_2 => %{
-                 test: %{
-                   path: @test_path_rel_2,
-                   contents: @test_contents_2,
-                   failed_line_numbers: [3, 7]
-                 },
-                 lib: %{path: @lib_path_rel_2, contents: @lib_contents_2},
+               @test_path_rel_2 => %CacheItem{
+                 test_path: @test_path_rel_2,
+                 failed_line_numbers: [3, 7],
+                 lib_path: @lib_path_rel_2,
                  mix_test_output: nil,
                  rank: rank_2
                }
@@ -203,16 +176,13 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
         }
       end)
 
-      Mimic.expect(FileWrapper, :read, 2, fn
+      Mimic.expect(FileWrapper, :read, 1, fn
         @test_path_rel_1 -> {:ok, test_contents}
-        @lib_path_rel_1 -> {:ok, @lib_contents_1}
       end)
 
       assert %{
-               @test_path_rel_1 => %File{
-                 test: %TestFile{
-                   failed_line_numbers: actual_failed_line_numbers
-                 }
+               @test_path_rel_1 => %CacheItem{
+                 failed_line_numbers: actual_failed_line_numbers
                }
              } = Init.run()
 
@@ -231,7 +201,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
       assert %{} == Init.run()
     end
 
-    test "when a test file is not found, ignore it and do not attempt to read its lib file, but keep the others" do
+    test "when a test file is not found, ignore it, but keep the others" do
       Mimic.expect(SystemCall, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
@@ -249,20 +219,16 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
         }
       end)
 
-      Mimic.expect(FileWrapper, :read, 3, fn
+      Mimic.expect(FileWrapper, :read, 2, fn
         @test_path_rel_1 -> {:ok, @test_contents_1}
-        @lib_path_rel_1 -> {:ok, @lib_contents_1}
         @test_path_rel_2 -> {:error, :enoent}
       end)
 
       assert %{
-               @test_path_rel_1 => %File{
-                 test: %TestFile{
-                   path: @test_path_rel_1,
-                   contents: @test_contents_1,
-                   failed_line_numbers: [11, 15, 19]
-                 },
-                 lib: %LibFile{path: @lib_path_rel_1, contents: @lib_contents_1},
+               @test_path_rel_1 => %CacheItem{
+                 test_path: @test_path_rel_1,
+                 failed_line_numbers: [11, 15, 19],
+                 lib_path: @lib_path_rel_1,
                  mix_test_output: nil,
                  rank: 1
                }
@@ -289,45 +255,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
       end)
 
       assert %{
-               bad_test_path => %File{
-                 test: %TestFile{
-                   path: bad_test_path,
-                   contents: @test_contents_1,
-                   failed_line_numbers: [11]
-                 },
-                 lib: %LibFile{path: nil, contents: nil},
-                 mix_test_output: nil,
-                 rank: 1
-               }
-             } == Init.run()
-    end
-
-    test "when no lib file is found, keep the test file but make the lib file nil" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
-        {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
-      end)
-
-      Mimic.expect(FileWrapper, :cwd!, fn -> @cwd end)
-
-      Mimic.expect(ExUnitFailuresManifest, :read, fn _ ->
-        %{
-          {FibTest, :"test can generate 1 item of the Fibonacci sequence"} => @test_path_abs_1
-        }
-      end)
-
-      Mimic.expect(FileWrapper, :read, 2, fn
-        @test_path_rel_1 -> {:ok, @test_contents_1}
-        @lib_path_rel_1 -> {:error, :enoent}
-      end)
-
-      assert %{
-               @test_path_rel_1 => %File{
-                 test: %TestFile{
-                   path: @test_path_rel_1,
-                   contents: @test_contents_1,
-                   failed_line_numbers: [11]
-                 },
-                 lib: %LibFile{path: @lib_path_rel_1, contents: nil},
+               bad_test_path => %CacheItem{
+                 test_path: bad_test_path,
+                 failed_line_numbers: [11],
+                 lib_path: nil,
                  mix_test_output: nil,
                  rank: 1
                }
@@ -362,19 +293,15 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
         }
       end)
 
-      Mimic.expect(FileWrapper, :read, 2, fn
+      Mimic.expect(FileWrapper, :read, 1, fn
         @test_path_rel_1 -> {:ok, @test_contents_1}
-        @lib_path_rel_1 -> {:ok, @lib_contents_1}
       end)
 
       assert %{
-               @test_path_rel_1 => %File{
-                 test: %TestFile{
-                   path: @test_path_rel_1,
-                   contents: @test_contents_1,
-                   failed_line_numbers: [7]
-                 },
-                 lib: %LibFile{path: @lib_path_rel_1, contents: @lib_contents_1},
+               @test_path_rel_1 => %CacheItem{
+                 test_path: @test_path_rel_1,
+                 failed_line_numbers: [7],
+                 lib_path: @lib_path_rel_1,
                  mix_test_output: nil,
                  rank: 1
                }

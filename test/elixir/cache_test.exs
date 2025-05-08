@@ -2,17 +2,12 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
   use ExUnit.Case, async: true
   use Mimic
   alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.Elixir.Cache.CacheItem
   alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
-  alias PolyglotWatcherV2.Elixir.Cache.{File, LibFile, TestFile}
 
   @lib_path "/home/berners/src/fib/lib/another.ex"
   @test_path "/home/berners/src/fib/test/another_test.exs"
-  @lib_contents """
-    defmodule Fib.Another do
-      def hello, do: :world
-    end
-  """
   @test_contents """
     defmodule Fib.AnotherTest do
       use ExUnit.Case
@@ -31,13 +26,13 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       assert {:ok, pid} = Cache.start_link([])
       assert is_pid(pid)
 
-      assert %{status: status, files: %{}} = :sys.get_state(pid)
+      assert %{status: status, cache_items: %{}} = :sys.get_state(pid)
       assert status in [:loaded, :loading]
     end
   end
 
   describe "handle_continue/1" do
-    test "reads the ExUnit test failures manifest, the test & lib files for the failing tests, & updates it in the GenServer state" do
+    test "reads the ExUnit test failures manifest, the test file for the failing tests, & updates it in the GenServer state" do
       Mimic.expect(SystemCall, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
@@ -49,23 +44,19 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
         }
       end)
 
-      Mimic.expect(FileWrapper, :read, 2, fn
+      Mimic.expect(FileWrapper, :read, 1, fn
         @test_path -> {:ok, @test_contents}
-        @lib_path -> {:ok, @lib_contents}
       end)
 
       assert {:noreply, state} = Cache.handle_continue(:load, %{status: :loading})
 
       assert %{
                status: :loaded,
-               files: %{
-                 @test_path => %File{
-                   test: %TestFile{
-                     path: @test_path,
-                     contents: @test_contents,
-                     failed_line_numbers: [3, 7]
-                   },
-                   lib: %LibFile{path: @lib_path, contents: @lib_contents},
+               cache_items: %{
+                 @test_path => %CacheItem{
+                   test_path: @test_path,
+                   failed_line_numbers: [3, 7],
+                   lib_path: @lib_path,
                    mix_test_output: nil,
                    rank: 1
                  }
@@ -98,27 +89,17 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       exit_code = 1
       test_path = "test/elixir_lang_mix_test_test.exs:6"
 
-      Mimic.expect(FileWrapper, :read, 2, fn
-        "test/elixir_lang_mix_test_test.exs" -> {:ok, "test contents"}
-        "lib/elixir_lang_mix_test.ex" -> {:ok, "lib contents"}
-      end)
-
-      Mimic.allow(FileWrapper, self(), pid)
-
       assert :ok == Cache.update(pid, test_path, mix_test_output, exit_code)
 
       assert %{
-               "test/elixir_lang_mix_test_test.exs" => %File{
-                 test: %TestFile{
-                   path: "test/elixir_lang_mix_test_test.exs",
-                   contents: "test contents",
-                   failed_line_numbers: [6]
-                 },
-                 lib: %LibFile{path: "lib/elixir_lang_mix_test.ex", contents: "lib contents"},
+               "test/elixir_lang_mix_test_test.exs" => %CacheItem{
+                 test_path: "test/elixir_lang_mix_test_test.exs",
+                 failed_line_numbers: [6],
+                 lib_path: "lib/elixir_lang_mix_test.ex",
                  mix_test_output: mix_test_output,
                  rank: 1
                }
-             } == :sys.get_state(pid).files
+             } == :sys.get_state(pid).cache_items
     end
   end
 
@@ -126,20 +107,17 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     test "when there's the given test_path in the state, return the most recent test failure line" do
       assert {:ok, pid} = Cache.start_link([])
 
-      files = %{
-        "test/cool_test.exs" => %File{
-          test: %TestFile{
-            path: "test/cool_test.exs",
-            contents: "test contents",
-            failed_line_numbers: [6, 7, 8]
-          },
-          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [6, 7, 8],
+          lib_path: "lib/cool.ex",
           mix_test_output: "tests failed sadly",
           rank: 1
         }
       }
 
-      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:ok, {"test/cool_test.exs", 6}} == Cache.get(pid, "test/cool_test.exs")
     end
@@ -147,20 +125,17 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     test "when the given test_path is in the state but has no failing tests, return error" do
       assert {:ok, pid} = Cache.start_link([])
 
-      files = %{
-        "test/cool_test.exs" => %File{
-          test: %TestFile{
-            path: "test/cool_test.exs",
-            contents: "test contents",
-            failed_line_numbers: []
-          },
-          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [],
+          lib_path: "lib/cool.ex",
           mix_test_output: "tests failed sadly",
           rank: 1
         }
       }
 
-      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:error, :not_found} == Cache.get(pid, "test/cool_test.exs")
     end
@@ -168,20 +143,17 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     test "when the given test_path is not in the state, return error" do
       assert {:ok, pid} = Cache.start_link([])
 
-      files = %{
-        "test/cool_test.exs" => %File{
-          test: %TestFile{
-            path: "test/cool_test.exs",
-            contents: "test contents",
-            failed_line_numbers: [6, 7, 8]
-          },
-          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [6, 7, 8],
+          lib_path: "lib/cool.ex",
           mix_test_output: "tests failed sadly",
           rank: 1
         }
       }
 
-      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:error, :not_found} == Cache.get(pid, "test/DIFFERENT_test.exs")
     end
@@ -191,40 +163,34 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     test "retuns the failing test with the lowest (latest) rank" do
       assert {:ok, pid} = Cache.start_link([])
 
-      files = %{
-        "test/cool_test.exs" => %File{
-          test: %TestFile{
-            path: "test/cool_test.exs",
-            contents: "test contents",
-            failed_line_numbers: [6, 7, 8]
-          },
-          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [6, 7, 8],
+          lib_path: "lib/cool.ex",
           mix_test_output: "tests failed sadly",
           rank: 1
         },
-        "test/other_test.exs" => %File{
-          test: %TestFile{
-            path: "test/other_test.exs",
-            contents: "other test contents",
-            failed_line_numbers: [1, 2, 3]
-          },
-          lib: %LibFile{path: "lib/other.ex", contents: "other lib contents"},
+        "test/other_test.exs" => %CacheItem{
+          test_path: "test/other_test.exs",
+          failed_line_numbers: [1, 2, 3],
+          lib_path: "lib/other.ex",
           mix_test_output: "other tests failed sadly",
           rank: 2
         }
       }
 
-      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:ok, {"test/cool_test.exs", 6}} == Cache.get(pid, :latest)
     end
 
-    test "with no files, returns error" do
+    test "with no cache_items, returns error" do
       assert {:ok, pid} = Cache.start_link([])
 
-      files = %{}
+      cache_items = %{}
 
-      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:error, :not_found} == Cache.get(pid, :latest)
     end
@@ -232,20 +198,17 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     test "with no test failures, returns error" do
       assert {:ok, pid} = Cache.start_link([])
 
-      files = %{
-        "test/cool_test.exs" => %File{
-          test: %TestFile{
-            path: "test/cool_test.exs",
-            contents: "test contents",
-            failed_line_numbers: []
-          },
-          lib: %LibFile{path: "lib/cool.ex", contents: "lib contents"},
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [],
+          lib_path: "lib/cool.ex",
           mix_test_output: "tests failed sadly",
           rank: 1
         }
       }
 
-      :sys.replace_state(pid, fn state -> %{state | files: files} end)
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:error, :not_found} == Cache.get(pid, :latest)
     end
