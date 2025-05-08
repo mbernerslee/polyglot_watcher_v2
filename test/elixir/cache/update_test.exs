@@ -606,5 +606,36 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
       assert expected_files ==
                Update.run(old_files, "test/fib_test.exs:7", mix_test_output, exit_code)
     end
+
+    # test "x" do
+    #  raise "no"
+    # end
+
+    test "when a specific test file & line has been fixed but doesn't exist in state, it should not be deleted" do
+      mix_test_output = """
+      Finished in 0.1 seconds (0.1s async, 0.00s sync)
+      1 test, 0 failures
+
+      Randomized with seed 373936
+      """
+
+      exit_code = 0
+
+      files = %{
+        "test/other_test.exs" => %File{
+          test: %TestFile{
+            path: "test/other_test.exs",
+            contents: "old other test contents",
+            failed_line_numbers: [1, 2, 3]
+          },
+          lib: %LibFile{path: "lib/other.ex", contents: "old other lib contents"},
+          mix_test_output: "x",
+          rank: 1
+        }
+      }
+
+      assert files ==
+               Update.run(files, "test/non_existent_test.exs:7", mix_test_output, exit_code)
+    end
   end
 end

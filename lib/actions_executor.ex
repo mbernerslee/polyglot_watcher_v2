@@ -67,13 +67,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     MixTest.run(:all, server_state)
   end
 
-  # TODO check all MixTestLatest.functions are used. delete unused
   defp do_execute(:mix_test_latest_max_failures_1, server_state) do
     MixTestLatest.max_failures_1(server_state)
-  end
-
-  defp do_execute(:mix_test_latest_failed_max_failures_1, server_state) do
-    MixTestLatest.failed_max_failures_1(server_state)
   end
 
   defp do_execute(:mix_test_latest_line, server_state) do

@@ -6,7 +6,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     FixAllForFileMode,
     FixAllMode,
     FixedFileMode,
-    FixedLastMode,
     RunAllMode
   }
 
@@ -75,17 +74,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
        "    (2) 'mix test [path]:10' for each failing line number in turn until it's fixed and then (1) again to check we really are done\n"},
       {:white,
        "  OR without providing [path], does the above but for the most recent known test failure in memory\n"},
-      {:light_magenta, "ex fl\n"},
-      {:white, "  Fixed Last Mode\n"},
-      {:white,
-       "  Only runs the most recently failed test when any .ex or .exs files are saved\n"},
-      {:white, "  I do this by keeping track of which tests have failed as I go\n"},
-      {:white,
-       "  This means that when the most recently failed test passes, I'll start only running the next one that failed, and so on.\n"},
-      {:white,
-       "  Initialising in this mode isn't reccommended because on startup my memory of failing tests is empty...\n"},
-      {:white,
-       "  So maybe try starting out in a different mode (e.g. Run All Mode) then switching to this one\n"},
       {:light_magenta, "ex cl\n"},
       {:white, "  Claude\n"},
       {:white,
@@ -110,7 +98,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["faff"] -> &FixAllForFileMode.switch(&1)
       ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
-      ["fl"] -> &switch_to_fixed_last_mode(&1)
       ["cl"] -> &ClaudeAIDefaultMode.switch(&1)
       ["clr"] -> &ClaudeAIReplaceMode.switch(&1)
       _ -> nil
@@ -144,35 +131,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
      }, server_state}
   end
 
-  defp switch_to_fixed_last_mode(server_state) do
-    {%{actions_tree: fixed_last_actions_tree}, _} =
-      FixedLastMode.determine_actions(%{
-        elixir: %{failures: server_state.elixir.failures}
-      })
-
-    fixed_last_actions_tree = Map.delete(fixed_last_actions_tree, :clear_screen)
-
-    switch_mode_actions_tree = %{
-      clear_screen: %Action{
-        runnable: :clear_screen,
-        next_action: :switch_mode
-      },
-      switch_mode: %Action{
-        runnable: {:switch_mode, :elixir, :fixed_last},
-        next_action: :put_switch_msg
-      },
-      put_switch_msg: %Action{
-        runnable: {:puts, :magenta, "Switching to Elixir fixed_last mode"},
-        next_action: :put_intent_msg
-      }
-    }
-
-    {%{
-       entry_point: :clear_screen,
-       actions_tree: Map.merge(switch_mode_actions_tree, fixed_last_actions_tree)
-     }, server_state}
-  end
-
   defp dont_undstand_user_input(server_state) do
     {:none, server_state}
   end
@@ -193,9 +151,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
       :run_all ->
         RunAllMode.determine_actions(server_state)
-
-      :fixed_last ->
-        FixedLastMode.determine_actions(server_state)
 
       :claude_ai ->
         ClaudeAIDefaultMode.determine_actions(file_path, server_state)

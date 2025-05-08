@@ -120,15 +120,6 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
                }
              } == :sys.get_state(pid).files
     end
-
-    test "silently does nothing if the genserver is not running" do
-      nil = Process.whereis(:elixir_cache)
-      assert :ok == Cache.update(:elixir_cache, "test/path_tests.exs", "it failed", 1)
-
-      assert {:ok, pid} = Cache.start_link([])
-      :ok = GenServer.stop(pid)
-      assert :ok == Cache.update(pid, "test/path_tests.exs", "it failed", 1)
-    end
   end
 
   describe "get/2" do
@@ -193,15 +184,6 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       :sys.replace_state(pid, fn state -> %{state | files: files} end)
 
       assert {:error, :not_found} == Cache.get(pid, "test/DIFFERENT_test.exs")
-    end
-
-    test "returns not found if there cache process is not up" do
-      nil = Process.whereis(:elixir_cache)
-      assert {:error, :not_found} == Cache.get(:elixir_cache, "test/path_tests.exs")
-
-      assert {:ok, pid} = Cache.start_link([])
-      :ok = GenServer.stop(pid)
-      assert {:error, :not_found} == Cache.get(pid, "test/path_tests.exs")
     end
   end
 

@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
   use ExUnit.Case, async: true
   use Mimic
 
+  alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTest
   alias PolyglotWatcherV2.{ShellCommandRunner, ServerStateBuilder}
 
@@ -14,6 +15,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test #{test_path} --color"
         {mock_mix_test_output, exit_code}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^test_path, ^mock_mix_test_output, ^exit_code ->
+        :ok
       end)
 
       server_state = ServerStateBuilder.build()
@@ -33,6 +38,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test --color"
         {mock_mix_test_output, exit_code}
+      end)
+
+      Mimic.expect(Cache, :update, fn :all, ^mock_mix_test_output, ^exit_code ->
+        :ok
       end)
 
       server_state = ServerStateBuilder.build()

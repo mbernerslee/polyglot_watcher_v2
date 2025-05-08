@@ -30,14 +30,31 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
         Map.delete(files, test_path)
 
       {test_path, line} ->
-        files
-        |> update_in([test_path, :test, :failed_line_numbers], fn lines ->
+        handle_fixed_test(files, test_path, line)
+    end
+  end
+
+  defp handle_fixed_test(files, test_path, line) do
+    case files do
+      %{^test_path => file} ->
+        file
+        |> update_in([:test, :failed_line_numbers], fn lines ->
           Enum.reject(lines, fn n -> n == line end)
         end)
-        |> case do
-          %{^test_path => %{test: %{failed_line_numbers: []}}} -> Map.delete(files, test_path)
-          files -> files
-        end
+        |> update_or_delete_file_if_no_failing_tests(test_path, files)
+
+      _ ->
+        files
+    end
+  end
+
+  defp update_or_delete_file_if_no_failing_tests(file, test_path, files) do
+    case file do
+      %{test: %{failed_line_numbers: []}} ->
+        Map.delete(files, test_path)
+
+      file ->
+        Map.put(files, test_path, file)
     end
   end
 

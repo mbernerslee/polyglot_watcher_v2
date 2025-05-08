@@ -23,10 +23,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @default_options [name: @process_name]
 
   # TODO take care about running out of memory. Do cleanup? max MB limit? If you ran mix test on a massive repo and all tests failed this could be enormous.
-  # TODO don't check its alive for every call... ensure that in a better way
   # TODO wire this into other modes:
   # - ex f (fixed mode)
-  # - ex fa
   # - ex fl
   # TODO delete dead code (at the end). Look at a diff to determine what's dead?
 
@@ -42,25 +40,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   def update(pid \\ @process_name, mix_test_args, mix_test_output, exit_code) do
-    debug_log("update")
-
-    if wait_until_alive(pid) == :ok do
-      GenServer.call(pid, {:update, mix_test_args, mix_test_output, exit_code})
-    else
-      debug_log("update - failed because I'm not running")
-      :ok
-    end
+    GenServer.call(pid, {:update, mix_test_args, mix_test_output, exit_code})
   end
 
   def get(pid \\ @process_name, test_path) do
-    debug_log("get")
-
-    if wait_until_alive(pid) == :ok do
-      GenServer.call(pid, {:get, test_path})
-    else
-      debug_log("get - failed because I'm not running")
-      {:error, :not_found}
-    end
+    GenServer.call(pid, {:get, test_path})
   end
 
   # Callbacks
@@ -112,6 +96,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
   # Private
 
+  # TODO change this & get_latest_failure to handle failed_line_numbers == [], and skipping to the next rank if so
   defp lowest_rank_test_path(files) do
     files
     |> Enum.min_by(fn {_test_path, file} -> file.rank end, &<=/2, fn -> {:error, :not_found} end)
@@ -136,23 +121,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
-  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp alive?(name) when is_atom(name), do: name |> Process.whereis() |> is_pid()
-
-  defp wait_until_alive(pid), do: wait_until_alive(pid, 1, 4)
-
-  defp wait_until_alive(_pid, max_attempts, max_attempts) do
-    :error
-  end
-
-  defp wait_until_alive(pid, attempt, max_attempts) do
-    if alive?(pid) do
-      :ok
-    else
-      :timer.sleep(1)
-      wait_until_alive(pid, attempt + 1, max_attempts)
-    end
-  end
 
   defp debug_log_stats(files) do
     if Logger.level() == :debug do
