@@ -18,7 +18,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ShellCommandRunner
   }
 
-  alias PolyglotWatcherV2.Elixir.{Failures, MixTest, MixTestNext}
+  alias PolyglotWatcherV2.Elixir.{Failures, MixTest, MixTestLatest}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
@@ -67,12 +67,21 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     MixTest.run(:all, server_state)
   end
 
-  defp do_execute(:mix_test_next, server_state) do
-    MixTestNext.run(server_state)
+  # TODO check all MixTestLatest.functions are used. delete unused
+  defp do_execute(:mix_test_latest_max_failures_1, server_state) do
+    MixTestLatest.max_failures_1(server_state)
   end
 
-  defp do_execute({:mix_test_next, test_path}, server_state) do
-    MixTestNext.run(test_path, server_state)
+  defp do_execute(:mix_test_latest_failed_max_failures_1, server_state) do
+    MixTestLatest.failed_max_failures_1(server_state)
+  end
+
+  defp do_execute(:mix_test_latest_line, server_state) do
+    MixTestLatest.line(server_state)
+  end
+
+  defp do_execute({:mix_test_latest_line, test_path}, server_state) do
+    MixTestLatest.line(test_path, server_state)
   end
 
   defp do_execute({:persist_env_var, key}, server_state) do

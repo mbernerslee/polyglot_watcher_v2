@@ -3,10 +3,11 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
   use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.Elixir.{Cache, FixAllMode}
+  alias PolyglotWatcherV2.Action
+  alias PolyglotWatcherV2.ActionsTreeValidator
+  alias PolyglotWatcherV2.Elixir.FixAllMode
   alias PolyglotWatcherV2.ServerStateBuilder
 
-  #TODO continue from here
   describe "determine_actions/1" do
     test "returns the expected actions" do
       server_state =
@@ -17,44 +18,44 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %PolyglotWatcherV2.Action{
-                   next_action: :mix_test_next,
+                 clear_screen: %Action{
+                   next_action: :mix_test_latest_line,
                    runnable: :clear_screen
                  },
-                 mix_test_next: %PolyglotWatcherV2.Action{
+                 mix_test_latest_line: %Action{
                    next_action: %{
-                     {:mix_test, :passed} => :mix_test_max_failures_1,
+                     {:mix_test, :passed} => :mix_test_latest_max_failures_1,
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :error} => :put_mix_test_error,
                      {:cache, :miss} => :put_mix_test_all_msg,
                      :fallback => :put_mix_test_error
                    },
-                   runnable: {:mix_test_next, "test/x_test.exs"}
+                   runnable: :mix_test_latest_line
                  },
-                 mix_test_max_failures_1: %PolyglotWatcherV2.Action{
-                   runnable: :mix_test_next,
+                 mix_test_latest_max_failures_1: %Action{
+                   runnable: :mix_test_latest_max_failures_1,
                    next_action: %{
-                     {:mix_test, :passed} => :mix_test_next,
+                     {:mix_test, :passed} => :mix_test_latest_line,
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :error} => :put_mix_test_error,
                      {:cache, :miss} => :put_mix_test_all_msg,
                      :fallback => :put_mix_test_error
                    }
                  },
-                 put_mix_test_all_msg: %PolyglotWatcherV2.Action{
+                 put_mix_test_all_msg: %Action{
                    next_action: :mix_test_all,
                    runnable: {:puts, :magenta, "Running mix test"}
                  },
-                 mix_test_all: %PolyglotWatcherV2.Action{
+                 mix_test_all: %Action{
                    next_action: %{
                      0 => :put_sarcastic_success,
                      1 => :put_mix_test_error,
-                     2 => :mix_test_next,
+                     2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
                    },
                    runnable: :mix_test
                  },
-                 put_mix_test_error: %PolyglotWatcherV2.Action{
+                 put_mix_test_error: %Action{
                    next_action: :exit,
                    runnable: {
                      :puts,
@@ -62,11 +63,91 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
                    }
                  },
-                 put_sarcastic_success: %PolyglotWatcherV2.Action{
+                 put_sarcastic_success: %Action{
                    next_action: :exit,
                    runnable: :put_sarcastic_success
+                 }
+               },
+               entry_point: :clear_screen
+             } == tree
+
+      ActionsTreeValidator.validate(tree)
+    end
+  end
+
+  describe "switch/1" do
+    test "returns the expected actions with a switch mode message" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:fix_all)
+
+      assert {tree, ^server_state} = FixAllMode.switch(server_state)
+
+      assert %{
+               actions_tree: %{
+                 clear_screen: %Action{
+                   next_action: :put_switch_mode_msg,
+                   runnable: :clear_screen
                  },
-                 put_insult: %PolyglotWatcherV2.Action{runnable: :put_insult, next_action: :exit}
+                 put_switch_mode_msg: %Action{
+                   runnable:
+                     {:puts,
+                      [
+                        {[:magenta], "Switching to "},
+                        {[:magenta, :italic], "Fix All "},
+                        {[:magenta], "mode..."}
+                      ]},
+                   next_action: :switch_mode
+                 },
+                 switch_mode: %Action{
+                   next_action: :mix_test_latest_line,
+                   runnable: {:switch_mode, :elixir, :fix_all}
+                 },
+                 mix_test_latest_line: %Action{
+                   next_action: %{
+                     {:mix_test, :passed} => :mix_test_latest_max_failures_1,
+                     {:mix_test, :failed} => :exit,
+                     {:mix_test, :error} => :put_mix_test_error,
+                     {:cache, :miss} => :put_mix_test_all_msg,
+                     :fallback => :put_mix_test_error
+                   },
+                   runnable: :mix_test_latest_line
+                 },
+                 mix_test_latest_max_failures_1: %Action{
+                   runnable: :mix_test_latest_max_failures_1,
+                   next_action: %{
+                     {:mix_test, :passed} => :mix_test_latest_line,
+                     {:mix_test, :failed} => :exit,
+                     {:mix_test, :error} => :put_mix_test_error,
+                     {:cache, :miss} => :put_mix_test_all_msg,
+                     :fallback => :put_mix_test_error
+                   }
+                 },
+                 put_mix_test_all_msg: %Action{
+                   next_action: :mix_test_all,
+                   runnable: {:puts, :magenta, "Running mix test"}
+                 },
+                 mix_test_all: %Action{
+                   next_action: %{
+                     0 => :put_sarcastic_success,
+                     1 => :put_mix_test_error,
+                     2 => :mix_test_latest_line,
+                     :fallback => :put_mix_test_error
+                   },
+                   runnable: :mix_test
+                 },
+                 put_mix_test_error: %Action{
+                   next_action: :exit,
+                   runnable: {
+                     :puts,
+                     :red,
+                     "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
+                   }
+                 },
+                 put_sarcastic_success: %Action{
+                   next_action: :exit,
+                   runnable: :put_sarcastic_success
+                 }
                },
                entry_point: :clear_screen
              } == tree

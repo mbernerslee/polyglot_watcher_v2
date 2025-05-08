@@ -17,6 +17,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.FixedTests do
   end
 
   # TODO this is brittle if we run `mix test` with different args in future.. maybe sanatise the input to what we can handle & write a doc?
+  # TODO we have code that does --failed which won't work here. so do the above 4sure!
   defp test_path_parsers do
     [
       &test_without_color_parser/1,

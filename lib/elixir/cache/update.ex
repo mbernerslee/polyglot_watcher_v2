@@ -30,9 +30,14 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
         Map.delete(files, test_path)
 
       {test_path, line} ->
-        update_in(files, [test_path, :test, :failed_line_numbers], fn lines ->
+        files
+        |> update_in([test_path, :test, :failed_line_numbers], fn lines ->
           Enum.reject(lines, fn n -> n == line end)
         end)
+        |> case do
+          %{^test_path => %{test: %{failed_line_numbers: []}}} -> Map.delete(files, test_path)
+          files -> files
+        end
     end
   end
 

@@ -38,7 +38,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                     {[:magenta], "mode...\n"},
                     {[:magenta], "using the latest failing test in memory..."}
                   ]},
-               next_action: :mix_test_next
+               next_action: :mix_test_latest_line
              }
 
       ActionsTreeValidator.assert_exact_keys(
@@ -47,7 +47,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
           :clear_screen,
           :switch_mode,
           :put_mode_switch_msg,
-          :mix_test_next,
+          :mix_test_latest_line,
           :put_mix_test_max_failures_1_msg,
           :mix_test_max_failures_1,
           :put_mix_test_all_for_file_msg,
@@ -122,7 +122,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                     {[:magenta, :italic], "Fix All For File "},
                     {[:magenta], "mode..."}
                   ]},
-               next_action: :mix_test_next
+               next_action: :mix_test_latest_line
              }
 
       ActionsTreeValidator.assert_exact_keys(
@@ -131,7 +131,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
           :clear_screen,
           :switch_mode,
           :put_mode_switch_msg,
-          :mix_test_next,
+          :mix_test_latest_line,
           :put_mix_test_max_failures_1_msg,
           :mix_test_max_failures_1,
           :put_mix_test_all_for_file_msg,
@@ -157,19 +157,19 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       assert %{
                actions_tree: %{
                  clear_screen: %PolyglotWatcherV2.Action{
-                   next_action: :mix_test_next,
+                   next_action: :mix_test_latest_line,
                    runnable: :clear_screen
                  },
                  mix_test_all_for_file: %PolyglotWatcherV2.Action{
                    next_action: %{
                      0 => :put_sarcastic_success,
                      1 => :put_mix_test_error,
-                     2 => :mix_test_next,
+                     2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
                    },
                    runnable: {:mix_test, "test/x_test.exs"}
                  },
-                 mix_test_next: %PolyglotWatcherV2.Action{
+                 mix_test_latest_line: %PolyglotWatcherV2.Action{
                    next_action: %{
                      :fallback => :put_mix_test_error,
                      {:cache, :miss} => :put_mix_test_all_for_file_msg,
@@ -177,7 +177,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :passed} => :put_mix_test_max_failures_1_msg
                    },
-                   runnable: {:mix_test_next, "test/x_test.exs"}
+                   runnable: {:mix_test_latest_line, "test/x_test.exs"}
                  },
                  put_mix_test_all_for_file_msg: %PolyglotWatcherV2.Action{
                    next_action: :mix_test_all_for_file,

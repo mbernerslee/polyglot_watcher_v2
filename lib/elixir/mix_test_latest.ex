@@ -1,6 +1,6 @@
-defmodule PolyglotWatcherV2.Elixir.MixTestNext do
+defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   @moduledoc """
-  Finds the next failing test in the Cache and runs it.
+  Finds the latest (most recently) failing test in the Cache and runs it.
 
   Designed to be run recursively to fix all failing tests
 
@@ -12,24 +12,44 @@ defmodule PolyglotWatcherV2.Elixir.MixTestNext do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.ActionsExecutor
 
-  @doc """
-    Finds the next failing test file & runs `mix test <test_path> --max-failures 1`
-  """
-  def run(server_state) do
+  @doc "Finds the latest failing test path & runs `mix test <test_path> --max-failures 1`"
+  def max_failures_1(server_state) do
     :latest
     |> get_next_from_cache(server_state)
     |> mix_test_max_failures_1_args()
     |> run_mix_test()
   end
 
-  @doc """
-    Finds the next failing test file & runs `mix test <test_path>:<next_line_number>`
-  """
-  def run(test_path, server_state) do
+  @doc "Finds the latest failing test path & runs `mix test <test_path> --failed --max-failures 1`"
+  def failed_max_failures_1(server_state) do
+    :latest
+    |> get_next_from_cache(server_state)
+    |> mix_test_failed_max_failures_1_args()
+    |> run_mix_test()
+  end
+
+  @doc "For the given test_path: finds the latest failing line number & runs `mix test <test_path>:<next_line_number>`"
+  def line(test_path, server_state) do
     test_path
     |> get_next_from_cache(server_state)
     |> mix_test_specific_line_args()
     |> run_mix_test()
+  end
+
+  @doc "Finds the latest failing test path & line number & runs `mix test <test_path>:<line_number>`"
+  def line(server_state) do
+    :latest
+    |> get_next_from_cache(server_state)
+    |> mix_test_specific_line_args()
+    |> run_mix_test()
+  end
+
+  defp mix_test_failed_max_failures_1_args({:ok, {test_path, _line_number, server_state}}) do
+    {:ok, {"#{test_path} --failed --max-failures 1", server_state}}
+  end
+
+  defp mix_test_failed_max_failures_1_args(error) do
+    error
   end
 
   defp mix_test_max_failures_1_args({:ok, {test_path, _line_number, server_state}}) do

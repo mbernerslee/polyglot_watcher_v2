@@ -57,36 +57,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:fix_all)
-        |> ServerStateBuilder.with_elixir_failures([
-          {"test/x_test.exs", 1},
-          {"test/x_test.exs", 2},
-          {"test/x_test.exs", 3},
-          {"test/x_test.exs", 4},
-          {"test/x_test.exs", 5},
-          {"test/x_test.exs", 6},
-          {"test/x_test.exs", 7},
-          {"test/x_test.exs", 8}
-        ])
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
-      assert %{entry_point: :clear_screen} = tree
-
-      expected_action_tree_keys = [
-        :clear_screen,
-        {:mix_test, 0},
-        {:mix_test_puts, 0},
-        {:put_elixir_failures_count, 0},
-        {:mix_test, 1},
-        {:mix_test_puts, 1},
-        {:put_elixir_failures_count, 1},
-        :mix_test_msg,
-        :mix_test,
-        :put_sarcastic_success,
-        :put_failure_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
     end
 
@@ -101,11 +74,14 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :mix_test_next,
+        :mix_test_latest_line,
+        :put_sarcastic_success,
+        :put_mix_test_error,
+        :put_insult,
         :put_mix_test_all_for_file_msg,
         :mix_test_all_for_file,
-        :put_mix_test_error,
-        :put_sarcastic_success
+        :mix_test_max_failures_1,
+        :put_mix_test_max_failures_1_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -278,19 +254,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.user_input_actions("ex fa", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
-
-      expected_action_tree_keys = [
-        :clear_screen,
-        :put_switch_mode_msg,
-        :switch_mode,
-        :mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
 
       assert %Action{runnable: {:switch_mode, :elixir, :fix_all}} = tree.actions_tree.switch_mode
@@ -309,13 +272,16 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         tree,
         [
           :clear_screen,
+          :mix_test_latest_line,
+          :put_sarcastic_success,
+          :put_mix_test_error,
+          :put_insult,
           :switch_mode,
           :put_mode_switch_msg,
-          :mix_test_next,
           :put_mix_test_all_for_file_msg,
           :mix_test_all_for_file,
-          :put_mix_test_error,
-          :put_sarcastic_success
+          :mix_test_max_failures_1,
+          :put_mix_test_max_failures_1_msg
         ]
       )
 
@@ -339,13 +305,16 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         tree,
         [
           :clear_screen,
-          :switch_mode,
-          :put_mode_switch_msg,
-          :mix_test_next,
+          :mix_test_latest_line,
+          :put_sarcastic_success,
+          :put_mix_test_error,
+          :put_insult,
           :put_mix_test_all_for_file_msg,
           :mix_test_all_for_file,
-          :put_mix_test_error,
-          :put_sarcastic_success
+          :mix_test_max_failures_1,
+          :put_mix_test_max_failures_1_msg,
+          :switch_mode,
+          :put_mode_switch_msg
         ]
       )
 

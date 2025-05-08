@@ -556,5 +556,55 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
       assert expected_files ==
                Update.run(old_files, "test/fib_test.exs:7", mix_test_output, exit_code)
     end
+
+    test "when the last failing test for a file passes, the entire file entry is removed" do
+      mix_test_output = """
+      Finished in 0.1 seconds (0.1s async, 0.00s sync)
+      1 test, 0 failures
+
+      Randomized with seed 373936
+      """
+
+      exit_code = 0
+
+      old_files = %{
+        "test/fib_test.exs" => %File{
+          test: %TestFile{
+            path: "test/fib_test.exs",
+            contents: "old fib test contents",
+            failed_line_numbers: [7]
+          },
+          lib: %LibFile{path: "lib/fib.ex", contents: "old fib lib contents"},
+          mix_test_output: "y",
+          rank: 2
+        },
+        "test/other_test.exs" => %File{
+          test: %TestFile{
+            path: "test/other_test.exs",
+            contents: "old other test contents",
+            failed_line_numbers: [1, 2, 3]
+          },
+          lib: %LibFile{path: "lib/other.ex", contents: "old other lib contents"},
+          mix_test_output: "x",
+          rank: 1
+        }
+      }
+
+      expected_files = %{
+        "test/other_test.exs" => %File{
+          test: %TestFile{
+            path: "test/other_test.exs",
+            contents: "old other test contents",
+            failed_line_numbers: [1, 2, 3]
+          },
+          lib: %LibFile{path: "lib/other.ex", contents: "old other lib contents"},
+          mix_test_output: "x",
+          rank: 1
+        }
+      }
+
+      assert expected_files ==
+               Update.run(old_files, "test/fib_test.exs:7", mix_test_output, exit_code)
+    end
   end
 end
