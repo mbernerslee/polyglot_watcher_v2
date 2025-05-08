@@ -18,7 +18,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ShellCommandRunner
   }
 
-  alias PolyglotWatcherV2.Elixir.{Failures, MixTest, MixTestLatest}
+  alias PolyglotWatcherV2.Elixir.{MixTest, MixTestLatest}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
@@ -147,15 +147,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:noop, server_state) do
     {0, server_state}
-  end
-
-  defp do_execute({:put_elixir_failures_count, all_or_filename}, server_state) do
-    server_state.elixir.failures
-    |> Failures.count(all_or_filename)
-    |> Failures.count_message()
-    |> Puts.on_new_line()
-
-    {server_state.elixir.mix_test_exit_code, server_state}
   end
 
   defp do_execute(unknown, server_state) do

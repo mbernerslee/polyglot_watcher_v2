@@ -41,7 +41,6 @@ defmodule PolyglotWatcherV2.FileSystem do
     end
   end
 
-  # TODO test this
   def read(%FilePath{} = file_path), do: file_path |> FilePath.stringify() |> read()
   def read(path), do: FileWrapper.read(path)
 

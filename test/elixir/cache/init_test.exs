@@ -95,7 +95,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
   """
 
-  # TODO handle cwd & absolute paths not lining up. ignore them
   describe "run/0" do
     test "reads the ExUnit test failures manifest, parses it & updates it in the GenServer state" do
       Mimic.expect(SystemCall, :cmd, fn _, _ ->

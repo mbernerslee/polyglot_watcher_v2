@@ -23,10 +23,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:elixir, :mode], mode)
   end
 
-  def with_elixir_failures(server_state, failures) do
-    put_in(server_state, [:elixir, :failures], failures)
-  end
-
   def with_claude_ai_response(server_state, response) do
     put_in(server_state, [:claude_ai, :response], response)
   end

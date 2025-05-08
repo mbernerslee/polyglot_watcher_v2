@@ -25,9 +25,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       assert {0, new_server_state} = MixTest.run(test_path, server_state)
 
-      assert server_state
-             |> put_in([:elixir, :mix_test_output], mock_mix_test_output)
-             |> put_in([:elixir, :mix_test_exit_code], exit_code) ==
+      assert put_in(server_state, [:elixir, :mix_test_output], mock_mix_test_output) ==
                new_server_state
     end
 
@@ -48,9 +46,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       assert {0, new_server_state} = MixTest.run(:all, server_state)
 
-      assert server_state
-             |> put_in([:elixir, :mix_test_output], mock_mix_test_output)
-             |> put_in([:elixir, :mix_test_exit_code], exit_code) ==
+      assert put_in(server_state, [:elixir, :mix_test_output], mock_mix_test_output) ==
                new_server_state
     end
   end

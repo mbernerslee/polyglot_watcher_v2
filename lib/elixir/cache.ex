@@ -23,9 +23,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @default_options [name: @process_name]
 
   # TODO take care about running out of memory. Do cleanup? max MB limit? If you ran mix test on a massive repo and all tests failed this could be enormous.
-  # TODO wire this into other modes:
-  # - ex f (fixed mode)
-  # - ex fl
   # TODO delete dead code (at the end). Look at a diff to determine what's dead?
 
   def child_spec do

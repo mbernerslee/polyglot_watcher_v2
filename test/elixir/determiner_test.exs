@@ -317,9 +317,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
     end
 
     test "given nonsense user input, doesn't do anything" do
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
+      server_state = ServerStateBuilder.build()
 
       assert {:none, ^server_state} = Determiner.user_input_actions("ex xxxxx", server_state)
     end
