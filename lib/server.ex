@@ -1,12 +1,12 @@
 defmodule PolyglotWatcherV2.Server do
   use GenServer
+  require Logger
 
   alias PolyglotWatcherV2.{
     TraverseActionsTree,
     Determine,
     FSWatch,
     Inotifywait,
-    Puts,
     UserInput,
     StartupMessage
   }
@@ -59,9 +59,7 @@ defmodule PolyglotWatcherV2.Server do
   defp init_for_os(os, command_line_args) do
     watcher = Map.fetch!(@os_watchers, os)
 
-    if Application.get_env(:polyglot_watcher_v2, :put_watcher_startup_message) do
-      Puts.on_new_line(watcher.startup_message(), :magenta)
-    end
+    Logger.debug(watcher.startup_message())
 
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
 

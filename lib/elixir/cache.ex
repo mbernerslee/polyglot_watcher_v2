@@ -61,13 +61,17 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
       |> Map.replace!(:status, :loaded)
       |> Map.put(:cache_items, Init.run())
 
+    debug_log_cache(state)
+
     {:noreply, state}
   end
 
   @impl GenServer
   def handle_call({:update, mix_test_args, mix_test_output, exit_code}, _from, state) do
     cache_items = Update.run(state.cache_items, mix_test_args, mix_test_output, exit_code)
-    {:reply, :ok, %{state | cache_items: cache_items}}
+    state = %{state | cache_items: cache_items}
+    debug_log_cache(state)
+    {:reply, :ok, state}
   end
 
   @impl GenServer
@@ -115,4 +119,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
+
+  defp debug_log_cache(state) do
+    if Logger.level() == :debug do
+      Logger.debug("#{__MODULE__} cache_items: #{inspect(state.cache_items, pretty: true)}")
+    end
+  end
 end

@@ -9,6 +9,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
+  require Logger
+
   alias PolyglotWatcherV2.{
     ClaudeAI,
     EnvironmentVariables,
@@ -23,10 +25,9 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
   @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
-  @log Application.compile_env(:polyglot_watcher_v2, :log_executor_commands)
 
   def execute(command, server_state) do
-    log(command)
+    Logger.debug("#{__MODULE__} running: #{inspect(command)}")
     do_execute(command, server_state)
   end
 
@@ -176,23 +177,5 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
       "Wow, it actually passed... and with you at the helm... incredible",
       "Congratulations... this particular set of tests... at this particular time... are not broken (yet)"
     ]
-  end
-
-  defp log(message) do
-    if @log do
-      do_log(message)
-    else
-      message
-    end
-  end
-
-  defp do_log(message) when is_binary(message) do
-    Puts.on_new_line(message, :yellow)
-    message
-  end
-
-  defp do_log(message) do
-    message |> inspect() |> do_log()
-    message
   end
 end
