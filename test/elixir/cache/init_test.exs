@@ -129,7 +129,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
       Mimic.expect(FileWrapper, :cwd!, fn -> "/home/berners/src/fib" end)
 
       test_contents = """
-        defmodule Dude.FibTest do
+        defmodule FibTest do
           use ExUnit.Case
           doctest Fib
 

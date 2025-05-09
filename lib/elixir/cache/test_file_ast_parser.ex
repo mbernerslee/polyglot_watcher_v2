@@ -14,7 +14,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParser do
     end
   end
 
-  def parse(ast) do
+  defp parse(ast) do
     case ast do
       {:__block__, _, modules} ->
         Enum.reduce(modules, %{}, fn module, acc ->
