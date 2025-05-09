@@ -96,17 +96,29 @@ defmodule PolyglotWatcherV2.GitDiff do
   end
 
   defp new_file_contents(contents, search, replace) do
+    IO.inspect(contents, label: "contents    ")
+    String.contains?(contents, search) |> IO.inspect(label: "contains?")
+
+    IO.inspect(search, label: "search")
+    IO.inspect(replace, label: "replace")
+
     single_match = String.replace(contents, search, replace, global: false)
     multi_match = String.replace(contents, search, replace, global: true)
 
+    IO.inspect(single_match, pretty: true, label: "single_match")
+    IO.inspect(multi_match, pretty: true, label: "multi_matchh")
+
     cond do
       multi_match == contents ->
+        IO.inspect("A")
         {:error, :search_failed}
 
       single_match == multi_match ->
+        IO.inspect("B")
         {:ok, single_match}
 
       true ->
+        IO.inspect("C")
         {:error, :search_multiple_matches}
     end
   end

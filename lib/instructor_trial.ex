@@ -55,79 +55,81 @@ defmodule InstructorTrial do
   end
 
   defp test_file do
-    contents =
-      """
-      defmodule FibTest do
-        use ExUnit.Case
-        doctest Fib
+    #    contents =
+    #      """
+    #      defmodule FibTest do
+    #        use ExUnit.Case
+    #        doctest Fib
+    #
+    #        # 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89,144,233,377,610,987, 1597, 2584, 4181
+    #
+    #        test "can generate 0 items of the Fibonacci sequence" do
+    #          assert Fib.sequence(0) == []
+    #        end
+    #
+    #        test "can generate 1 item of the Fibonacci sequence" do
+    #          assert Fib.sequence(1) == [1]
+    #        end
+    #
+    #        test "can generate 2 items of the Fibonacci sequence" do
+    #          assert Fib.sequence(2) == [1, 1]
+    #        end
+    #
+    #        test "can generate many items of the Fibonacci sequence" do
+    #          assert Fib.sequence(3) == [1, 1, 2]
+    #          assert Fib.sequence(4) == [1, 1, 2, 3]
+    #          assert Fib.sequence(5) == [1, 1, 2, 3, 5]
+    #          assert Fib.sequence(6) == [1, 1, 2, 3, 5, 8]
+    #          assert Fib.sequence(7) == [1, 1, 2, 3, 5, 8, 13]
+    #
+    #          assert Fib.sequence(19) == [
+    #                   1,
+    #                   1,
+    #                   2,
+    #                   3,
+    #                   5,
+    #                   8,
+    #                   13,
+    #                   21,
+    #                   34,
+    #                   55,
+    #                   89,
+    #                   144,
+    #                   233,
+    #                   377,
+    #                   610,
+    #                   987,
+    #                   1597,
+    #                   2584,
+    #                   4181
+    #                 ]
+    #          end
+    #      end
+    #      """
 
-        # 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89,144,233,377,610,987, 1597, 2584, 4181
-
-        test "can generate 0 items of the Fibonacci sequence" do
-          assert Fib.sequence(0) == []
-        end
-
-        test "can generate 1 item of the Fibonacci sequence" do
-          assert Fib.sequence(1) == [1]
-        end
-
-        test "can generate 2 items of the Fibonacci sequence" do
-          assert Fib.sequence(2) == [1, 1]
-        end
-
-        test "can generate many items of the Fibonacci sequence" do
-          assert Fib.sequence(3) == [1, 1, 2]
-          assert Fib.sequence(4) == [1, 1, 2, 3]
-          assert Fib.sequence(5) == [1, 1, 2, 3, 5]
-          assert Fib.sequence(6) == [1, 1, 2, 3, 5, 8]
-          assert Fib.sequence(7) == [1, 1, 2, 3, 5, 8, 13]
-
-          assert Fib.sequence(19) == [
-                   1,
-                   1,
-                   2,
-                   3,
-                   5,
-                   8,
-                   13,
-                   21,
-                   34,
-                   55,
-                   89,
-                   144,
-                   233,
-                   377,
-                   610,
-                   987,
-                   1597,
-                   2584,
-                   4181
-                 ]
-          end
-      end
-      """
-
-    %{path: "test/fib_test.exs", contents: contents}
+    path = "../fib/test/fib_test.exs"
+    %{path: path, contents: File.read!(path)}
   end
 
   defp lib_file do
-    contents =
-      """
-      defmodule Fib do
-        def sequence(0), do: [0]
-        def sequence(1), do: []
-        def sequence(2), do: [1, 2]
+    # contents =
+    #  """
+    #  defmodule Fib do
+    #    def sequence(0), do: [0]
+    #    def sequence(1), do: []
+    #    def sequence(2), do: [1, 2]
 
-        def sequence(n) when n > 2 do
-        Enum.reduce(3..n, [1, 2], fn _, [a, b | _] = acc ->
-          [a + b | acc]
-        end)
-        |> Enum.reverse()
-        end
-      end
-      """
+    #    def sequence(n) when n > 2 do
+    #    Enum.reduce(3..n, [1, 2], fn _, [a, b | _] = acc ->
+    #      [a + b | acc]
+    #    end)
+    #    |> Enum.reverse()
+    #    end
+    #  end
+    #  """
 
-    %{path: "lib/fib.ex", contents: contents}
+    path = "../fib/lib/fib.ex"
+    %{path: path, contents: File.read!(path)}
   end
 
   defp mix_test_output do
@@ -183,11 +185,11 @@ defmodule InstructorTrial do
      %PolyglotWatcherV2.CodeFileUpdates{
        updates: [
          %PolyglotWatcherV2.CodeFileUpdate{
-           file_path: "lib/fib.ex",
+           file_path: "../fib/lib/fib.ex",
            explanation:
-             "This update fixes the implementation of the Fibonacci sequence. It corrects the base cases for 0, 1, and 2 items, and adjusts the initial values in the accumulator for n > 2. This will make all the tests pass.",
+             "Fixed the base cases for 0, 1, and 2 items in the sequence. Also updated the initial accumulator in the reduce function to start with [1, 1] instead of [1, 2].",
            search:
-             "def sequence(0), do: [0]\n  def sequence(1), do: []\n  def sequence(2), do: [1, 2]\n\n  def sequence(n) when n > 2 do\n  Enum.reduce(3..n, [1, 2], fn _, [a, b | _] = acc ->\n    [a + b | acc]\n  end)\n  |> Enum.reverse()\n  end",
+             "def sequence(0), do: [0]\n  def sequence(1), do: []\n  def sequence(2), do: [1, 2]\n\n  def sequence(n) when n > 2 do\n    Enum.reduce(3..n, [1, 2], fn _, [a, b | _] = acc ->\n      [a + b | acc]\n    end)\n    |> Enum.reverse()\n  end",
            replace:
              "def sequence(0), do: []\n  def sequence(1), do: [1]\n  def sequence(2), do: [1, 1]\n\n  def sequence(n) when n > 2 do\n    Enum.reduce(3..n, [1, 1], fn _, [a, b | _] = acc ->\n      [a + b | acc]\n    end)\n    |> Enum.reverse()\n  end"
          }
@@ -198,7 +200,7 @@ defmodule InstructorTrial do
   def check do
     {:ok, %{updates: [update]}} = response()
 
-    %{file_path: file_path, explanation: explanation, search: search, replace: replace} = update
+    %{file_path: file_path, explanation: _explanation, search: search, replace: replace} = update
 
     %{path: path, contents: contents} = lib_file()
 
@@ -207,8 +209,8 @@ defmodule InstructorTrial do
     String.contains?(contents, search)
     |> IO.inspect()
 
-    String.replace(contents, search, replace)
-    |> IO.inspect(pretty: true)
+    PolyglotWatcherV2.GitDiff.run(file_path, search, replace, %{})
+    |> IO.inspect()
 
     # the response it actually gave fixed the tests with the search / replace
   end
