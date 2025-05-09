@@ -1,14 +1,13 @@
 defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   def switch(server_state) do
     case Cache.get_test_failure(:latest) do
       {:ok, {test_path, line_number}} ->
-        mix_test_args = "#{test_path}:#{line_number}"
-
         actions_tree =
-          mix_test_args
+          {test_path, line_number}
           |> common_actions_tree()
           |> Map.merge(%{
             clear_screen: %PolyglotWatcherV2.Action{
@@ -16,7 +15,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
               next_action: :switch_mode
             },
             switch_mode: %PolyglotWatcherV2.Action{
-              runnable: {:switch_mode, :elixir, {:fixed_file, mix_test_args}},
+              runnable: {:switch_mode, :elixir, {:fixed_file, {test_path, line_number}}},
               next_action: :put_switch_mode_msg
             },
             put_switch_mode_msg: %Action{
@@ -101,13 +100,16 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
   end
 
   defp common_actions_tree(test_path) do
+    mix_test_args = %MixTestArgs{path: test_path}
+    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
+
     %{
       put_mix_test_msg: %PolyglotWatcherV2.Action{
-        runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+        runnable: {:puts, :magenta, mix_test_msg},
         next_action: :mix_test
       },
       mix_test: %PolyglotWatcherV2.Action{
-        runnable: {:mix_test, test_path},
+        runnable: {:mix_test, mix_test_args},
         next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
       },
       put_success_msg: %PolyglotWatcherV2.Action{

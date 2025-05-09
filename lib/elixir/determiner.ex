@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     FixAllForFileMode,
     FixAllMode,
     FixedFileMode,
+    MixTestArgs,
     RunAllMode
   }
 
@@ -93,14 +94,21 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     case user_input do
       ["d"] -> &switch_to_default_mode(&1)
       ["f"] -> &FixedFileMode.switch(&1)
-      ["f", test_file] -> &FixedFileMode.switch(&1, test_file)
+      ["f", test_path] -> &switch_with_file(&1, FixedFileMode, test_path)
+      ["faff", test_path] -> &switch_with_file(&1, FixAllForFileMode, test_path)
       ["fa"] -> &FixAllMode.switch(&1)
       ["faff"] -> &FixAllForFileMode.switch(&1)
-      ["faff", test_file] -> &FixAllForFileMode.switch(&1, test_file)
       ["ra"] -> &RunAllMode.switch(&1)
       ["cl"] -> &ClaudeAIDefaultMode.switch(&1)
       ["clr"] -> &ClaudeAIReplaceMode.switch(&1)
       _ -> nil
+    end
+  end
+
+  defp switch_with_file(server_state, module, test_path) do
+    case MixTestArgs.to_path(test_path) do
+      {:ok, test_path} -> module.switch(server_state, test_path)
+      _ -> {:none, server_state}
     end
   end
 

@@ -4,7 +4,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
   require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.{Cache, FixAllForFileMode}
+  alias PolyglotWatcherV2.Elixir.{Cache, FixAllForFileMode, MixTestArgs}
 
   describe "switch/1" do
     test "given no explicit file to use, with a cache hit, switches mode & enters the loop" do
@@ -155,20 +155,20 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %PolyglotWatcherV2.Action{
+                 clear_screen: %Action{
                    next_action: :mix_test_latest_line,
                    runnable: :clear_screen
                  },
-                 mix_test_all_for_file: %PolyglotWatcherV2.Action{
+                 mix_test_all_for_file: %Action{
                    next_action: %{
                      0 => :put_sarcastic_success,
                      1 => :put_mix_test_error,
                      2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
                    },
-                   runnable: {:mix_test, "test/x_test.exs"}
+                   runnable: {:mix_test, %MixTestArgs{path: "test/x_test.exs", max_failures: nil}}
                  },
-                 mix_test_latest_line: %PolyglotWatcherV2.Action{
+                 mix_test_latest_line: %Action{
                    next_action: %{
                      :fallback => :put_mix_test_error,
                      {:cache, :miss} => :put_mix_test_all_for_file_msg,
@@ -178,15 +178,15 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                    },
                    runnable: {:mix_test_latest_line, "test/x_test.exs"}
                  },
-                 put_mix_test_all_for_file_msg: %PolyglotWatcherV2.Action{
+                 put_mix_test_all_for_file_msg: %Action{
                    next_action: :mix_test_all_for_file,
                    runnable: {
                      :puts,
                      :magenta,
-                     "Running mix test test/x_test.exs"
+                     "Running mix test test/x_test.exs --color"
                    }
                  },
-                 put_mix_test_error: %PolyglotWatcherV2.Action{
+                 put_mix_test_error: %Action{
                    next_action: :exit,
                    runnable: {
                      :puts,
@@ -194,12 +194,12 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                      "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
                    }
                  },
-                 put_sarcastic_success: %PolyglotWatcherV2.Action{
+                 put_sarcastic_success: %Action{
                    next_action: :exit,
                    runnable: :put_sarcastic_success
                  },
-                 mix_test_max_failures_1: %PolyglotWatcherV2.Action{
-                   runnable: {:mix_test, "test/x_test.exs --max-failures 1"},
+                 mix_test_max_failures_1: %Action{
+                   runnable: {:mix_test, %MixTestArgs{path: "test/x_test.exs", max_failures: 1}},
                    next_action: %{
                      0 => :put_sarcastic_success,
                      1 => :put_mix_test_error,
@@ -207,10 +207,11 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                      :fallback => :put_mix_test_error
                    }
                  },
-                 put_insult: %PolyglotWatcherV2.Action{runnable: :put_insult, next_action: :exit},
-                 put_mix_test_max_failures_1_msg: %PolyglotWatcherV2.Action{
+                 put_insult: %Action{runnable: :put_insult, next_action: :exit},
+                 put_mix_test_max_failures_1_msg: %Action{
                    runnable:
-                     {:puts, :magenta, "Running mix test test/x_test.exs --max-failures 1"},
+                     {:puts, :magenta,
+                      "Running mix test test/x_test.exs --max-failures 1 --color"},
                    next_action: :mix_test_max_failures_1
                  }
                },

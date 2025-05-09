@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
   use ExUnit.Case, async: true
   use Mimic
   alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
   alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
@@ -87,9 +88,9 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       """
 
       exit_code = 1
-      test_path = "test/elixir_lang_mix_test_test.exs:6"
+      mix_test_args = %MixTestArgs{path: {"test/elixir_lang_mix_test_test.exs", 6}}
 
-      assert :ok == Cache.update(pid, test_path, mix_test_output, exit_code)
+      assert :ok == Cache.update(pid, mix_test_args, mix_test_output, exit_code)
 
       assert %{
                "test/elixir_lang_mix_test_test.exs" => %CacheItem{

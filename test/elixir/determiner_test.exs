@@ -159,10 +159,22 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
                  server_state
                )
 
-      assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, "test/cool_test.exs:100"}}} =
+      assert %Action{
+               runnable: {:switch_mode, :elixir, {:fixed_file, {"test/cool_test.exs", 100}}}
+             } =
                tree.actions_tree.switch_mode
 
       ActionsTreeValidator.validate(tree)
+    end
+
+    test "switching to fixed_file, giving a nonsense test path fails" do
+      server_state = ServerStateBuilder.build()
+
+      assert {:none, ^server_state} =
+               Determiner.user_input_actions(
+                 "ex f test/cool_test.exs:not_a_line_number",
+                 server_state
+               )
     end
 
     test "switching to fixed_file mode without a path argument works and fixes it to the most recent test failure" do
@@ -237,6 +249,16 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       )
 
       ActionsTreeValidator.validate(tree)
+    end
+
+    test "switching to fix_all_for_file mode, giving a nonsense test path fails" do
+      server_state = ServerStateBuilder.build()
+
+      assert {:none, ^server_state} =
+               Determiner.user_input_actions(
+                 "ex faff test/cool_test.exs:not_a_line_number",
+                 server_state
+               )
     end
 
     test "switching to fix_all_for_file mode works (tested more thoroughly lower in the stack)" do

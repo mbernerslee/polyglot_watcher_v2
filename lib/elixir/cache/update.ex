@@ -7,8 +7,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Update do
   }
 
   alias PolyglotWatcherV2.Elixir.EquivalentPath
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
-  def run(cache, mix_test_args, mix_test_output, exit_code) do
+  def run(cache, %MixTestArgs{} = mix_test_args, mix_test_output, exit_code) do
     mix_test_output
     |> MixTestOutputParser.run()
     |> combine(cache)

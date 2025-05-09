@@ -1,12 +1,14 @@
 defmodule PolyglotWatcherV2.Elixir.DefaultMode do
   alias PolyglotWatcherV2.{Action, FilePath}
-  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
+  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
 
   def determine_actions(%FilePath{extension: @exs} = file_path, server_state) do
     test_path = FilePath.stringify(file_path)
+    mix_test_args = %MixTestArgs{path: test_path}
+    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
 
     {%{
        entry_point: :clear_screen,
@@ -16,11 +18,11 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
            next_action: :put_intent_msg
          },
          put_intent_msg: %Action{
-           runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+           runnable: {:puts, :magenta, mix_test_msg},
            next_action: :mix_test
          },
          mix_test: %Action{
-           runnable: {:mix_test, test_path},
+           runnable: {:mix_test, mix_test_args},
            next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
          },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit},
@@ -67,6 +69,9 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
   end
 
   defp mix_test_with_file_exists_check(lib_path, test_path) do
+    mix_test_args = %MixTestArgs{path: test_path}
+    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
+
     %{
       entry_point: :clear_screen,
       actions_tree: %{
@@ -79,11 +84,11 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
           next_action: %{true => :put_intent_msg, :fallback => :no_test_msg}
         },
         put_intent_msg: %Action{
-          runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+          runnable: {:puts, :magenta, mix_test_msg},
           next_action: :mix_test
         },
         mix_test: %Action{
-          runnable: {:mix_test, test_path},
+          runnable: {:mix_test, mix_test_args},
           next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
         },
         put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit},

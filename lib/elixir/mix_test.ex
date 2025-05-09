@@ -1,15 +1,15 @@
 defmodule PolyglotWatcherV2.Elixir.MixTest do
   alias PolyglotWatcherV2.ShellCommandRunner
   alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
-  def run(test_path, server_state) do
+  def run(%MixTestArgs{} = mix_test_args, server_state) do
     {mix_test_output, exit_code} =
-      case test_path do
-        :all -> ShellCommandRunner.run("mix test --color")
-        path -> ShellCommandRunner.run("mix test #{path} --color")
-      end
+      mix_test_args
+      |> MixTestArgs.to_shell_command()
+      |> ShellCommandRunner.run()
 
-    Cache.update(test_path, mix_test_output, exit_code)
+    Cache.update(mix_test_args, mix_test_output, exit_code)
 
     server_state =
       server_state

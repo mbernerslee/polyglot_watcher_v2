@@ -2,12 +2,12 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
   use ExUnit.Case, async: true
   require PolyglotWatcherV2.ActionsTreeValidator
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.{Cache, FixedFileMode}
+  alias PolyglotWatcherV2.Elixir.{Cache, FixedFileMode, MixTestArgs}
 
   describe "switch/2" do
     test "given a test_path, we switch to that test path and run the determine_actions loop" do
       server_state = ServerStateBuilder.build()
-      test_path = "test/cool_test.exs:42"
+      test_path = {"test/cool_test.exs", 42}
 
       assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
                FixedFileMode.switch(server_state, test_path)
@@ -18,7 +18,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                  next_action: :switch_mode
                },
                switch_mode: %PolyglotWatcherV2.Action{
-                 runnable: {:switch_mode, :elixir, {:fixed_file, test_path}},
+                 runnable: {:switch_mode, :elixir, {:fixed_file, {"test/cool_test.exs", 42}}},
                  next_action: :put_switch_mode_msg
                },
                put_switch_mode_msg: %Action{
@@ -33,11 +33,11 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                  next_action: :put_mix_test_msg
                },
                put_mix_test_msg: %PolyglotWatcherV2.Action{
-                 runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+                 runnable: {:puts, :magenta, "Running mix test test/cool_test.exs:42 --color"},
                  next_action: :mix_test
                },
                mix_test: %PolyglotWatcherV2.Action{
-                 runnable: {:mix_test, test_path},
+                 runnable: {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 42}}},
                  next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
                },
                put_success_msg: %PolyglotWatcherV2.Action{
@@ -71,7 +71,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                  next_action: :switch_mode
                },
                switch_mode: %PolyglotWatcherV2.Action{
-                 runnable: {:switch_mode, :elixir, {:fixed_file, "test/cool_test.exs:10"}},
+                 runnable: {:switch_mode, :elixir, {:fixed_file, {"test/cool_test.exs", 10}}},
                  next_action: :put_switch_mode_msg
                },
                put_switch_mode_msg: %Action{
@@ -86,11 +86,11 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                  next_action: :put_mix_test_msg
                },
                put_mix_test_msg: %PolyglotWatcherV2.Action{
-                 runnable: {:puts, :magenta, "Running mix test test/cool_test.exs:10"},
+                 runnable: {:puts, :magenta, "Running mix test test/cool_test.exs:10 --color"},
                  next_action: :mix_test
                },
                mix_test: %PolyglotWatcherV2.Action{
-                 runnable: {:mix_test, "test/cool_test.exs:10"},
+                 runnable: {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 10}}},
                  next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
                },
                put_success_msg: %PolyglotWatcherV2.Action{
@@ -197,11 +197,11 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    next_action: :put_mix_test_msg
                  },
                  put_mix_test_msg: %PolyglotWatcherV2.Action{
-                   runnable: {:puts, :magenta, "Running mix test test/cool_test.exs"},
+                   runnable: {:puts, :magenta, "Running mix test test/cool_test.exs --color"},
                    next_action: :mix_test
                  },
                  mix_test: %PolyglotWatcherV2.Action{
-                   runnable: {:mix_test, "test/cool_test.exs"},
+                   runnable: {:mix_test, %MixTestArgs{path: "test/cool_test.exs"}},
                    next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
                  },
                  put_success_msg: %PolyglotWatcherV2.Action{
@@ -222,7 +222,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
     test "returns the expected actions given a <test_path>:<line_number>" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode({:fixed_file, "test/x_test.exs:123"})
+        |> ServerStateBuilder.with_elixir_mode({:fixed_file, {"test/x_test.exs", 123}})
 
       assert {tree, ^server_state} = FixedFileMode.determine_actions(server_state)
 
@@ -233,11 +233,11 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    next_action: :put_mix_test_msg
                  },
                  put_mix_test_msg: %PolyglotWatcherV2.Action{
-                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs:123"},
+                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs:123 --color"},
                    next_action: :mix_test
                  },
                  mix_test: %PolyglotWatcherV2.Action{
-                   runnable: {:mix_test, "test/x_test.exs:123"},
+                   runnable: {:mix_test, %MixTestArgs{path: {"test/x_test.exs", 123}}},
                    next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
                  },
                  put_success_msg: %PolyglotWatcherV2.Action{

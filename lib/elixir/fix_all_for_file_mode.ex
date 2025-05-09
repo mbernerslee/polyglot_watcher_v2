@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   """
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   def switch(server_state) do
     case Cache.get_test_failure(:latest) do
@@ -114,6 +115,9 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   end
 
   defp action_loop(test_path) do
+    mix_test_max_failures_1_args = %MixTestArgs{path: test_path, max_failures: 1}
+    mix_test_all_args = %MixTestArgs{path: test_path}
+
     %{
       :mix_test_latest_line => %Action{
         runnable: {:mix_test_latest_line, test_path},
@@ -126,11 +130,13 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
         }
       },
       :put_mix_test_max_failures_1_msg => %Action{
-        runnable: {:puts, :magenta, "Running mix test #{test_path} --max-failures 1"},
+        runnable:
+          {:puts, :magenta,
+           "Running #{MixTestArgs.to_shell_command(mix_test_max_failures_1_args)}"},
         next_action: :mix_test_max_failures_1
       },
       :mix_test_max_failures_1 => %Action{
-        runnable: {:mix_test, "#{test_path} --max-failures 1"},
+        runnable: {:mix_test, mix_test_max_failures_1_args},
         next_action: %{
           0 => :put_sarcastic_success,
           1 => :put_mix_test_error,
@@ -139,11 +145,11 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
         }
       },
       :put_mix_test_all_for_file_msg => %Action{
-        runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+        runnable: {:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_all_args)}"},
         next_action: :mix_test_all_for_file
       },
       :mix_test_all_for_file => %Action{
-        runnable: {:mix_test, test_path},
+        runnable: {:mix_test, mix_test_all_args},
         next_action: %{
           0 => :put_sarcastic_success,
           1 => :put_mix_test_error,

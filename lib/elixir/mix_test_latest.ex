@@ -11,6 +11,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   """
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.ActionsExecutor
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   @doc "Finds the latest failing test path & runs `mix test <test_path> --max-failures 1`"
   def max_failures_1(server_state) do
@@ -37,7 +38,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   end
 
   defp mix_test_max_failures_1_args({:ok, {test_path, _line_number, server_state}}) do
-    {:ok, {"#{test_path} --max-failures 1", server_state}}
+    {:ok, {%MixTestArgs{path: test_path, max_failures: 1}, server_state}}
   end
 
   defp mix_test_max_failures_1_args(error) do
@@ -45,7 +46,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   end
 
   defp mix_test_specific_line_args({:ok, {test_path, line_number, server_state}}) do
-    {:ok, {"#{test_path}:#{line_number}", server_state}}
+    {:ok, {%MixTestArgs{path: {test_path, line_number}}, server_state}}
   end
 
   defp mix_test_specific_line_args(error) do
@@ -53,7 +54,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   end
 
   defp run_mix_test({:ok, {mix_test_args, server_state}}) do
-    ActionsExecutor.execute({:puts, :magenta, "Running mix test #{mix_test_args}"}, server_state)
+    ActionsExecutor.execute(
+      {:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_args)}"},
+      server_state
+    )
 
     case ActionsExecutor.execute({:mix_test, mix_test_args}, server_state) do
       {0, server_state} ->

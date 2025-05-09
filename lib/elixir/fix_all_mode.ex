@@ -1,5 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllMode do
   alias PolyglotWatcherV2.Action
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   def determine_actions(server_state) do
     actions_tree =
@@ -40,6 +41,9 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
   end
 
   defp fix_all_actions_loop do
+    mix_test_args = %MixTestArgs{path: :all}
+    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
+
     %{
       mix_test_latest_line: %Action{
         next_action: %{
@@ -63,7 +67,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
       },
       put_mix_test_all_msg: %Action{
         next_action: :mix_test_all,
-        runnable: {:puts, :magenta, "Running mix test"}
+        runnable: {:puts, :magenta, mix_test_msg}
       },
       mix_test_all: %Action{
         next_action: %{
@@ -72,7 +76,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
           2 => :mix_test_latest_line,
           :fallback => :put_mix_test_error
         },
-        runnable: :mix_test
+        runnable: {:mix_test, mix_test_args}
       },
       put_mix_test_error: %Action{
         next_action: :exit,

@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   alias PolyglotWatcherV2.{Action, FilePath}
-  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath}
+  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -64,6 +64,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   end
 
   defp determine_actions(lib_path, test_path, server_state) do
+    mix_test_args = %MixTestArgs{path: test_path}
+    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
+
     {%{
        entry_point: :clear_screen,
        actions_tree: %{
@@ -72,11 +75,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
            next_action: :put_intent_msg
          },
          put_intent_msg: %Action{
-           runnable: {:puts, :magenta, "Running mix test #{test_path}"},
+           runnable: {:puts, :magenta, mix_test_msg},
            next_action: :mix_test
          },
          mix_test: %Action{
-           runnable: {:mix_test, test_path},
+           runnable: {:mix_test, mix_test_args},
            next_action: %{0 => :put_success_msg, :fallback => :persist_lib_file}
          },
          persist_lib_file: %Action{

@@ -5,6 +5,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.ActionsTreeValidator
   alias PolyglotWatcherV2.Elixir.FixAllMode
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
   alias PolyglotWatcherV2.ServerStateBuilder
 
   describe "determine_actions/1" do
@@ -43,7 +44,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                  },
                  put_mix_test_all_msg: %Action{
                    next_action: :mix_test_all,
-                   runnable: {:puts, :magenta, "Running mix test"}
+                   runnable: {:puts, :magenta, "Running mix test --color"}
                  },
                  mix_test_all: %Action{
                    next_action: %{
@@ -52,7 +53,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
                    },
-                   runnable: :mix_test
+                   runnable: {:mix_test, %MixTestArgs{path: :all}}
                  },
                  put_mix_test_error: %Action{
                    next_action: :exit,
@@ -124,7 +125,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                  },
                  put_mix_test_all_msg: %Action{
                    next_action: :mix_test_all,
-                   runnable: {:puts, :magenta, "Running mix test"}
+                   runnable: {:puts, :magenta, "Running mix test --color"}
                  },
                  mix_test_all: %Action{
                    next_action: %{
@@ -133,7 +134,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
                    },
-                   runnable: :mix_test
+                   runnable: {:mix_test, %MixTestArgs{path: :all}}
                  },
                  put_mix_test_error: %Action{
                    next_action: :exit,

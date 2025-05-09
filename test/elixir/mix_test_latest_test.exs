@@ -5,6 +5,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
   alias PolyglotWatcherV2.ActionsExecutor
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestLatest
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
   alias PolyglotWatcherV2.ServerStateBuilder
 
   describe "line/2" do
@@ -18,10 +19,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 3, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs:1"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs:1 --color"}, server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs:1"}, server_state ->
+        {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 1}}}, server_state ->
           {0, server_state}
 
         :put_sarcastic_success, server_state ->
@@ -54,10 +55,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 3, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs:1"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs:1 --color"}, server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs:1"}, server_state ->
+        {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 1}}}, server_state ->
           {2, server_state}
 
         :put_insult, server_state ->
@@ -77,10 +78,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 2, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs:1"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs:1 --color"}, server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs:1"}, server_state ->
+        {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 1}}}, server_state ->
           {1, server_state}
       end)
 
@@ -100,10 +101,11 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 3, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs --max-failures 1"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs --max-failures 1 --color"},
+        server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs --max-failures 1"}, server_state ->
+        {:mix_test, %MixTestArgs{path: "test/cool_test.exs", max_failures: 1}}, server_state ->
           {0, server_state}
 
         :put_sarcastic_success, server_state ->
@@ -124,10 +126,11 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 3, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs --max-failures 1"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs --max-failures 1 --color"},
+        server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs --max-failures 1"}, server_state ->
+        {:mix_test, %MixTestArgs{path: "test/cool_test.exs", max_failures: 1}}, server_state ->
           {2, server_state}
 
         :put_insult, server_state ->
@@ -148,10 +151,11 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 2, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs --max-failures 1"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs --max-failures 1 --color"},
+        server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs --max-failures 1"}, server_state ->
+        {:mix_test, %MixTestArgs{path: "test/cool_test.exs", max_failures: 1}}, server_state ->
           {1, server_state}
       end)
 
@@ -183,10 +187,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 3, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs:42"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs:42 --color"}, server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs:42"}, server_state ->
+        {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 42}}}, server_state ->
           {0, server_state}
 
         :put_sarcastic_success, server_state ->
@@ -218,10 +222,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 3, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs:42"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs:42 --color"}, server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs:42"}, server_state ->
+        {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 42}}}, server_state ->
           {2, server_state}
 
         :put_insult, server_state ->
@@ -241,10 +245,10 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       end)
 
       Mimic.expect(ActionsExecutor, :execute, 2, fn
-        {:puts, :magenta, "Running mix test test/cool_test.exs:42"}, server_state ->
+        {:puts, :magenta, "Running mix test test/cool_test.exs:42 --color"}, server_state ->
           {0, server_state}
 
-        {:mix_test, "test/cool_test.exs:42"}, server_state ->
+        {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 42}}}, server_state ->
           {1, server_state}
       end)
 

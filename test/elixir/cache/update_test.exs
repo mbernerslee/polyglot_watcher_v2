@@ -1,8 +1,8 @@
 defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
   use ExUnit.Case, async: true
-  # alias PolyglotWatcherV2.Elixir.Cache.{File, LibFile, TestFile}
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
   alias PolyglotWatcherV2.Elixir.Cache.Update
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   describe "run/4" do
     test "new - adds a new cache_item" do
@@ -24,7 +24,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
       """
 
       exit_code = 1
-      test_path = "test/elixir_lang_mix_test_test.exs:6"
+
+      mix_test_args =
+        %MixTestArgs{path: {"test/elixir_lang_mix_test_test.exs", 6}}
 
       assert %{
                "test/elixir_lang_mix_test_test.exs" => %CacheItem{
@@ -34,7 +36,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
                  mix_test_output: mix_test_output,
                  rank: 1
                }
-             } == Update.run(%{}, test_path, mix_test_output, exit_code)
+             } == Update.run(%{}, mix_test_args, mix_test_output, exit_code)
     end
 
     test "update - determines the new failed_line_numbers & updates the cache" do
@@ -56,7 +58,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
       """
 
       exit_code = 1
-      test_path = "test/elixir_lang_mix_test_test.exs:6"
+
+      mix_test_args =
+        %MixTestArgs{path: {"test/elixir_lang_mix_test_test.exs", 6}}
 
       old_cache = %{
         "test/elixir_lang_mix_test_test.exs" => %CacheItem{
@@ -78,7 +82,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
-      assert expected_new_cache == Update.run(old_cache, test_path, mix_test_output, exit_code)
+      assert expected_new_cache ==
+               Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
     test "new tests get lower rankings" do
@@ -234,12 +239,14 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
+      mix_test_args = %MixTestArgs{path: "test/fib_test.exs"}
+
       assert %{
                "apps/umbrella/test/cool_test.exs" => %CacheItem{rank: 1},
                "test/fizz_buzz_test.exs" => %CacheItem{rank: 2},
                "test/fib_test.exs" => %CacheItem{rank: 3},
                "test/other_test.exs" => %CacheItem{rank: 4}
-             } = Update.run(old_cache, "test/fib_test.exs", mix_test_output, exit_code)
+             } = Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
     test "when all tests pass, they are deleted" do
@@ -284,7 +291,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
-      assert %{} == Update.run(old_cache, :all, mix_test_output, exit_code)
+      mix_test_args = %MixTestArgs{path: :all}
+
+      assert %{} == Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
     test "when all tests pass for a file only, the cache_item is deleted" do
@@ -353,8 +362,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
+      mix_test_args = %MixTestArgs{path: "test/fib_test.exs"}
+
       assert expected_cache ==
-               Update.run(old_cache, "test/fib_test.exs", mix_test_output, exit_code)
+               Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
     test "when tests pass for single test in a file only, that failing test alone is removed from the cache_item list" do
@@ -430,8 +441,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
+      mix_test_args = %MixTestArgs{path: {"test/fib_test.exs", 7}}
+
       assert expected_cache ==
-               Update.run(old_cache, "test/fib_test.exs:7", mix_test_output, exit_code)
+               Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
     test "when the last failing test for a file passes, the entire cache_item is removed" do
@@ -471,8 +484,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
+      mix_test_args = %MixTestArgs{path: {"test/fib_test.exs", 7}}
+
       assert expected_cache ==
-               Update.run(old_cache, "test/fib_test.exs:7", mix_test_output, exit_code)
+               Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
     test "when a specific test file & line has been fixed but doesn't exist in state, the cache_item should not be deleted" do
@@ -495,8 +510,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
         }
       }
 
+      mix_test_args = %MixTestArgs{path: {"test/fib_test.exs", 7}}
+
       assert cache ==
-               Update.run(cache, "test/non_existent_test.exs:7", mix_test_output, exit_code)
+               Update.run(cache, mix_test_args, mix_test_output, exit_code)
     end
   end
 end
