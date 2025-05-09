@@ -31,10 +31,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:claude_ai, :request], request)
   end
 
-  def with_mix_test_output(server_state, mix_test_output) do
-    put_in(server_state, [:elixir, :mix_test_output], mix_test_output)
-  end
-
   def with_rust_mode(server_state, mode) do
     put_in(server_state, [:rust, :mode], mode)
   end
