@@ -94,8 +94,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(test_path, server_state)
   end
 
-  defp do_execute(:build_claude_replace_api_request, server_state) do
-    ClaudeAIReplaceMode.RequestBuilder.build(server_state)
+  defp do_execute({:build_claude_replace_api_request, test_path}, server_state) do
+    ClaudeAIReplaceMode.RequestBuilder.build(test_path, server_state)
   end
 
   defp do_execute(:build_claude_replace_blocks, server_state) do

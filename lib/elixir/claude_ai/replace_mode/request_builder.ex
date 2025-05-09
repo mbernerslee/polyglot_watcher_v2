@@ -1,20 +1,18 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
   alias PolyglotWatcherV2.ClaudeAI
+  alias PolyglotWatcherV2.Elixir.Cache
 
-  def build(
-        %{files: %{lib: lib, test: test}, elixir: %{mix_test_output: mix_test_output}} =
-          server_state
-      )
-      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) do
-    prompt = replace_placeholders(prompt(), lib, test, mix_test_output)
+  def build(test_path, server_state) do
+    case Cache.get_files(test_path) do
+      {:ok, %{test: test, lib: lib, mix_test_output: mix_test_output}} ->
+        prompt = replace_placeholders(prompt(), lib, test, mix_test_output)
+        messages = [%{role: "user", content: prompt}]
 
-    messages = [%{role: "user", content: prompt}]
+        ClaudeAI.build_api_request(server_state, messages)
 
-    ClaudeAI.build_api_request(server_state, messages)
-  end
-
-  def build(server_state) do
-    {1, server_state}
+      _ ->
+        {1, server_state}
+    end
   end
 
   defp replace_placeholders(prompt, lib, test, mix_test_output) do

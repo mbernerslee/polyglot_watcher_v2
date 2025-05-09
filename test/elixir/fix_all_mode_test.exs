@@ -10,6 +10,8 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
 
   describe "determine_actions/1" do
     test "returns the expected actions" do
+      raise "no"
+
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:fix_all)
