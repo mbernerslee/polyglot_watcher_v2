@@ -78,7 +78,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       {:light_magenta, "ex cl\n"},
       {:white, "  Claude\n"},
       {:white,
-       "  The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test\n"},
+       "  The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test\n You can set you're own custom prompt which automatically gets the lib file, test file & mix test output spliced into it for you. See README for more details"},
       {:white,
        "  It auto-generates the prompt with the lib file, test file & mix test output for you.\n"},
       {:white,

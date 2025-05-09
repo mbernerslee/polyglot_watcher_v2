@@ -58,6 +58,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {0, put_in(server_state, [language, :mode], mode)}
   end
 
+  defp do_execute(:mix_test, server_state) do
+    MixTest.run(%MixTestArgs{path: :all}, server_state)
+  end
+
   defp do_execute({:mix_test, %MixTestArgs{} = mix_test_args}, server_state) do
     MixTest.run(mix_test_args, server_state)
   end
