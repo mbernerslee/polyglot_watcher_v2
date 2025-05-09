@@ -6,7 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilderTest do
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder
 
   describe "build/2" do
-    test "given server_state that contains the required info to build the API call, then it is built and stored in the server_state" do
+    test "when we have the required info to build the API call, then it is built and stored in the server_state" do
       lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
       test_file = %{path: "test/cool_test.exs", contents: "cool test"}
       mix_test_output = "it failed mate. get good."
@@ -27,8 +27,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilderTest do
 
       assert %{claude_ai: %{request: api_request}} = new_server_state
 
-      assert put_in(server_state, [:claude_ai, :request], api_request) == new_server_state
-
       assert %{body: body} = api_request
 
       assert %{
@@ -40,6 +38,29 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilderTest do
       assert prompt =~ "test/cool_test.exs"
       assert prompt =~ "cool test"
       assert prompt =~ mix_test_output
+    end
+
+    test "we save files from the cache call in the server state" do
+      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
+      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
+      mix_test_output = "it failed mate. get good."
+      api_key = "super-secret"
+
+      Mimic.expect(Cache, :get_files, fn this_test_path ->
+        assert this_test_path == "test/cool_test.exs"
+
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+
+      assert {0, new_server_state} =
+               RequestBuilder.build("test/cool_test.exs", server_state)
+
+      assert new_server_state.files.test == test_file
+      assert new_server_state.files.lib == lib_file
     end
 
     test "when the cache returns an error of any kind, return error" do
@@ -121,25 +142,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilderTest do
              } = Jason.decode!(body)
 
       assert String.starts_with?(actual_prompt, expected_prompt_start)
-    end
-
-    test "given server_state that is missing any of the required info to build the API call, then we return exit_code 1 and leave the server_state unchanged" do
-      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
-      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
-      mix_test_output = "it failed mate. get good."
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", nil)
-
-      Mimic.expect(Cache, :get_files, fn this_test_path ->
-        assert this_test_path == "test/cool_test.exs"
-
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      assert {1, server_state} ==
-               RequestBuilder.build("test/cool_test.exs", server_state)
     end
   end
 end

@@ -8,7 +8,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.RequestBuilder do
         prompt = replace_placeholders(prompt(), lib, test, mix_test_output)
         messages = [%{role: "user", content: prompt}]
 
-        ClaudeAI.build_api_request(server_state, messages)
+        server_state
+        |> put_in([:files, :test], test)
+        |> put_in([:files, :lib], lib)
+        |> ClaudeAI.build_api_request(messages)
 
       _ ->
         {1, server_state}
