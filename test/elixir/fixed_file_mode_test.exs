@@ -58,7 +58,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
     test "works if the failed test cache call hits" do
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {"test/cool_test.exs", 10}}
       end)
 
@@ -109,7 +109,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
     test "given a cache miss, returns error" do
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(Cache, :get, fn :latest -> {:error, :not_found} end)
+      Mimic.expect(Cache, :get_test_failure, fn :latest -> {:error, :not_found} end)
 
       assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
                FixedFileMode.switch(server_state)

@@ -74,7 +74,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   end
 
   defp get_next_from_cache(test_path, server_state) do
-    case Cache.get(test_path) do
+    case Cache.get_test_failure(test_path) do
       {:ok, {test_path, line_number}} -> {:ok, {test_path, line_number, server_state}}
       {:error, :not_found} -> {{:cache, :miss}, server_state}
     end

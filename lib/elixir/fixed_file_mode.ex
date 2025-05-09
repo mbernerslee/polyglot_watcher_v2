@@ -3,7 +3,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
   alias PolyglotWatcherV2.Elixir.Cache
 
   def switch(server_state) do
-    case Cache.get(:latest) do
+    case Cache.get_test_failure(:latest) do
       {:ok, {test_path, line_number}} ->
         mix_test_args = "#{test_path}:#{line_number}"
 

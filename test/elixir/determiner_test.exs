@@ -168,7 +168,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
     test "switching to fixed_file mode without a path argument works and fixes it to the most recent test failure" do
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {"test/path_test.exs", 1}}
       end)
 
@@ -244,7 +244,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       test_path = "test/cool_test.exs"
       line_number = 10
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 

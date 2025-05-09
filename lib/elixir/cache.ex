@@ -17,7 +17,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   use GenServer
   require Logger
 
-  alias PolyglotWatcherV2.Elixir.Cache.{CacheItem, Init, Update}
+  alias PolyglotWatcherV2.Elixir.Cache.{Get, Init, Update}
 
   @process_name :elixir_cache
   @default_options [name: @process_name]
@@ -29,6 +29,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     }
   end
 
+  # TODO wire in oustading modes:
+  # - ex cl
+  # - ex clr
+
   def start_link(genserver_options \\ @default_options) do
     GenServer.start_link(__MODULE__, [], genserver_options)
   end
@@ -37,8 +41,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, {:update, mix_test_args, mix_test_output, exit_code})
   end
 
-  def get(pid \\ @process_name, test_path) do
-    GenServer.call(pid, {:get, test_path})
+  def get_test_failure(pid \\ @process_name, test_path) do
+    GenServer.call(pid, {:get_test_failure, test_path})
   end
 
   # Callbacks
@@ -72,51 +76,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   @impl GenServer
-  def handle_call({:get, :latest}, _from, state) do
-    state.cache_items
-    |> lowest_rank_test_path()
-    |> get_latest_failure(state.cache_items)
-    |> case do
-      {:ok, {test_path, line_number}} -> {:reply, {:ok, {test_path, line_number}}, state}
-      {:error, :not_found} -> {:reply, {:error, :not_found}, state}
-    end
-  end
-
-  def handle_call({:get, test_path}, _from, state) do
-    case get_latest_failure({:ok, test_path}, state.cache_items) do
-      {:ok, {test_path, line_number}} -> {:reply, {:ok, {test_path, line_number}}, state}
-      {:error, :not_found} -> {:reply, {:error, :not_found}, state}
-    end
+  def handle_call({:get_test_failure, test_path}, _from, state) do
+    {:reply, Get.test_failure(test_path, state.cache_items), state}
   end
 
   # Private
-
-  # TODO change this & get_latest_failure to handle failed_line_numbers == [], and skipping to the next rank if so
-  # TODO wire in oustading modes:
-  # - ex cl
-  # - ex clr
-  defp lowest_rank_test_path(cache_items) do
-    cache_items
-    |> Enum.min_by(fn {_test_path, file} -> file.rank end, &<=/2, fn -> {:error, :not_found} end)
-    |> case do
-      {:error, :not_found} -> {:error, :not_found}
-      {test_path, _file} -> {:ok, test_path}
-    end
-  end
-
-  defp get_latest_failure({:ok, test_path}, cache_items) do
-    case Map.get(cache_items, test_path) do
-      %CacheItem{failed_line_numbers: [line_number | _]} ->
-        {:ok, {test_path, line_number}}
-
-      _ ->
-        {:error, :not_found}
-    end
-  end
-
-  defp get_latest_failure(error, _cache_items) do
-    error
-  end
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
 

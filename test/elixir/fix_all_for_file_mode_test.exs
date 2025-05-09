@@ -12,7 +12,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       test_path = "test/cool_test.exs"
       line_number = 10
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 
@@ -64,7 +64,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
     test "given no explicit file to use, with a cache miss, returns error" do
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(Cache, :get, fn :latest -> {:error, :not_found} end)
+      Mimic.expect(Cache, :get_test_failure, fn :latest -> {:error, :not_found} end)
 
       assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
                FixAllForFileMode.switch(server_state)

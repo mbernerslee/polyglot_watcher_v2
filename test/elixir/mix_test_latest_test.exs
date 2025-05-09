@@ -12,7 +12,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       server_state = ServerStateBuilder.build()
       test_path = "test/cool_test.exs"
 
-      Mimic.expect(Cache, :get, fn this_test_path ->
+      Mimic.expect(Cache, :get_test_failure, fn this_test_path ->
         assert this_test_path == test_path
         {:ok, {test_path, 1}}
       end)
@@ -36,7 +36,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       server_state = ServerStateBuilder.build()
       test_path = "test/cool_test.exs"
 
-      Mimic.expect(Cache, :get, fn _ ->
+      Mimic.expect(Cache, :get_test_failure, fn _ ->
         {:error, :not_found}
       end)
 
@@ -49,7 +49,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       server_state = ServerStateBuilder.build()
       test_path = "test/cool_test.exs"
 
-      Mimic.expect(Cache, :get, fn _ ->
+      Mimic.expect(Cache, :get_test_failure, fn _ ->
         {:ok, {test_path, 1}}
       end)
 
@@ -72,7 +72,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       server_state = ServerStateBuilder.build()
       test_path = "test/cool_test.exs"
 
-      Mimic.expect(Cache, :get, fn _ ->
+      Mimic.expect(Cache, :get_test_failure, fn _ ->
         {:ok, {test_path, 1}}
       end)
 
@@ -95,7 +95,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       test_path = "test/cool_test.exs"
       line_number = 1
 
-      Mimic.expect(Cache, :get, fn _ ->
+      Mimic.expect(Cache, :get_test_failure, fn _ ->
         {:ok, {test_path, line_number}}
       end)
 
@@ -119,7 +119,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       test_path = "test/cool_test.exs"
       line_number = 1
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 
@@ -143,7 +143,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       test_path = "test/cool_test.exs"
       line_number = 1
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 
@@ -162,7 +162,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
     test "with a cache miss return error" do
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:error, :not_found}
       end)
 
@@ -178,7 +178,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       test_path = "test/cool_test.exs"
       line_number = 42
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 
@@ -199,7 +199,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
     test "with a cache miss return error" do
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:error, :not_found}
       end)
 
@@ -213,7 +213,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       test_path = "test/cool_test.exs"
       line_number = 42
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 
@@ -236,7 +236,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatestTest do
       test_path = "test/cool_test.exs"
       line_number = 42
 
-      Mimic.expect(Cache, :get, fn :latest ->
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)
 

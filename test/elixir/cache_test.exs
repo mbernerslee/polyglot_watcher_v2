@@ -119,7 +119,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
-      assert {:ok, {"test/cool_test.exs", 6}} == Cache.get(pid, "test/cool_test.exs")
+      assert {:ok, {"test/cool_test.exs", 6}} == Cache.get_test_failure(pid, "test/cool_test.exs")
     end
 
     test "when the given test_path is in the state but has no failing tests, return error" do
@@ -137,7 +137,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
-      assert {:error, :not_found} == Cache.get(pid, "test/cool_test.exs")
+      assert {:error, :not_found} == Cache.get_test_failure(pid, "test/cool_test.exs")
     end
 
     test "when the given test_path is not in the state, return error" do
@@ -155,7 +155,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
-      assert {:error, :not_found} == Cache.get(pid, "test/DIFFERENT_test.exs")
+      assert {:error, :not_found} == Cache.get_test_failure(pid, "test/DIFFERENT_test.exs")
     end
   end
 
@@ -182,7 +182,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
-      assert {:ok, {"test/cool_test.exs", 6}} == Cache.get(pid, :latest)
+      assert {:ok, {"test/cool_test.exs", 6}} == Cache.get_test_failure(pid, :latest)
     end
 
     test "with no cache_items, returns error" do
@@ -192,7 +192,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
-      assert {:error, :not_found} == Cache.get(pid, :latest)
+      assert {:error, :not_found} == Cache.get_test_failure(pid, :latest)
     end
 
     test "with no test failures, returns error" do
@@ -210,7 +210,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
-      assert {:error, :not_found} == Cache.get(pid, :latest)
+      assert {:error, :not_found} == Cache.get_test_failure(pid, :latest)
     end
   end
 

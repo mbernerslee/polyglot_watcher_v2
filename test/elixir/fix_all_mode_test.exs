@@ -1,6 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
   use ExUnit.Case, async: true
-  use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.Action

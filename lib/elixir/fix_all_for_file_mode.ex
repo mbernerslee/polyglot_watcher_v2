@@ -8,7 +8,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   alias PolyglotWatcherV2.Elixir.Cache
 
   def switch(server_state) do
-    case Cache.get(:latest) do
+    case Cache.get_test_failure(:latest) do
       {:ok, {test_path, _line_number}} ->
         my_specific_actions_tree = %{
           clear_screen: %Action{
