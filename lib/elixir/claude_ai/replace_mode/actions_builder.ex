@@ -5,7 +5,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.ActionsBuilder do
 
   @first_block_action_key :git_diff_1
 
-  # TODO continue here - there's a bug here because files lib path pattern match
   def build(
         %{
           files: %{lib: %{path: lib_path}},

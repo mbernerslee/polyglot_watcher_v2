@@ -11,12 +11,6 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
 
     Cache.update(mix_test_args, mix_test_output, exit_code)
 
-    server_state =
-      server_state
-      # |> put_in([:elixir, :failures], failures)
-      # TODO delete once we've sorted out claude_ai modes to use the cache
-      |> put_in([:elixir, :mix_test_output], mix_test_output)
-
     {exit_code, server_state}
   end
 end

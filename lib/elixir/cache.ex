@@ -29,10 +29,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     }
   end
 
-  # TODO wire in oustading modes:
-  # - ex cl
-  # - ex clr
-
   def start_link(genserver_options \\ @default_options) do
     GenServer.start_link(__MODULE__, [], genserver_options)
   end

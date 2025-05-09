@@ -25,10 +25,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       server_state = ServerStateBuilder.build()
 
-      assert {0, new_server_state} = MixTest.run(mix_test_args, server_state)
-
-      assert put_in(server_state, [:elixir, :mix_test_output], mock_mix_test_output) ==
-               new_server_state
+      assert {0, server_state} == MixTest.run(mix_test_args, server_state)
     end
 
     test "given :all & server state, runs all the tests" do
@@ -47,10 +44,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       server_state = ServerStateBuilder.build()
 
-      assert {0, new_server_state} = MixTest.run(mix_test_args, server_state)
-
-      assert put_in(server_state, [:elixir, :mix_test_output], mock_mix_test_output) ==
-               new_server_state
+      assert {0, server_state} == MixTest.run(mix_test_args, server_state)
     end
   end
 
