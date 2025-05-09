@@ -129,7 +129,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
       Mimic.expect(FileWrapper, :cwd!, fn -> "/home/berners/src/fib" end)
 
       test_contents = """
-        defmodule FibTest do
+        defmodule Dude.FibTest do
           use ExUnit.Case
           doctest Fib
 
@@ -165,14 +165,14 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
 
       Mimic.expect(ExUnitFailuresManifest, :read, fn _ ->
         %{
-          {FibTest, :"test sequence/0 can generate 0 items of the Fibonacci sequence"} =>
+          {FibTest, :"test sequence/1 can generate 0 items of the Fibonacci sequence"} =>
             @test_path_abs_1,
-          {FibTest, :"test sequence/0 can generate 1 item of the Fibonacci sequence"} =>
+          {FibTest, :"test sequence/1 can generate 1 item of the Fibonacci sequence"} =>
             @test_path_abs_1,
           {FibTest, :"test can generate 1 item of the Fibonacci sequence"} => @test_path_abs_1,
-          {FibTest, :"test can cool/0"} => @test_path_abs_1,
-          {FibTest, :"test cool/0 can cool 0"} => @test_path_abs_1,
-          {FibTest, :"test cool/0 can cool 1"} => @test_path_abs_1
+          {FibTest, :"test can cool 0"} => @test_path_abs_1,
+          {FibTest, :"test cool/1 can cool 0"} => @test_path_abs_1,
+          {FibTest, :"test cool/1 can cool 1"} => @test_path_abs_1
         }
       end)
 

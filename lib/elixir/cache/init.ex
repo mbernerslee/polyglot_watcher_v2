@@ -13,6 +13,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   alias PolyglotWatcherV2.Elixir.EquivalentPath
   alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
+  alias PolyglotWatcherV2.Elixir.Cache.TestFileASTParser
 
   def run do
     case find_manifest_file() do
@@ -88,50 +89,15 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   end
 
   defp failed_line_numbers(test_contents, tests) do
-    test_lines =
-      test_contents
-      |> String.split("\n")
-      |> Enum.with_index(1)
+    failures = TestFileASTParser.run(test_contents)
 
     tests
     |> Enum.reduce([], fn test, acc ->
-      test
-      |> to_string()
-      |> String.trim_leading("test ")
-      |> find_line_numbers(test_lines)
-      |> Kernel.++(acc)
-    end)
-    |> Enum.sort()
-    |> Enum.uniq()
-  end
-
-  # handling with and without the describe blocking being in the manifest:
-  # a test of the same name being in / not in a describe block called "sequence/0":
-  # :"test sequence/0 can generate 0 items of the Fibonacci sequence"
-  # :"test can generate 0 items of the Fibonacci sequence"
-  # crudly trimming the 2nd word in the string to get both
-  defp find_line_numbers(test, test_lines) do
-    trimmed_test = trim_leading_word(test)
-
-    Enum.reduce(test_lines, [], fn {line, line_number}, acc ->
-      regex_1 = ~r|^\s+test\s\"#{test}\"|
-      regex_2 = ~r|^\s+test\s\"#{trimmed_test}\"|
-
-      if Regex.match?(regex_1, line) || Regex.match?(regex_2, line) do
-        [line_number | acc]
-      else
-        acc
+      case Map.get(failures, test) do
+        nil -> acc
+        line -> [line | acc]
       end
     end)
-  end
-
-  defp trim_leading_word(string) do
-    string
-    |> String.split(" ")
-    |> case do
-      [_leading_word | rest] -> rest
-      other -> other
-    end
-    |> Enum.join(" ")
+    |> Enum.sort()
   end
 end
