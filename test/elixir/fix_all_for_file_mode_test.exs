@@ -1,122 +1,224 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
   use ExUnit.Case, async: true
+  use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.{Action, ActionsTreeValidator, FilePath, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.{Determiner, FixAllForFileMode}
-
-  @ex Determiner.ex()
-  @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
+  alias PolyglotWatcherV2.{Action, ActionsTreeValidator, ServerStateBuilder}
+  alias PolyglotWatcherV2.Elixir.{Cache, FixAllForFileMode, MixTestArgs}
 
   describe "switch/1" do
-    test "fails given no provided test file or test failures in memory" do
+    test "given no explicit file to use, with a cache hit, switches mode & enters the loop" do
+      server_state = ServerStateBuilder.build()
+      test_path = "test/cool_test.exs"
+      line_number = 10
+
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
+        {:ok, {test_path, line_number}}
+      end)
+
+      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+               FixAllForFileMode.switch(server_state)
+
+      assert actions_tree.clear_screen == %Action{
+               runnable: :clear_screen,
+               next_action: :switch_mode
+             }
+
+      assert actions_tree.switch_mode == %Action{
+               runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
+               next_action: :put_mode_switch_msg
+             }
+
+      assert actions_tree.put_mode_switch_msg == %Action{
+               runnable:
+                 {:puts,
+                  [
+                    {[:magenta], "Switching to "},
+                    {[:magenta, :italic], "Fix All For File "},
+                    {[:magenta], "mode...\n"},
+                    {[:magenta], "using the latest failing test in memory..."}
+                  ]},
+               next_action: :mix_test_latest_line
+             }
+
+      ActionsTreeValidator.assert_exact_keys(
+        tree,
+        [
+          :clear_screen,
+          :switch_mode,
+          :put_mode_switch_msg,
+          :mix_test_latest_line,
+          :put_mix_test_max_failures_1_msg,
+          :mix_test_max_failures_1,
+          :put_mix_test_all_for_file_msg,
+          :mix_test_all_for_file,
+          :put_mix_test_error,
+          :put_sarcastic_success,
+          :put_insult
+        ]
+      )
+
+      ActionsTreeValidator.validate(tree)
+    end
+
+    test "given no explicit file to use, with a cache miss, returns error" do
       server_state = ServerStateBuilder.build()
 
-      assert {tree, _} = FixAllForFileMode.switch(server_state)
+      Mimic.expect(Cache, :get_test_failure, fn :latest -> {:error, :not_found} end)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+               FixAllForFileMode.switch(server_state)
 
-      expected_action_tree_keys = [
-        :clear_screen,
-        :put_failed_to_switch_msg
-      ]
+      assert %{
+               clear_screen: %Action{
+                 runnable: :clear_screen,
+                 next_action: :put_error_msg
+               },
+               put_error_msg: %Action{
+                 runnable:
+                   {:puts,
+                    [
+                      {[:red], "Switching to "},
+                      {[:red, :italic], "Fix All For File "},
+                      {[:red], "mode failed\n"},
+                      {[:red], "I wasn't given a test_path "},
+                      {[:red, :italic], "and "},
+                      {[:red], "my memory of failing tests is empty\n"},
+                      {[:red],
+                       "Therefore I don't know which file upon which to fixate testing, so I am forced to give up :-("}
+                    ]},
+                 next_action: :exit
+               }
+             } == actions_tree
 
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
+  end
+
+  describe "switch/2" do
+    test "given a test_path, returns the expected actions" do
+      server_state = ServerStateBuilder.build()
+      test_path = "test/cool_test.exs"
+
+      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+               FixAllForFileMode.switch(server_state, test_path)
+
+      assert actions_tree.clear_screen == %Action{
+               runnable: :clear_screen,
+               next_action: :switch_mode
+             }
+
+      assert actions_tree.switch_mode == %Action{
+               runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
+               next_action: :put_mode_switch_msg
+             }
+
+      assert actions_tree.put_mode_switch_msg == %Action{
+               runnable:
+                 {:puts,
+                  [
+                    {[:magenta], "Switching to "},
+                    {[:magenta, :italic], "Fix All For File "},
+                    {[:magenta], "mode..."}
+                  ]},
+               next_action: :mix_test_latest_line
+             }
+
+      ActionsTreeValidator.assert_exact_keys(
+        tree,
+        [
+          :clear_screen,
+          :switch_mode,
+          :put_mode_switch_msg,
+          :mix_test_latest_line,
+          :put_mix_test_max_failures_1_msg,
+          :mix_test_max_failures_1,
+          :put_mix_test_all_for_file_msg,
+          :mix_test_all_for_file,
+          :put_mix_test_error,
+          :put_sarcastic_success,
+          :put_insult
+        ]
+      )
+
       ActionsTreeValidator.validate(tree)
     end
   end
 
   describe "determine_actions/1" do
-    test "with no failures for the fixed file, runs all the tests" do
+    test "are as expected" do
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode({:fix_all_for_file, "test/x_test.exs"})
-        |> ServerStateBuilder.with_elixir_failures([{"test/other_file_test.exs", 1}])
 
-      assert {tree, _} = Determiner.determine_actions(@ex_file_path, server_state)
-
-      assert %{entry_point: :clear_screen} = tree
-
-      expected_action_tree_keys = [
-        :clear_screen,
-        :put_mix_test_msg,
-        :mix_test,
-        :put_sarcastic_success,
-        :put_failure_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-      ActionsTreeValidator.validate(tree)
-    end
-
-    test "with some failures, returns an action to run each failure" do
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode({:fix_all_for_file, "test/x_test.exs"})
-        |> ServerStateBuilder.with_elixir_failures([
-          {"test/x_test.exs", 1},
-          {"test/x_test.exs", 2},
-          {"test/x_test.exs", 3}
-        ])
-
-      assert {tree, _} = Determiner.determine_actions(@ex_file_path, server_state)
-
-      assert %{entry_point: :clear_screen} = tree
-
-      ActionsTreeValidator.validate(tree)
+      assert {tree, ^server_state} = FixAllForFileMode.determine_actions(server_state)
 
       assert %{
                actions_tree: %{
-                 :clear_screen => %Action{
-                   next_action: {:mix_test_puts, 0},
+                 clear_screen: %Action{
+                   next_action: :mix_test_latest_line,
                    runnable: :clear_screen
                  },
-                 :put_mix_test_msg => %Action{
-                   next_action: :mix_test,
-                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs"}
+                 mix_test_all_for_file: %Action{
+                   next_action: %{
+                     0 => :put_sarcastic_success,
+                     1 => :put_mix_test_error,
+                     2 => :mix_test_latest_line,
+                     :fallback => :put_mix_test_error
+                   },
+                   runnable: {:mix_test, %MixTestArgs{path: "test/x_test.exs", max_failures: nil}}
                  },
-                 :mix_test => %Action{
-                   next_action: %{0 => :put_sarcastic_success, :fallback => :put_failure_msg},
-                   runnable: {:mix_test, "test/x_test.exs"}
+                 mix_test_latest_line: %Action{
+                   next_action: %{
+                     :fallback => :put_mix_test_error,
+                     {:cache, :miss} => :put_mix_test_all_for_file_msg,
+                     {:mix_test, :error} => :put_mix_test_error,
+                     {:mix_test, :failed} => :exit,
+                     {:mix_test, :passed} => :put_mix_test_max_failures_1_msg
+                   },
+                   runnable: {:mix_test_latest_line, "test/x_test.exs"}
                  },
-                 :put_failure_msg => %Action{
+                 put_mix_test_all_for_file_msg: %Action{
+                   next_action: :mix_test_all_for_file,
+                   runnable: {
+                     :puts,
+                     :magenta,
+                     "Running mix test test/x_test.exs --color"
+                   }
+                 },
+                 put_mix_test_error: %Action{
                    next_action: :exit,
-                   runnable:
-                     {:puts, :red,
-                      "At least one test in test/x_test.exs is busted. I'll run it exclusively until you fix it... (unless you break another one in the process)"}
+                   runnable: {
+                     :puts,
+                     :red,
+                     "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
+                   }
                  },
-                 :put_sarcastic_success => %Action{
+                 put_sarcastic_success: %Action{
                    next_action: :exit,
                    runnable: :put_sarcastic_success
                  },
-                 {:mix_test_puts, 0} => %Action{
-                   next_action: {:mix_test, 0},
-                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs:1"}
+                 mix_test_max_failures_1: %Action{
+                   runnable: {:mix_test, %MixTestArgs{path: "test/x_test.exs", max_failures: 1}},
+                   next_action: %{
+                     0 => :put_sarcastic_success,
+                     1 => :put_mix_test_error,
+                     2 => :put_insult,
+                     :fallback => :put_mix_test_error
+                   }
                  },
-                 {:mix_test, 0} => %Action{
-                   next_action: {:put_elixir_failures_count, 0},
-                   runnable: {:mix_test, "test/x_test.exs:1"}
-                 },
-                 {:put_elixir_failures_count, 0} => %Action{
-                   runnable: {:put_elixir_failures_count, "test/x_test.exs"},
-                   next_action: %{0 => {:mix_test_puts, 1}, :fallback => :put_failure_msg}
-                 },
-                 {:mix_test_puts, 1} => %Action{
-                   next_action: {:mix_test, 1},
+                 put_insult: %Action{runnable: :put_insult, next_action: :exit},
+                 put_mix_test_max_failures_1_msg: %Action{
                    runnable:
-                     {:puts, :magenta, "Running mix test test/x_test.exs --max-failures 1"}
-                 },
-                 {:mix_test, 1} => %Action{
-                   next_action: {:put_elixir_failures_count, 1},
-                   runnable: {:mix_test, "test/x_test.exs --max-failures 1"}
-                 },
-                 {:put_elixir_failures_count, 1} => %Action{
-                   runnable: {:put_elixir_failures_count, "test/x_test.exs"},
-                   next_action: %{0 => :put_mix_test_msg, :fallback => :put_failure_msg}
+                     {:puts, :magenta,
+                      "Running mix test test/x_test.exs --max-failures 1 --color"},
+                   next_action: :mix_test_max_failures_1
                  }
                },
                entry_point: :clear_screen
              } == tree
+
+      ActionsTreeValidator.validate(tree)
     end
   end
 end

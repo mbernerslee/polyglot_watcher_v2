@@ -2,12 +2,15 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
   use ExUnit.Case, async: true
   use Mimic
 
+  alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTest
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
   alias PolyglotWatcherV2.{ShellCommandRunner, ServerStateBuilder}
 
   describe "run/2" do
     test "given a test path & server state, runs the mix test command with the test path" do
       test_path = "test/path/to/file_test.exs"
+      mix_test_args = %MixTestArgs{path: test_path, max_failures: nil}
       mock_mix_test_output = mock_mix_test_output()
       exit_code = 0
 
@@ -16,17 +19,17 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
         {mock_mix_test_output, exit_code}
       end)
 
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_mix_test_output, ^exit_code ->
+        :ok
+      end)
+
       server_state = ServerStateBuilder.build()
 
-      assert {0, new_server_state} = MixTest.run(test_path, server_state)
-
-      assert server_state
-             |> put_in([:elixir, :mix_test_output], mock_mix_test_output)
-             |> put_in([:elixir, :mix_test_exit_code], exit_code) ==
-               new_server_state
+      assert {0, server_state} == MixTest.run(mix_test_args, server_state)
     end
 
     test "given :all & server state, runs all the tests" do
+      mix_test_args = %MixTestArgs{path: :all, max_failures: nil}
       mock_mix_test_output = mock_mix_test_output()
       exit_code = 0
 
@@ -35,14 +38,13 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
         {mock_mix_test_output, exit_code}
       end)
 
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_mix_test_output, ^exit_code ->
+        :ok
+      end)
+
       server_state = ServerStateBuilder.build()
 
-      assert {0, new_server_state} = MixTest.run(:all, server_state)
-
-      assert server_state
-             |> put_in([:elixir, :mix_test_output], mock_mix_test_output)
-             |> put_in([:elixir, :mix_test_exit_code], exit_code) ==
-               new_server_state
+      assert {0, server_state} == MixTest.run(mix_test_args, server_state)
     end
   end
 

@@ -4,7 +4,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
   require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, Puts, ServerStateBuilder}
-  alias PolyglotWatcherV2.Elixir.{Determiner, DefaultMode}
+  alias PolyglotWatcherV2.Elixir.{Cache, Determiner, DefaultMode}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode
   alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
   alias PolyglotWatcherV2.FileSystem.FileWrapper
@@ -43,17 +43,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :put_claude_init_msg,
-        :put_perist_files_msg,
-        :persist_lib_file,
-        :persist_test_file,
         :load_in_memory_prompt,
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
         :parse_claude_api_response,
         :put_parsed_claude_api_response,
-        :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
@@ -64,25 +59,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
       assert ActionsTreeValidator.validate(tree)
     end
 
-    test "given a lib file, puts the correct test file path" do
-      {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        DefaultMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
-
-      assert actions_tree.persist_test_file.runnable ==
-               {:persist_file, "test/cool_test.exs", :test}
-    end
-
-    test "given a test file, puts the correct lib file path" do
-      {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        DefaultMode.determine_actions(
-          %FilePath{path: "test/elixir/claude_ai_mode_test", extension: @exs},
-          @server_state_normal_mode
-        )
-
-      assert actions_tree.persist_lib_file.runnable ==
-               {:persist_file, "lib/elixir/claude_ai_mode.ex", :lib}
-    end
-
     test "given a test file, returns a valid action tree" do
       {tree, @server_state_normal_mode} =
         DefaultMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
@@ -91,17 +67,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :put_claude_init_msg,
-        :put_perist_files_msg,
-        :persist_lib_file,
-        :persist_test_file,
         :load_in_memory_prompt,
         :build_claude_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
         :parse_claude_api_response,
         :put_parsed_claude_api_response,
-        :missing_file_msg,
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
@@ -128,43 +99,35 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
 
       assert ActionsTreeValidator.validate(tree)
     end
-
-    test "given a test file, but in an invalid format, returns an error actions tree" do
-      {tree, @server_state_normal_mode} =
-        DefaultMode.determine_actions(
-          %FilePath{path: "not_test/not_cool", extension: @exs},
-          @server_state_normal_mode
-        )
-
-      expected_action_tree_keys = [
-        :clear_screen,
-        :cannot_find_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-
-      assert ActionsTreeValidator.validate(tree)
-    end
   end
 
   describe "build_api_request_from_in_memory_prompt/2" do
     test "given server_state that contains the required info to build the API call, then it is built and stored in the server_state" do
-      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
-      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
       mix_test_output = "it failed mate. get good."
       api_key = "super-secret"
       prompt = "cool prompt dude"
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_file(:lib, lib_file)
-        |> ServerStateBuilder.with_file(:test, test_file)
-        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_elixir_claude_prompt(prompt)
 
+      Mimic.expect(Cache, :get_files, fn this_test_path ->
+        assert this_test_path == "test/cool_test.exs"
+
+        {:ok,
+         %{
+           test: %{path: "test/cool_test.exs", contents: "cool test"},
+           lib: %{path: "lib/cool.ex", contents: "cool lib"},
+           mix_test_output: mix_test_output
+         }}
+      end)
+
       assert {0, new_server_state} =
-               DefaultMode.build_api_request_from_in_memory_prompt(server_state)
+               DefaultMode.build_api_request_from_in_memory_prompt(
+                 "test/cool_test.exs",
+                 server_state
+               )
 
       assert %{claude_ai: %{request: api_request}} = new_server_state
 
@@ -178,8 +141,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
     end
 
     test "prompt placeholders get populated" do
-      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
-      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
       mix_test_output = "it failed mate. get good."
       api_key = "super-secret"
 
@@ -211,15 +172,24 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         today?
       """
 
+      Mimic.expect(Cache, :get_files, fn this_test_path ->
+        assert this_test_path == "test/cool_test.exs"
+
+        {:ok,
+         %{
+           test: %{path: "test/cool_test.exs", contents: "cool test"},
+           lib: %{path: "lib/cool.ex", contents: "cool lib"},
+           mix_test_output: mix_test_output
+         }}
+      end)
+
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_file(:lib, lib_file)
-        |> ServerStateBuilder.with_file(:test, test_file)
-        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
-      {0, new_server_state} = DefaultMode.build_api_request_from_in_memory_prompt(server_state)
+      {0, new_server_state} =
+        DefaultMode.build_api_request_from_in_memory_prompt("test/cool_test.exs", server_state)
 
       %{claude_ai: %{request: api_request}} = new_server_state
 
@@ -231,8 +201,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
     end
 
     test "prompt placeholders get populated, even when there are multiple" do
-      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
-      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
       mix_test_output = "it failed mate. get good."
       api_key = "super-secret"
 
@@ -272,15 +240,24 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         today?
       """
 
+      Mimic.expect(Cache, :get_files, fn this_test_path ->
+        assert this_test_path == "test/cool_test.exs"
+
+        {:ok,
+         %{
+           test: %{path: "test/cool_test.exs", contents: "cool test"},
+           lib: %{path: "lib/cool.ex", contents: "cool lib"},
+           mix_test_output: mix_test_output
+         }}
+      end)
+
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_file(:lib, lib_file)
-        |> ServerStateBuilder.with_file(:test, test_file)
-        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
         |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
         |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
 
-      {0, new_server_state} = DefaultMode.build_api_request_from_in_memory_prompt(server_state)
+      {0, new_server_state} =
+        DefaultMode.build_api_request_from_in_memory_prompt("test/cool_test.exs", server_state)
 
       %{claude_ai: %{request: api_request}} = new_server_state
 
@@ -291,33 +268,30 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
              } = Jason.decode!(body)
     end
 
-    test "given server_state that is missing any of the required info to build the API call, then we return exit_code 1 and leave the server_state unchanged" do
-      lib_file = %{path: "lib/cool.ex", contents: "cool lib"}
-      test_file = %{path: "test/cool_test.exs", contents: "cool test"}
+    test "given server_state that is missing an ANTHROPIC_API_KEY, return error" do
       mix_test_output = "it failed mate. get good."
-      api_key = "super-secret"
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_file(:lib, lib_file)
-        |> ServerStateBuilder.with_file(:test, test_file)
-        |> ServerStateBuilder.with_mix_test_output(mix_test_output)
-        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
+        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", nil)
         |> ServerStateBuilder.with_default_claude_prompt()
 
-      assert {0, _} = DefaultMode.build_api_request_from_in_memory_prompt(server_state)
+      Mimic.expect(Cache, :get_files, fn this_test_path ->
+        assert this_test_path == "test/cool_test.exs"
 
-      bad_server_states = [
-        ServerStateBuilder.with_file(server_state, :lib, nil),
-        ServerStateBuilder.with_file(server_state, :test, nil),
-        ServerStateBuilder.with_mix_test_output(server_state, nil),
-        ServerStateBuilder.with_env_var(server_state, "ANTHROPIC_API_KEY", nil)
-      ]
-
-      Enum.each(bad_server_states, fn bad_server_state ->
-        assert {1, bad_server_state} ==
-                 DefaultMode.build_api_request_from_in_memory_prompt(bad_server_state)
+        {:ok,
+         %{
+           test: %{path: "test/cool_test.exs", contents: "cool test"},
+           lib: %{path: "lib/cool.ex", contents: "cool lib"},
+           mix_test_output: mix_test_output
+         }}
       end)
+
+      assert {1, server_state} ==
+               DefaultMode.build_api_request_from_in_memory_prompt(
+                 "test/cool_test.exs",
+                 server_state
+               )
     end
   end
 

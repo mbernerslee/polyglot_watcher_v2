@@ -8,6 +8,11 @@ defmodule PolyglotWatcherV2.FilePathTest do
                FilePath.build("lib/server.ex")
     end
 
+    test "works with legit absolute paths paths" do
+      assert {:ok, %FilePath{path: "/home/berners/src/cool/lib/server", extension: "ex"}} ==
+               FilePath.build("/home/berners/src/cool/lib/server.ex")
+    end
+
     test "ignores paths without a file extension" do
       assert :ignore == FilePath.build("lib/no_extension")
     end

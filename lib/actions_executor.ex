@@ -9,6 +9,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorFake do
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorReal do
+  require Logger
+
   alias PolyglotWatcherV2.{
     ClaudeAI,
     EnvironmentVariables,
@@ -18,20 +20,17 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ShellCommandRunner
   }
 
-  alias PolyglotWatcherV2.Elixir.{Failures, MixTest}
+  alias PolyglotWatcherV2.Elixir.{MixTest, MixTestArgs, MixTestLatest}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
 
-  @actually_clear_screen Application.compile_env(:polyglot_watcher_v2, :actually_clear_screen)
-  @log Application.compile_env(:polyglot_watcher_v2, :log_executor_commands)
-
   def execute(command, server_state) do
-    log(command)
+    Logger.debug("#{__MODULE__} running: #{inspect(command)}")
     do_execute(command, server_state)
   end
 
   defp do_execute(:clear_screen, server_state) do
-    if @actually_clear_screen do
+    if actually_clear_screen?() do
       do_execute({:run_sys_cmd, "tput", ["reset"]}, server_state)
     else
       {0, server_state}
@@ -59,12 +58,24 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {0, put_in(server_state, [language, :mode], mode)}
   end
 
-  defp do_execute({:mix_test, test_path}, server_state) do
-    MixTest.run(test_path, server_state)
+  defp do_execute(:mix_test, server_state) do
+    MixTest.run(%MixTestArgs{path: :all}, server_state)
   end
 
-  defp do_execute(:mix_test, server_state) do
-    MixTest.run(:all, server_state)
+  defp do_execute({:mix_test, %MixTestArgs{} = mix_test_args}, server_state) do
+    MixTest.run(mix_test_args, server_state)
+  end
+
+  defp do_execute(:mix_test_latest_max_failures_1, server_state) do
+    MixTestLatest.max_failures_1(server_state)
+  end
+
+  defp do_execute(:mix_test_latest_line, server_state) do
+    MixTestLatest.line(server_state)
+  end
+
+  defp do_execute({:mix_test_latest_line, test_path}, server_state) do
+    MixTestLatest.line(test_path, server_state)
   end
 
   defp do_execute({:persist_env_var, key}, server_state) do
@@ -79,12 +90,12 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAIDefaultMode.load_in_memory_prompt(server_state)
   end
 
-  defp do_execute(:build_claude_api_request_from_in_memory_prompt, server_state) do
-    ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(server_state)
+  defp do_execute({:build_claude_api_request_from_in_memory_prompt, test_path}, server_state) do
+    ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(test_path, server_state)
   end
 
-  defp do_execute(:build_claude_replace_api_request, server_state) do
-    ClaudeAIReplaceMode.RequestBuilder.build(server_state)
+  defp do_execute({:build_claude_replace_api_request, test_path}, server_state) do
+    ClaudeAIReplaceMode.RequestBuilder.build(test_path, server_state)
   end
 
   defp do_execute(:build_claude_replace_blocks, server_state) do
@@ -137,15 +148,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {0, server_state}
   end
 
-  defp do_execute({:put_elixir_failures_count, all_or_filename}, server_state) do
-    server_state.elixir.failures
-    |> Failures.count(all_or_filename)
-    |> Failures.count_message()
-    |> Puts.on_new_line()
-
-    {server_state.elixir.mix_test_exit_code, server_state}
-  end
-
   defp do_execute(unknown, server_state) do
     Puts.on_new_line(
       "Unknown runnable action given to ActionsExecutor. It was #{inspect(unknown)}, can't do it",
@@ -175,21 +177,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ]
   end
 
-  defp log(message) do
-    if @log do
-      do_log(message)
-    else
-      message
-    end
-  end
-
-  defp do_log(message) when is_binary(message) do
-    Puts.on_new_line(message, :yellow)
-    message
-  end
-
-  defp do_log(message) do
-    message |> inspect() |> do_log()
-    message
+  defp actually_clear_screen? do
+    Application.get_env(:polyglot_watcher_v2, :actually_clear_screen) |> IO.inspect()
   end
 end

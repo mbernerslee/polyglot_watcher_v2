@@ -6,7 +6,7 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     %{
       port: nil,
       ignore_file_changes: false,
-      elixir: %{mode: :default, failures: []},
+      elixir: %{mode: :default},
       claude_ai: %{},
       rust: %{mode: :default},
       os: :linux,
@@ -23,20 +23,12 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:elixir, :mode], mode)
   end
 
-  def with_elixir_failures(server_state, failures) do
-    put_in(server_state, [:elixir, :failures], failures)
-  end
-
   def with_claude_ai_response(server_state, response) do
     put_in(server_state, [:claude_ai, :response], response)
   end
 
   def with_claude_ai_request(server_state, request) do
     put_in(server_state, [:claude_ai, :request], request)
-  end
-
-  def with_mix_test_output(server_state, mix_test_output) do
-    put_in(server_state, [:elixir, :mix_test_output], mix_test_output)
   end
 
   def with_rust_mode(server_state, mode) do

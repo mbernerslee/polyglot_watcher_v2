@@ -15,6 +15,33 @@ defmodule PolyglotWatcherV2.Elixir.EquivalentPath do
     {:ok, lib_path}
   end
 
+  def determine(%FilePath{path: path, extension: @ex}) do
+    case Regex.run(~r|^(.*)\/lib\/(.*)$|, path) do
+      [_, prefix, suffix] ->
+        {:ok, "#{prefix}/test/#{suffix}_test.#{@exs}"}
+
+      _ ->
+        :error
+    end
+  end
+
+  def determine(%FilePath{path: path, extension: @exs}) do
+    case Regex.run(~r|^(.*)\/test\/(.*)_test$|, path) do
+      [_, prefix, suffix] ->
+        {:ok, "#{prefix}/lib/#{suffix}.#{@ex}"}
+
+      _ ->
+        :error
+    end
+  end
+
+  def determine(path) when is_binary(path) do
+    case FilePath.build(path) do
+      {:ok, path} -> determine(path)
+      _ -> :error
+    end
+  end
+
   def determine(_) do
     :error
   end

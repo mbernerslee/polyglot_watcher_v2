@@ -11,7 +11,16 @@ defmodule PolyglotWatcherV2.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [main_module: PolyglotWatcherV2, name: escript_name(Mix.env())]
+      escript: [
+        main_module: PolyglotWatcherV2,
+        name: escript_name(Mix.env())
+      ]
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:ex_unit, :logger]
     ]
   end
 

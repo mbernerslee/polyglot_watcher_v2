@@ -41,41 +41,18 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :persist_lib_file,
-        :persist_test_file,
         :build_claude_replace_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
         :parse_claude_response,
         :build_replace_blocks,
         :build_replace_actions,
-        :missing_file_msg,
-        :put_success_msg,
-        :put_failure_msg
+        :put_success_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
 
       assert ActionsTreeValidator.validate(tree)
-    end
-
-    test "given a lib file, puts the correct test file path" do
-      {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        ReplaceMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
-
-      assert actions_tree.persist_test_file.runnable ==
-               {:persist_file, "test/cool_test.exs", :test}
-    end
-
-    test "given a test file, puts the correct lib file path" do
-      {%{actions_tree: actions_tree}, @server_state_normal_mode} =
-        ReplaceMode.determine_actions(
-          %FilePath{path: "test/elixir/claude_ai_mode_test", extension: @exs},
-          @server_state_normal_mode
-        )
-
-      assert actions_tree.persist_lib_file.runnable ==
-               {:persist_file, "lib/elixir/claude_ai_mode.ex", :lib}
     end
 
     test "given a test file, returns a valid action tree" do
@@ -86,17 +63,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :persist_lib_file,
-        :persist_test_file,
         :build_claude_replace_api_request,
         :put_calling_claude_msg,
         :perform_claude_api_request,
         :parse_claude_response,
         :build_replace_blocks,
         :build_replace_actions,
-        :missing_file_msg,
-        :put_success_msg,
-        :put_failure_msg
+        :put_success_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -108,23 +81,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
       {tree, @server_state_normal_mode} =
         ReplaceMode.determine_actions(
           %FilePath{path: "not_lib/not_cool", extension: @ex},
-          @server_state_normal_mode
-        )
-
-      expected_action_tree_keys = [
-        :clear_screen,
-        :cannot_find_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-
-      assert ActionsTreeValidator.validate(tree)
-    end
-
-    test "given a test file, but in an invalid format, returns an error actions tree" do
-      {tree, @server_state_normal_mode} =
-        ReplaceMode.determine_actions(
-          %FilePath{path: "not_test/not_cool", extension: @exs},
           @server_state_normal_mode
         )
 
