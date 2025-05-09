@@ -6,7 +6,7 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     %{
       port: nil,
       ignore_file_changes: false,
-      elixir: %{mode: :default, failures: []},
+      elixir: %{mode: :default},
       claude_ai: %{},
       rust: %{mode: :default},
       os: :linux,

@@ -1,6 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
   alias PolyglotWatcherV2.{Action, ClaudeAI, EnvironmentVariables, FilePath, FileSystem, Puts}
-  alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
+  alias PolyglotWatcherV2.Elixir.{Cache, Determiner, EquivalentPath, MixTestArgs}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -41,14 +41,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
 
   def determine_actions(%FilePath{extension: @exs} = test_path, server_state) do
     test_path_string = FilePath.stringify(test_path)
-
-    case EquivalentPath.determine(test_path) do
-      {:ok, lib_path} ->
-        determine_actions(lib_path, test_path_string, server_state)
-
-      :error ->
-        {cannot_determine_lib_path_from_test_path(test_path_string), server_state}
-    end
+    do_determine_actions(test_path_string, server_state)
   end
 
   def determine_actions(%FilePath{extension: @ex} = lib_path, server_state) do
@@ -56,14 +49,14 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
 
     case EquivalentPath.determine(lib_path) do
       {:ok, test_path} ->
-        determine_actions(lib_path_string, test_path, server_state)
+        do_determine_actions(test_path, server_state)
 
       :error ->
         {cannot_determine_test_path_from_lib_path(lib_path_string), server_state}
     end
   end
 
-  defp determine_actions(lib_path, test_path, server_state) do
+  defp do_determine_actions(test_path, server_state) do
     mix_test_args = %MixTestArgs{path: test_path}
     mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
 
@@ -80,26 +73,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
-           next_action: %{0 => :put_success_msg, :fallback => :put_claude_init_msg}
-         },
-         put_claude_init_msg: %Action{
-           runnable: {:puts, :magenta, "Doing some Claude setup..."},
-           next_action: :put_perist_files_msg
-         },
-         put_perist_files_msg: %Action{
-           runnable: {:puts, :magenta, "Saving the lib & test files to memory..."},
-           next_action: :persist_lib_file
-         },
-         persist_lib_file: %Action{
-           runnable: {:persist_file, lib_path, :lib},
-           next_action: %{0 => :persist_test_file, :fallback => :missing_file_msg}
-         },
-         persist_test_file: %Action{
-           runnable: {:persist_file, test_path, :test},
-           next_action: %{
-             0 => :load_in_memory_prompt,
-             :fallback => :missing_file_msg
-           }
+           next_action: %{0 => :put_success_msg, :fallback => :load_in_memory_prompt}
          },
          load_in_memory_prompt: %Action{
            runnable: :load_in_memory_prompt,
@@ -109,7 +83,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
            }
          },
          build_claude_api_request: %Action{
-           runnable: :build_claude_api_request_from_in_memory_prompt,
+           runnable: {:build_claude_api_request_from_in_memory_prompt, test_path},
            next_action: %{
              0 => :put_calling_claude_msg,
              :fallback => :fallback_placeholder_error
@@ -137,20 +111,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
            next_action: %{
              :fallback => :exit
            }
-         },
-         missing_file_msg: %Action{
-           runnable:
-             {:puts, :red,
-              """
-              You saved one of these, but the other doesn't exist:
-
-                #{lib_path}
-                #{test_path}
-
-              So you're beyond this particular Claude integrations help until both exist.
-              Create the missing one please!
-              """},
-           next_action: :put_failure_msg
          },
          fallback_placeholder_error: %Action{
            runnable:
@@ -262,18 +222,21 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
   defp and_then(error, _key, _fun), do: error
 
   def build_api_request_from_in_memory_prompt(
-        %{
-          files: %{lib: lib, test: test},
-          elixir: %{mix_test_output: mix_test_output, claude_prompt: prompt}
-        } = server_state
-      )
-      when not is_nil(mix_test_output) and not is_nil(lib) and not is_nil(test) do
-    messages = [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
+        test_path,
+        %{elixir: %{claude_prompt: prompt}} = server_state
+      ) do
+    case Cache.get_files(test_path) do
+      {:ok, %{test: test, lib: lib, mix_test_output: mix_test_output}} ->
+        messages = [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
 
-    ClaudeAI.build_api_request(server_state, messages)
+        ClaudeAI.build_api_request(server_state, messages)
+
+      _ ->
+        {1, server_state}
+    end
   end
 
-  def build_api_request_from_in_memory_prompt(server_state) do
+  def build_api_request_from_in_memory_prompt(_test_path, server_state) do
     {1, server_state}
   end
 
@@ -301,31 +264,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
              You saved this file, but I can't work out what I should try and run:
 
                #{lib_path}
-
-             Hmmmmm...
-
-             """},
-          next_action: :exit
-        }
-      }
-    }
-  end
-
-  defp cannot_determine_lib_path_from_test_path(test_path) do
-    %{
-      entry_point: :clear_screen,
-      actions_tree: %{
-        clear_screen: %Action{
-          runnable: :clear_screen,
-          next_action: :cannot_find_msg
-        },
-        cannot_find_msg: %Action{
-          runnable:
-            {:puts, :magenta,
-             """
-             You saved this test file, but I can't figure out what it's equivalent lib file is
-
-               #{test_path}
 
              Hmmmmm...
 

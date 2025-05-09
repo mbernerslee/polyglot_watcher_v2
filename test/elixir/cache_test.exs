@@ -160,7 +160,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
-  describe "get/2 - with latest" do
+  describe "get_test_failure/2 - with latest" do
     test "retuns the failing test with the lowest (latest) rank" do
       assert {:ok, pid} = Cache.start_link([])
 
@@ -212,6 +212,57 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
 
       assert {:error, :not_found} == Cache.get_test_failure(pid, :latest)
+    end
+  end
+
+  describe "get_files/2" do
+    test "returns the test and lib files for a given test path" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [6, 7, 8],
+          lib_path: "lib/cool.ex",
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
+
+      assert {:ok,
+              %{
+                test: %{path: "test/cool_test.exs", contents: _},
+                lib: %{path: "lib/cool.ex", contents: _},
+                mix_test_output: "tests failed sadly"
+              }} =
+               Cache.get_files(pid, "test/cool_test.exs")
+    end
+
+    test "when the cache exists but is incomplete, return error" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      cache_items = %{
+        "test/cool_test.exs" => %CacheItem{
+          test_path: "test/cool_test.exs",
+          failed_line_numbers: [6, 7, 8],
+          # can be nil, so cache incomplete
+          lib_path: nil,
+          mix_test_output: "tests failed sadly",
+          rank: 1
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
+
+      assert {:error, :cache_incomplete} == Cache.get_files(pid, "test/cool_test.exs")
+    end
+
+    test "returns error when the test path is not found in the cache" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      assert {:error, :not_found} == Cache.get_files(pid, "test/nonexistent_test.exs")
     end
   end
 

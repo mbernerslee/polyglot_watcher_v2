@@ -45,6 +45,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, {:get_test_failure, test_path})
   end
 
+  def get_files(pid \\ @process_name, test_path) do
+    GenServer.call(pid, {:get_files, test_path})
+  end
+
   # Callbacks
 
   @impl GenServer
@@ -78,6 +82,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @impl GenServer
   def handle_call({:get_test_failure, test_path}, _from, state) do
     {:reply, Get.test_failure(test_path, state.cache_items), state}
+  end
+
+  @impl GenServer
+  def handle_call({:get_files, test_path}, _from, state) do
+    {:reply, Get.files(test_path, state.cache_items), state}
   end
 
   # Private
