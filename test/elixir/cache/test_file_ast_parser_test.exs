@@ -40,13 +40,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParserTest do
       end
       """
 
-      expected = %{
-        :"test group 1 test 1" => 5,
-        :"test group 1 test 2" => 9,
-        :"test group 2 test 3" => 15
-      }
-
-      assert expected == TestFileASTParser.run(code)
+      assert %{
+               :"test group 1 test 1" => 5,
+               :"test group 1 test 2" => 9,
+               :"test group 2 test 3" => 15
+             } == TestFileASTParser.run(code)
     end
 
     test "module with setup and test using context" do
@@ -86,12 +84,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParserTest do
       end
       """
 
-      expected = %{
-        :"test first module test" => 4,
-        :"test second module test" => 12
-      }
-
-      assert expected == TestFileASTParser.run(code)
+      assert %{
+               :"test first module test" => 4,
+               :"test second module test" => 12
+             } == TestFileASTParser.run(code)
     end
 
     test "module with various test definitions" do
@@ -113,13 +109,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParserTest do
       end
       """
 
-      expected = %{
-        :"test simple test" => 4,
-        :"test tagged test" => 9,
-        :"test test with options" => 11
-      }
-
-      assert expected == TestFileASTParser.run(code)
+      assert %{
+               :"test simple test" => 4,
+               :"test tagged test" => 9,
+               :"test test with options" => 11
+             } == TestFileASTParser.run(code)
     end
 
     test "handles invalid Elixir code gracefully" do

@@ -3,7 +3,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParser do
   This is wild stuff.
   ClaudeAI wrote this code.
   Credit to any humans who could write AST parsing code.
-  I'm not one of them
+  I'm not one of them.
+  Read the tests to get a better idea of what this is doing
   """
 
   def run(string) do
