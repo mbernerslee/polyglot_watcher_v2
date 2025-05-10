@@ -24,7 +24,6 @@ defmodule PolyglotWatcherV2.FileSystem.FileWrapper do
     else
       PolyglotWatcherV2.FileSystem.FileWrapper.Fake
     end
-    |> IO.inspect()
   end
 end
 

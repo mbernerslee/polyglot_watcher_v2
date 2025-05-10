@@ -5,10 +5,59 @@ defmodule PolyglotWatcherV2.GitDiffTest do
   alias PolyglotWatcherV2.{GitDiff, Puts, ServerStateBuilder, SystemCall}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
-  describe "run/4" do
-    test "given a file path, search and replacement texts and server_state, puts a git diff onto the screen" do
-      file_path = "lib/cool.ex"
+  describe "run/3" do
+    test "similarly to run/4, but accepts a list of search/replace strings instead" do
+      old_contents = """
+      defmodule Test do
+        def hello, do: "world"
+        def goodbye, do: "farewell"
+      end
+      """
 
+      search_replace_list = [
+        %{
+          search: "def hello, do: \"world\"",
+          replace: "def hello, do: \"universe\""
+        },
+        %{
+          search: "def goodbye, do: \"farewell\"",
+          replace: "def goodbye, do: \"see you later\""
+        }
+      ]
+
+      server_state = ServerStateBuilder.build()
+
+      Mimic.expect(FileWrapper, :write, 1, fn _, _ -> :ok end)
+
+      Mimic.expect(SystemCall, :cmd, 1, fn _, _ ->
+        {
+          """
+          diff --git a/old b/new
+          index 1234567..abcdefg 100644
+          --- a/old
+          +++ b/new
+          @@ -1,4 +1,4 @@
+           defmodule Test do
+          -  def hello, do: "world"
+          -  def goodbye, do: "farewell"
+          +  def hello, do: "universe"
+          +  def goodbye, do: "see you later"
+           end
+          """,
+          1
+        }
+      end)
+
+      Mimic.expect(Puts, :on_new_line_unstyled, 1, fn _ -> :ok end)
+
+      mimic_expect_files_rm_rf()
+
+      assert {0, ^server_state} = GitDiff.run(old_contents, search_replace_list, server_state)
+    end
+  end
+
+  describe "run/4" do
+    test "given some file contents, search and replacement texts and server_state, puts a git diff onto the screen" do
       search = """
         defmodule Cool do
           def cool(text) do
@@ -26,11 +75,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       """
 
       server_state = ServerStateBuilder.build()
-
-      Mimic.expect(FileWrapper, :read, fn this_path ->
-        assert file_path == this_path
-        {:ok, search}
-      end)
 
       Mimic.expect(FileWrapper, :write, fn old_path, content ->
         assert old_path == "/tmp/polyglot_watcher_v2_old"
@@ -93,12 +137,10 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       mimic_expect_files_rm_rf()
 
-      assert {0, server_state} == GitDiff.run(file_path, search, replace, server_state)
+      assert {0, server_state} == GitDiff.run(search, search, replace, server_state)
     end
 
     test "when we're not searching for the entire file, we produce the diff we expect" do
-      file_path = "lib/cool.ex"
-
       old_file_contents =
         """
         defmodule PolyglotWatcherV2.Determine do
@@ -165,11 +207,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(FileWrapper, :read, fn this_path ->
-        assert file_path == this_path
-        {:ok, old_file_contents}
-      end)
-
       Mimic.expect(FileWrapper, :write, fn old_path, content ->
         assert old_path == "/tmp/polyglot_watcher_v2_old"
         assert content == old_file_contents
@@ -220,12 +257,11 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       mimic_expect_files_rm_rf()
 
-      assert {0, _new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {0, _new_server_state} =
+               GitDiff.run(old_file_contents, search, replace, server_state)
     end
 
     test "if writing the 'old' file fails, return an error" do
-      file_path = "lib/cool.ex"
-
       search = """
         defmodule Cool do
           def cool(text) do
@@ -244,10 +280,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(FileWrapper, :read, fn _ ->
-        {:ok, search}
-      end)
-
       Mimic.expect(FileWrapper, :write, fn _path, _content ->
         {:error, :eacces}
       end)
@@ -258,7 +290,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       mimic_expect_files_rm_rf()
 
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {1, new_server_state} = GitDiff.run(search, search, replace, server_state)
 
       expected_error =
         """
@@ -274,8 +306,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
     end
 
     test "if writing the 'new' file fails, return an error" do
-      file_path = "lib/cool.ex"
-
       search = """
         defmodule Cool do
           def cool(text) do
@@ -283,8 +313,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           end
         end
       """
-
-      file_contents = search
 
       replace = """
         defmodule Cool do
@@ -295,10 +323,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       """
 
       server_state = ServerStateBuilder.build()
-
-      Mimic.expect(FileWrapper, :read, fn _ ->
-        {:ok, file_contents}
-      end)
 
       Mimic.expect(FileWrapper, :write, fn _path, _content ->
         :ok
@@ -313,7 +337,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       mimic_expect_files_rm_rf()
 
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {1, new_server_state} = GitDiff.run(search, search, replace, server_state)
 
       expected_error =
         """
@@ -328,59 +352,11 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       assert Map.put(server_state, :action_error, expected_error) == new_server_state
     end
 
-    test "if reading the file path fails, return an error" do
-      file_path = "lib/cool.ex"
-
-      search = """
-        defmodule Cool do
-          def cool(text) do
-            text
-          end
-        end
-      """
-
-      replace = """
-        defmodule Cool do
-          def cool(text) do
-            "cool " <> text
-          end
-        end
-      """
-
-      server_state = ServerStateBuilder.build()
-
-      Mimic.expect(FileWrapper, :read, fn _ ->
-        {:error, :enoent}
-      end)
-
-      Mimic.reject(&FileWrapper.write/2)
-      Mimic.reject(&SystemCall.cmd/2)
-      Mimic.reject(&Puts.on_new_line_unstyled/1)
-
-      mimic_expect_files_rm_rf()
-
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
-
-      expected_error =
-        """
-        I failed to read a file that I was previously lead to believe exists.
-        It was lib/cool.ex.
-
-        The error was {:error, :enoent}.
-
-        This is terminal to the Claude AI operation I'm afraid so I'm giving up.
-        """
-
-      assert Map.put(server_state, :action_error, expected_error) == new_server_state
-    end
-
     test "if the git diff returns some error output, then put an action error into the state" do
-      file_path = "lib/cool.ex"
       search = "old content"
       replace = "new content"
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(FileWrapper, :read, fn _ -> {:ok, search} end)
       Mimic.expect(FileWrapper, :write, fn _, _ -> :ok end)
       Mimic.expect(FileWrapper, :write, fn _, _ -> :ok end)
 
@@ -392,7 +368,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       mimic_expect_files_rm_rf()
 
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {1, new_server_state} = GitDiff.run(search, search, replace, server_state)
 
       expected_error =
         """
@@ -409,8 +385,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
     end
 
     test "if the read file contents does not contain the search text, then return error" do
-      file_path = "lib/cool.ex"
-
       old_file_contents =
         """
         defmodule PolyglotWatcherV2.Determine do
@@ -433,31 +407,24 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(FileWrapper, :read, fn this_path ->
-        assert file_path == this_path
-        {:ok, old_file_contents}
-      end)
-
       Mimic.reject(&FileWrapper.write/2)
       Mimic.reject(&SystemCall.cmd/2)
       Mimic.reject(&Puts.on_new_line_unstyled/1)
 
       mimic_expect_files_rm_rf()
 
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {1, new_server_state} = GitDiff.run(old_file_contents, search, replace, server_state)
 
       expected_error =
         """
-        Claude tried to find some existing code and replace it with some code it thought was better,
-        but the code it tried to search for didn't exist in lib/cool.ex.
+        I tried to find some existing code and replace it with some that might be better,
+        but the code it tried to search for didn't exist.
         """
 
       assert Map.get(new_server_state, :action_error) =~ expected_error
     end
 
     test "if the read file contents contains the search text twice, then return error" do
-      file_path = "lib/cool.ex"
-
       old_file_contents =
         """
         defmodule PolyglotWatcherV2.Determine do
@@ -481,18 +448,13 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       server_state = ServerStateBuilder.build()
 
-      Mimic.expect(FileWrapper, :read, fn this_path ->
-        assert file_path == this_path
-        {:ok, old_file_contents}
-      end)
-
       Mimic.reject(&FileWrapper.write/2)
       Mimic.reject(&SystemCall.cmd/2)
       Mimic.reject(&Puts.on_new_line_unstyled/1)
 
       mimic_expect_files_rm_rf()
 
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {1, new_server_state} = GitDiff.run(old_file_contents, search, replace, server_state)
 
       expected_error =
         """
@@ -504,8 +466,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
     end
 
     test "when the git diff is not in a format that we can parse, return an error" do
-      file_path = "lib/cool.ex"
-
       search = """
         defmodule Cool do
           def cool(text) do
@@ -523,11 +483,6 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       """
 
       server_state = ServerStateBuilder.build()
-
-      Mimic.expect(FileWrapper, :read, fn this_path ->
-        assert file_path == this_path
-        {:ok, search}
-      end)
 
       Mimic.expect(FileWrapper, :write, fn old_path, content ->
         assert old_path == "/tmp/polyglot_watcher_v2_old"
@@ -564,7 +519,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       mimic_expect_files_rm_rf()
 
-      assert {1, new_server_state} = GitDiff.run(file_path, search, replace, server_state)
+      assert {1, new_server_state} = GitDiff.run(search, search, replace, server_state)
 
       assert new_server_state.action_error =~ "I failed"
     end
