@@ -110,6 +110,14 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAI.perform_api_call(server_state)
   end
 
+  defp do_execute({:perform_claude_replace_api_call, test_path}, server_state) do
+    ClaudeAIReplaceMode.APICall.perform(server_state)
+  end
+
+  defp do_execute(:claude_replace_prepare_file_updates, server_state) do
+    ClaudeAIReplaceMode.PrepareFileUpdates.run(server_state)
+  end
+
   defp do_execute(:parse_claude_api_response, server_state) do
     ClaudeAI.parse_claude_api_response(server_state)
   end

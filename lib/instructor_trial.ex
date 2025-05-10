@@ -4,10 +4,10 @@ defmodule PolyglotWatcherV2.CodeFileUpdate do
 
   @primary_key false
   embedded_schema do
-    field(:file_path, :string)
-    field(:explanation, :string)
-    field(:search, :string)
-    field(:replace, :string)
+    field :file_path, :string
+    field :explanation, :string
+    field :search, :string
+    field :replace, :string
   end
 end
 
