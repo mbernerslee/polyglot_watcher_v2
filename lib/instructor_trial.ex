@@ -200,7 +200,7 @@ defmodule InstructorTrial do
   def check do
     {:ok, %{updates: [update]}} = response()
 
-    %{file_path: file_path, explanation: _explanation, search: search, replace: replace} = update
+    %{file_path: file_path, explanation: _explanation, search: search, replace: _replace} = update
 
     %{path: path, contents: contents} = lib_file()
 
@@ -209,8 +209,8 @@ defmodule InstructorTrial do
     String.contains?(contents, search)
     |> IO.inspect()
 
-    PolyglotWatcherV2.GitDiff.run(file_path, search, replace, %{})
-    |> IO.inspect()
+    # PolyglotWatcherV2.GitDiff.run(file_path, search, replace, %{})
+    # |> IO.inspect()
 
     # the response it actually gave fixed the tests with the search / replace
   end

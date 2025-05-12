@@ -4,6 +4,35 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
 
   @ex Determiner.ex()
   @exs Determiner.exs()
+  @yes "y"
+  @no "n"
+
+  def user_input_actions(
+        @yes,
+        %{
+          elixir: %{mode: :claude_ai_replace},
+          claude_ai: %{phase: :waiting, file_updates: file_updates}
+        } = server_state
+      ) do
+    {%{
+       entry_point: :put_patching_files_msg,
+       actions_tree: %{
+         put_patching_files_msg: %Action{
+           runnable: {:puts, :magenta, "Writing file changes..."},
+           next_action: :patch_files
+         },
+         patch_files: %Action{
+           runnable: {:patch_files, file_updates},
+           next_action: :exit
+         }
+       }
+     }, server_state}
+  end
+
+  def user_input_actions(_, server_state) do
+    IO.inspect("SADD!")
+    false
+  end
 
   def switch(server_state) do
     {%{
@@ -73,16 +102,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
-           next_action: %{0 => :put_success_msg, :fallback => :perform_api_call}
+           next_action: %{0 => :put_success_msg, :fallback => :put_calling_claude_msg}
+         },
+         put_calling_claude_msg: %Action{
+           runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
+           next_action: :perform_api_call
          },
          perform_api_call: %Action{
            runnable: {:perform_claude_replace_api_call, test_path},
-           next_action: %{0 => :prepare_file_updates, :fallback => :exit}
+           next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
          },
-         prepare_file_updates: %Action{
-           runnable: :claude_replace_prepare_file_updates,
+         put_awaiting_input_msg: %Action{
+           runnable: {:puts, :magenta, "Accept file changes (y/n)?"},
            next_action: :exit
-         }
+         },
          # build_claude_replace_api_request: %Action{
          #  runnable: {:build_claude_replace_api_request, test_path},
          #  next_action: :put_calling_claude_msg
@@ -107,7 +140,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          #  runnable: :build_claude_replace_actions,
          #  next_action: :execute_stored_actions
          # },
-         # put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}
+         put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}
        }
      }, server_state}
   end

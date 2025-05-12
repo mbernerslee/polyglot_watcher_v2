@@ -2,40 +2,126 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
   alias PolyglotWatcherV2.InstructorLiteWrapper
+  alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
 
+  # TODO split up the cache retieval & file fetching? it sounds like we store file contents in the cache when we don't...
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
-    with {:ok, %{test: test, lib: lib, mix_test_output: mix_test_output}} <-
-           get_files_from_cache(test_path),
-         prompt <- hydrate_prompt(lib, test, mix_test_output),
-         instruct_result <- instruct(prompt, api_key),
-         {:ok, updates} <- group_updates_by_file(instruct_result, test, lib),
-         action_instruct_result(updates, test, lib, mix_test_output, server_state) do
+    with {:ok, files} <- get_files_from_cache(test_path),
+         prompt <- hydrate_prompt(files),
+         {:ok, instruct_result} <- instruct(prompt, api_key),
+         lib_test_to_path <- lib_test_to_path(files),
+         {:ok, updates} <- group_updates_by_file(instruct_result, files),
+         {:ok, git_diffs} <- git_diff(updates, files),
+         :ok <- put_diffs_with_explanations(git_diffs, updates, lib_test_to_path) do
+      update_server_state(updates, files, server_state)
     else
-      {:error, :cache_miss} -> {1, server_state}
-      {:error, :invalid_file_path} -> {1, server_state}
+      {:error, :cache_miss} ->
+        action_error = "I failed because my cache did not contain the file #{test_path} :-("
+        {1, %{server_state | action_error: action_error}}
+
+      {:error, {:instructor_lite, :invalid_file_path}} ->
+        action_error = "InstructorLite: suggested we update some other file"
+        {1, %{server_state | action_error: action_error}}
+
+      {:error, {:instructor_lite, :no_changes_suggested}} ->
+        action_error = "InstructorLite: suggested no changes"
+        {1, %{server_state | action_error: action_error}}
+
+      {:error, {:instructor_lite, error}} ->
+        action_error = "Error from InstructorLite: #{inspect(error)}"
+        {1, %{server_state | action_error: action_error}}
+
+      {:error, {:git_diff, error}} ->
+        action_error = "Git Diff error: #{inspect(error)}"
+        {1, %{server_state | action_error: action_error}}
+
+      {:error, :git_diff} ->
+        {1, server_state}
     end
   end
 
-  defp group_updates_by_file({:ok, %CodeFileUpdates{updates: [_ | _] = updates}}, test, lib) do
+  defp lib_test_to_path(files) do
+    %{
+      lib: %{path: lib_path},
+      test: %{path: test_path}
+    } = files
+
+    %{lib: lib_path, test: test_path}
+  end
+
+  defp git_diff(updates, files) do
+    updates
+    |> Map.new(fn {lib_or_test, file_updates} ->
+      %{contents: contents} = Map.fetch!(files, lib_or_test)
+
+      {lib_or_test, %{contents: contents, search_replace: file_updates}}
+    end)
+    |> GitDiff.run()
+    |> case do
+      {:ok, res} -> {:ok, res}
+      {:error, error} -> {:error, {:git_diff, error}}
+    end
+  end
+
+  defp put_diffs_with_explanations(git_diffs, updates, lib_test_to_path) do
+    Puts.on_new_line([
+      {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
+      {[:magenta], "████████████████ Claude Response ████████████████\n"},
+      {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
+    ])
+
+    Enum.each(updates, fn {lib_or_test, path_updates} ->
+      path = Map.fetch!(lib_test_to_path, lib_or_test)
+      git_diff = Map.fetch!(git_diffs, lib_or_test)
+
+      explanations =
+        path_updates
+        |> Enum.map(& &1.explanation)
+        |> Enum.join("\n")
+
+      Puts.on_new_line([
+        {[], path <> "\n"},
+        {[], git_diff},
+        {[], explanations},
+        {[], "\n────────────────────────\n"}
+      ])
+    end)
+
+    Puts.on_new_line([
+      {[:magenta], "█████████████████████████████████████████████████\n"}
+    ])
+  end
+
+  defp group_updates_by_file(%CodeFileUpdates{updates: []}, _) do
+    {:error, {:instructor_lite, :no_changes_suggested}}
+  end
+
+  defp group_updates_by_file(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
     updates
     |> Enum.reduce_while({:ok, %{}}, fn update, {:ok, acc} ->
       %CodeFileUpdate{
         file_path: file_path,
-        explanation: _explanation,
+        explanation: explanation,
         search: search,
         replace: replace
       } = update
 
       cond do
-        file_path == lib.path -> {:ok, :lib}
-        file_path == test.path -> {:ok, :test}
-        true -> {:error, :invalid_file_path}
+        file_path == lib.path -> {:ok, :lib, lib.path}
+        file_path == test.path -> {:ok, :test, test.path}
+        true -> {:error, {:instructor_lite, :invalid_file_path}}
       end
       |> case do
-        {:ok, path} ->
-          single_update = %{search: search, replace: replace}
-          {:cont, {:ok, Map.update(acc, path, [single_update], &[single_update | &1])}}
+        {:ok, lib_or_test, path} ->
+          single_update = %{
+            search: search,
+            replace: replace,
+            explanation: explanation,
+            path: path
+          }
+
+          {:cont, {:ok, Map.update(acc, lib_or_test, [single_update], &[single_update | &1])}}
 
         error ->
           {:halt, error}
@@ -50,21 +136,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  defp action_instruct_result(
-         updates,
-         test,
-         lib,
-         mix_test_output,
-         server_state
-       ) do
-    IO.inspect(updates)
-    raise "no"
+  defp update_server_state(updates, %{test: test, lib: lib} = files, server_state) do
+    updates =
+      Map.new(updates, fn {lib_or_test, file_updates} ->
+        %{path: path} = Map.fetch!(files, lib_or_test)
+        {path, file_updates}
+      end)
 
     server_state =
       server_state
-      |> put_in([:files, :test], test)
-      |> put_in([:files, :lib], lib)
+      |> put_in([:files, test.path], test.contents)
+      |> put_in([:files, lib.path], lib.contents)
       |> put_in([:claude_ai, :file_updates], updates)
+      |> put_in([:claude_ai, :phase], :waiting)
+      |> Map.replace!(:ignore_file_changes, true)
 
     {0, server_state}
   end
@@ -76,9 +161,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       adapter: InstructorLite.Adapters.Anthropic,
       adapter_context: [api_key: api_key]
     )
+    |> case do
+      {:ok, result} -> {:ok, result}
+      {:error, error} -> {:error, {:instructor_lite, error}}
+    end
   end
 
-  defp hydrate_prompt(lib, test, mix_test_output) do
+  defp hydrate_prompt(%{test: test, lib: lib, mix_test_output: mix_test_output}) do
     prompt()
     |> String.replace("$LIB_PATH_PLACEHOLDER", lib.path)
     |> String.replace("$LIB_CONTENT_PLACEHOLDER", lib.contents)

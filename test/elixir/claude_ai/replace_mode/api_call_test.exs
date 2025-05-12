@@ -4,20 +4,18 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
   alias PolyglotWatcherV2.ServerStateBuilder
   alias PolyglotWatcherV2.SystemCall
   alias PolyglotWatcherV2.Puts
-  alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
 
-  #TODO continue here
   describe "perform/2" do
     test "given a test path that's in the cache & an ANTHROPIC_API_KEY in the server_state, we fire the API call with InstructorLite with the expected args" do
       api_key = "secret API key"
       test_path = "test/a_test.exs"
-      test_contents = "test contents"
+      test_contents = "test contents OLD TEST"
       lib_path = "lib/a.ex"
-      lib_contents = "lib contents CHANGE_ME"
+      lib_contents = "lib contents OLD LIB"
       mix_test_output = "mix test output"
 
       test_file = %{path: test_path, contents: test_contents}
@@ -40,9 +38,249 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
            updates: [
              %CodeFileUpdate{
                file_path: lib_path,
-               explanation: "some code was awful",
-               search: "CHANGE_ME",
-               replace: "ALL_BETTER_NOW"
+               explanation: "some lib code was awful",
+               search: "OLD LIB",
+               replace: "NEW LIB"
+             },
+             %CodeFileUpdate{
+               file_path: test_path,
+               explanation: "some test code was awful",
+               search: "OLD TEST",
+               replace: "NEW TEST"
+             }
+           ]
+         }}
+      end)
+
+      Mimic.expect(SystemCall, :cmd, 1, fn "git", _ ->
+        std_out =
+          """
+          diff --git a/x_test_old b/x_test_new
+          index 5bc7af9..bd4fc95 100644
+          --- a/x_test_old
+          +++ b/x_test_new
+          @@ -1 +1 @@
+          -test contents OLD TEST
+          +test contents NEW TEST
+          """
+
+        {std_out, 1}
+      end)
+
+      Mimic.expect(SystemCall, :cmd, 1, fn "git", _ ->
+        std_out =
+          """
+          diff --git a/x_lib_old b/x_lib_new
+          index 102dcaf..818aacb 100644
+          --- a/x_lib_old
+          +++ b/x_lib_new
+          @@ -1 +1 @@
+          -lib contents OLD LIB
+          +lib contents NEW LIB
+          """
+
+        {std_out, 1}
+      end)
+
+      Mimic.expect(Puts, :on_new_line, 4, fn _ ->
+        :ok
+      end)
+
+      assert {0, new_server_state} = APICall.perform(test_path, server_state)
+
+      assert %{
+               files: files,
+               claude_ai: %{
+                 file_updates: file_updates,
+                 phase: :waiting
+               },
+               ignore_file_changes: true
+             } =
+               new_server_state
+
+      assert %{test_path => test_contents, lib_path => lib_contents} == files
+
+      assert %{
+               lib_path => [
+                 %{
+                   search: "OLD LIB",
+                   replace: "NEW LIB",
+                   path: lib_path,
+                   explanation: "some lib code was awful"
+                 }
+               ],
+               test_path => [
+                 %{
+                   search: "OLD TEST",
+                   replace: "NEW TEST",
+                   path: test_path,
+                   explanation: "some test code was awful"
+                 }
+               ]
+             } == file_updates
+    end
+
+    test "when reading the cache returns error, return error" do
+      test_path = "test/non_existent_test.exs"
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key("dummy_key")
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:error, :not_found}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      action_error = "I failed because my cache did not contain the file #{test_path} :-("
+
+      assert new_server_state.action_error == action_error
+      assert %{server_state | action_error: action_error} == new_server_state
+    end
+
+    test "when instructor returns an error, put descriptive action_error" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "lib contents"
+      mix_test_output = "mix test output"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:error, :some_error}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      expected_error = "Error from InstructorLite: :some_error"
+
+      assert new_server_state.action_error == expected_error
+      assert %{server_state | action_error: expected_error} == new_server_state
+    end
+
+    test "when InstructorLite suggests we update neither the lib nor test file return an error" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "lib contents"
+      mix_test_output = "mix test output"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:ok, %CodeFileUpdates{updates: []}}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      expected_error = "InstructorLite: suggested no changes"
+      assert new_server_state.action_error == expected_error
+      assert %{server_state | action_error: expected_error} == new_server_state
+    end
+
+    test "when InstructorLite suggests we update a file which is neither the lib nor test file, return an error" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "lib contents"
+      mix_test_output = "mix test output"
+      other_file_path = "invalid/file/path.ex"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:ok,
+         %CodeFileUpdates{
+           updates: [
+             %CodeFileUpdate{
+               file_path: other_file_path,
+               explanation: "Update to invalid file",
+               search: "old content",
+               replace: "new content"
+             }
+           ]
+         }}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      expected_error = "InstructorLite: suggested we update some other file"
+
+      assert new_server_state.action_error == expected_error
+      assert %{server_state | action_error: expected_error} == new_server_state
+    end
+
+    test "when multiple updates are suggested for the same file, we return them ordered properly" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "old content 1\nold content 2"
+      mix_test_output = "mix test output"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:ok,
+         %CodeFileUpdates{
+           updates: [
+             %CodeFileUpdate{
+               file_path: lib_path,
+               explanation: "Update 1",
+               search: "old content 1",
+               replace: "new content 1"
+             },
+             %CodeFileUpdate{
+               file_path: lib_path,
+               explanation: "Update 2",
+               search: "old content 2",
+               replace: "new content 2"
              }
            ]
          }}
@@ -51,31 +289,87 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       Mimic.expect(SystemCall, :cmd, fn "git", _ ->
         std_out =
           """
-          diff --git a/tmp/polyglot_watcher_v2_old b/tmp/polyglot_watcher_v2_new
-          index 53fea5a..ed29468 100644
-          --- a/tmp/polyglot_watcher_v2_old
-          +++ b/tmp/polyglot_watcher_v2_new
-          @@ -1,5 +1,5 @@
-             defmodule Cool do
-               def cool(text) do
-          -      text
-          +      "cool " <> text
-               end
-             end
-
+          diff --git a/x_lib_old b/x_lib_new
+          index 102dcaf..818aacb 100644
+          --- a/x_lib_old
+          +++ b/x_lib_new
+          @@ -1,2 +1,2 @@
+          -old content 1
+          -old content 2
+          +new content 1
+          +new content 2
           """
 
         {std_out, 1}
       end)
 
-      Mimic.expect(Puts, :on_new_line_unstyled, fn _git_diff ->
-        :ok
-      end)
+      Mimic.expect(Puts, :on_new_line, 3, fn _ -> :ok end)
 
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
 
-      assert new_server_state[:files][:test] == test_file
-      assert new_server_state[:files][:lib] == lib_file
+      assert %{claude_ai: %{file_updates: file_updates}} = new_server_state
+
+      assert %{
+               ^lib_path => [
+                 %{
+                   search: "old content 1",
+                   replace: "new content 1",
+                   path: ^lib_path,
+                   explanation: "Update 1"
+                 },
+                 %{
+                   search: "old content 2",
+                   replace: "new content 2",
+                   path: ^lib_path,
+                   explanation: "Update 2"
+                 }
+               ]
+             } = file_updates
+    end
+
+    test "when returns something we can't parse errors, we put an action_error" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "old content"
+      mix_test_output = "mix test output"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:ok,
+         %CodeFileUpdates{
+           updates: [
+             %CodeFileUpdate{
+               file_path: lib_path,
+               explanation: "Update",
+               search: "old content",
+               replace: "new content"
+             }
+           ]
+         }}
+      end)
+
+      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+        {"im blowing up", 1}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      expected_error = "Git Diff error: :git_diff_parsing_error"
+      assert new_server_state.action_error == expected_error
+      assert %{server_state | action_error: expected_error} == new_server_state
     end
   end
 end

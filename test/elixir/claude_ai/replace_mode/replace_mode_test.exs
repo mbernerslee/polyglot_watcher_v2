@@ -13,6 +13,62 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
   @lib_ex_file_path %FilePath{path: "lib/cool", extension: @ex}
   @test_exs_file_path %FilePath{path: "test/cool_test", extension: @exs}
 
+  describe "user_input_actions/2" do
+    test "when waiting for user input to determine if we should write Claude-proposed file changes, then make them given 'y'" do
+      file_updates = %{
+        "lib/cool.ex" => [
+          %{
+            search: "AAA",
+            replace: "BBB",
+            path: "lib/cool.ex",
+            explanation: "Update 1"
+          },
+          %{
+            search: "CCC",
+            replace: "DDD",
+            path: "lib/cool.ex",
+            explanation: "Update 2"
+          }
+        ],
+        "lib/cool_test.exs" => [
+          %{
+            search: "EEE",
+            replace: "FFF",
+            path: "lib/cool_test.exs",
+            explanation: "Update 3"
+          },
+          %{
+            search: "GGG",
+            replace: "HHH",
+            path: "lib/cool_test.exs",
+            explanation: "Update 4"
+          }
+        ]
+      }
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
+
+      assert {tree, server_state} = Determiner.user_input_actions("y", server_state)
+
+      expected_action_tree_keys = [
+        :put_patching_files_msg,
+        :patch_files
+      ]
+
+      # TODO continue here, finish this test
+      # TODO test for N
+      # TODO new action to patch files
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+
+      ActionsTreeValidator.validate(tree)
+    end
+  end
+
   describe "switch/1" do
     test "given a valid server state, switches to ClaudeAI mode" do
       assert {tree, @server_state_normal_mode} = ReplaceMode.switch(@server_state_normal_mode)
@@ -41,12 +97,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :build_claude_replace_api_request,
         :put_calling_claude_msg,
-        :perform_claude_api_request,
-        :parse_claude_response,
-        :build_replace_blocks,
-        :build_replace_actions,
+        :perform_api_call,
+        :put_awaiting_input_msg,
         :put_success_msg
       ]
 
@@ -63,12 +116,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :build_claude_replace_api_request,
         :put_calling_claude_msg,
-        :perform_claude_api_request,
-        :parse_claude_response,
-        :build_replace_blocks,
-        :build_replace_actions,
+        :perform_api_call,
+        :put_awaiting_input_msg,
         :put_success_msg
       ]
 

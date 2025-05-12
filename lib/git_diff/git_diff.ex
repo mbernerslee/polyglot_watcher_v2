@@ -1,86 +1,67 @@
 defmodule PolyglotWatcherV2.GitDiff do
-  alias PolyglotWatcherV2.{FileSystem, Puts, SystemCall}
+  alias PolyglotWatcherV2.{FileSystem, SystemCall}
   alias PolyglotWatcherV2.GitDiff.Parser
 
   @old "/tmp/polyglot_watcher_v2_old"
   @new "/tmp/polyglot_watcher_v2_new"
 
-  # TODO update error messages
-  def run(contents, search, replace, server_state) do
-    run(contents, [%{search: search, replace: replace}], server_state)
-  end
-
-  def run(contents, search_replace, server_state) do
+  def run(request) do
     result =
-      with {:ok, new_file_contents} <- new_file_contents(contents, search_replace),
-           :ok <- write_tmp_file(@old, contents),
-           :ok <- write_tmp_file(@new, new_file_contents),
-           {:ok, git_diff} <- run_git_diff() do
-        Puts.on_new_line_unstyled(git_diff)
-        {0, server_state}
-      else
-        {:error, :write_tmp, error} ->
-          action_error =
-            """
-            I failed to write to a temporary file, in order to generate a git diff to show you the Claude AI code suggestion.
-            Maybe I'm not allowed to write files to /tmp, or it doesn't exist?
+      Enum.reduce_while(request, {:ok, %{}}, fn {key,
+                                                 %{
+                                                   contents: contents,
+                                                   search_replace: search_replace
+                                                 }},
+                                                {:ok, acc} ->
+        case run_one(key, contents, search_replace) do
+          {:ok, git_diff} ->
+            {:cont, {:ok, Map.put(acc, key, git_diff)}}
 
-            The error was {:error, #{inspect(error)}}.
+          {:error, :failed_to_write_tmp_file} ->
+            {:halt, {:error, :failed_to_write_tmp_file}}
 
-            This is terminal to the Claude AI operation I'm afraid so I'm giving up.
-            """
+          {:error, :git_diff_parsing_error} ->
+            {:halt, {:error, :git_diff_parsing_error}}
 
-          {1, Map.put(server_state, :action_error, action_error)}
+          {:error, :search_failed, search, replace} ->
+            {:halt, {:error, {:search_failed, search, replace}}}
 
-        {:error, :search_failed, search, replace} ->
-          action_error =
-            """
-            I tried to find some existing code and replace it with some that might be better,
-            but the code it tried to search for didn't exist.
-
-            Here's what it tried to find:
-
-            ```
-            #{search}
-            ```
-
-            And here's what it tried to replace it with:
-
-            ```
-            #{replace}
-            ```
-            """
-
-          {1, Map.put(server_state, :action_error, action_error)}
-
-        {:error, :search_multiple_matches, search, replace} ->
-          action_error =
-            """
-            Claude tried to find some existing code and replace it with some code it thought was better,
-            but the search text it tried to find contained more than 1 match, making it unclear what Claude's intentions were!
-
-            I guess Claude failed us this time :-(
-
-            Here's what it tried to find:
-
-            ```
-            #{search}
-            ```
-
-            And here's what it tried to replace it with:
-
-            ```
-            #{replace}
-            ```
-            """
-
-          {1, Map.put(server_state, :action_error, action_error)}
-
-        {:error, :parse, action_error} ->
-          {1, Map.put(server_state, :action_error, action_error)}
-      end
+          {:error, :search_multiple_matches, search, replace} ->
+            {:halt, {:error, {:search_multiple_matches, search, replace}}}
+        end
+      end)
 
     rm_rf_tmp_files()
+    result
+  end
+
+  defp run_one(key, contents, search_replace) do
+    old = @old <> "_#{key}"
+    new = @new <> "_#{key}"
+
+    result =
+      with {:ok, new_file_contents} <- new_file_contents(contents, search_replace),
+           :ok <- write_tmp_file(old, contents),
+           :ok <- write_tmp_file(new, new_file_contents),
+           {:ok, git_diff} <- run_git_diff(old, new) do
+        {:ok, git_diff}
+      else
+        {:error, :failed_to_write_tmp_file} ->
+          {:error, :failed_to_write_tmp_file}
+
+        {:error, :git_diff_parsing_error} ->
+          {:error, :git_diff_parsing_error}
+
+        {:error, :search_failed, search, replace} ->
+          {:error, :search_failed, search, replace}
+
+        {:error, :search_multiple_matches, search, replace} ->
+          {:error, :search_multiple_matches, search, replace}
+      end
+
+    FileSystem.rm_rf(old)
+    FileSystem.rm_rf(new)
+
     result
   end
 
@@ -113,7 +94,7 @@ defmodule PolyglotWatcherV2.GitDiff do
   defp write_tmp_file(file_path, contents) do
     case FileSystem.write(file_path, contents) do
       :ok -> :ok
-      {:error, error} -> {:error, :write_tmp, error}
+      {:error, _error} -> {:error, :failed_to_write_tmp_file}
     end
   end
 
@@ -122,13 +103,13 @@ defmodule PolyglotWatcherV2.GitDiff do
     FileSystem.rm_rf(@new)
   end
 
-  defp run_git_diff do
+  defp run_git_diff(old, new) do
     {std_out, _exit_code} =
-      SystemCall.cmd("git", ["diff", "--no-index", "--color", @old, @new])
+      SystemCall.cmd("git", ["diff", "--no-index", "--color", old, new])
 
     case Parser.parse(std_out) do
       {:ok, git_diff} -> {:ok, git_diff}
-      {:error, error} -> {:error, :parse, error}
+      {:error, _error} -> {:error, :git_diff_parsing_error}
     end
   end
 end

@@ -15,7 +15,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAI,
     EnvironmentVariables,
     FileSystem,
-    GitDiff,
     Puts,
     ShellCommandRunner
   }
@@ -40,10 +39,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   defp do_execute({:run_sys_cmd, cmd, args}, server_state) do
     {_std_out, exit_code} = System.cmd(cmd, args, into: IO.stream(:stdio, :line))
     {exit_code, server_state}
-  end
-
-  defp do_execute({:git_diff, file_path, search, replacement}, server_state) do
-    GitDiff.run(file_path, search, replacement, server_state)
   end
 
   defp do_execute({:puts, messages}, server_state) do
@@ -111,11 +106,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp do_execute({:perform_claude_replace_api_call, test_path}, server_state) do
-    ClaudeAIReplaceMode.APICall.perform(server_state)
-  end
-
-  defp do_execute(:claude_replace_prepare_file_updates, server_state) do
-    ClaudeAIReplaceMode.PrepareFileUpdates.run(server_state)
+    ClaudeAIReplaceMode.APICall.perform(test_path, server_state)
   end
 
   defp do_execute(:parse_claude_api_response, server_state) do
@@ -186,6 +177,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp actually_clear_screen? do
-    Application.get_env(:polyglot_watcher_v2, :actually_clear_screen) |> IO.inspect()
+    Application.get_env(:polyglot_watcher_v2, :actually_clear_screen)
   end
 end
