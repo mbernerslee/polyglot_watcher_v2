@@ -59,7 +59,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :patch_files
       ]
 
-      # TODO continue here, finish this test
       # TODO test for N
       # TODO new action to patch files
 

@@ -15,6 +15,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAI,
     EnvironmentVariables,
     FileSystem,
+    FilePatches,
     Puts,
     ShellCommandRunner
   }
@@ -79,6 +80,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute({:persist_file, path, key}, server_state) do
     FileSystem.read_and_persist(path, key, server_state)
+  end
+
+  defp do_execute({:patch_files, patches}, server_state) do
+    FilePatches.patch(patches, server_state)
   end
 
   defp do_execute(:load_in_memory_prompt, server_state) do

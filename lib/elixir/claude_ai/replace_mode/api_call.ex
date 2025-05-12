@@ -57,6 +57,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
 
       {lib_or_test, %{contents: contents, search_replace: file_updates}}
     end)
+    |> IO.inspect()
     |> GitDiff.run()
     |> case do
       {:ok, res} -> {:ok, res}
@@ -108,17 +109,18 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       } = update
 
       cond do
-        file_path == lib.path -> {:ok, :lib, lib.path}
-        file_path == test.path -> {:ok, :test, test.path}
+        file_path == lib.path -> {:ok, :lib, lib}
+        file_path == test.path -> {:ok, :test, test}
         true -> {:error, {:instructor_lite, :invalid_file_path}}
       end
       |> case do
-        {:ok, lib_or_test, path} ->
+        {:ok, lib_or_test, file} ->
           single_update = %{
             search: search,
             replace: replace,
             explanation: explanation,
-            path: path
+            path: file.path,
+            contents: file.contents
           }
 
           {:cont, {:ok, Map.update(acc, lib_or_test, [single_update], &[single_update | &1])}}
@@ -136,7 +138,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
+  # TODO continue here. file_updates MUST contain the file contents once & only once. better data structure needed
   defp update_server_state(updates, %{test: test, lib: lib} = files, server_state) do
+    IO.inspect(updates)
+
     updates =
       Map.new(updates, fn {lib_or_test, file_updates} ->
         %{path: path} = Map.fetch!(files, lib_or_test)

@@ -95,28 +95,29 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                  phase: :waiting
                },
                ignore_file_changes: true
-             } =
-               new_server_state
+             } = new_server_state
 
       assert %{test_path => test_contents, lib_path => lib_contents} == files
 
       assert %{
-               lib_path => [
-                 %{
-                   search: "OLD LIB",
-                   replace: "NEW LIB",
-                   path: lib_path,
-                   explanation: "some lib code was awful"
-                 }
-               ],
-               test_path => [
-                 %{
-                   search: "OLD TEST",
-                   replace: "NEW TEST",
-                   path: test_path,
-                   explanation: "some test code was awful"
-                 }
-               ]
+               lib_path => %{
+                 patches: [
+                   %{
+                     search: "OLD LIB",
+                     replace: "NEW LIB"
+                   }
+                 ],
+                 contents: lib_contents
+               },
+               test_path => %{
+                 patches: [
+                   %{
+                     search: "OLD TEST",
+                     replace: "NEW TEST"
+                   }
+                 ],
+                 contents: test_contents
+               }
              } == file_updates
     end
 
