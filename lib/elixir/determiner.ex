@@ -30,10 +30,10 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
   def user_input_actions(user_input, server_state) do
     [ClaudeAIReplaceMode]
-    |> Enum.reduce_while(nil, fn mod, _ ->
+    |> Enum.reduce_while(server_state, fn mod, server_state ->
       case mod.user_input_actions(user_input, server_state) do
-        false ->
-          {:cont, nil}
+        {false, server_state} ->
+          {:cont, server_state}
 
         {tree, server_state} ->
           {:halt, {tree, server_state}}
@@ -41,7 +41,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     end)
     |> case do
       {tree, server_state} -> {tree, server_state}
-      nil -> switch_mode_actions(user_input, server_state)
+      server_state -> switch_mode_actions(user_input, server_state)
     end
   end
 

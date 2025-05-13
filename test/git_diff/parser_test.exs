@@ -193,3 +193,57 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
     end
   end
 end
+
+#TODO fix parsing fail:
+#────────────────────────
+#Lines: 429 - 439
+#────────────────────────
+#                })
+#     end
+#
+#-    test "if the read file contents contains the search text twice, replace them all (scary)" do
+#+    test "if the read file contents contains the search text twice, replace them all" do
+#       old_contents = "Some content that matches twice. Some content that matches twice."
+#       search_replace = [%{search: "Some content that matches twice", replace: "New text"}]
+#
+#-      raise "write me"
+#+      Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
+#+
+#+      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+#+        {
+#+          """
+#+          diff --git a/old b/new
+#+          index 1234567..abcdefg 100644
+#+          --- a/old
+#+          +++ b/new
+#────────────────────────
+#Line: 1
+#────────────────────────
+#+          -Some content that matches twice. Some content that matches twice.
+#+          +New text. New text.
+#+          """,
+#+          0
+#+        }
+#+      end)
+#+
+#+      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
+#+
+#+      expected_diff = """
+#+      ────────────────────────
+#+      Lines: 1 - 1
+#+      ────────────────────────
+#+      -Some content that matches twice. Some content that matches twice.
+#+      +New text. New text.
+#+      ────────────────────────
+#+      """
+#+
+#+      assert {:ok, %{"example" => actual_diff}} =
+#+               GitDiff.run(%{
+#+                 "example" => %{contents: old_contents, search_replace: search_replace}
+#+               })
+#+
+#+      assert expected_diff == actual_diff
+#     end
+#
+#     test "when the git diff is not in a format that we can parse, return an error" do
+#────────────────────────

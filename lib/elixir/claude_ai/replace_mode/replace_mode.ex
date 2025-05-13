@@ -43,9 +43,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
      }, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
   end
 
-  # TODO could purge state, & ignore_file_changes = true here ??
-  def user_input_actions(_, _server_state) do
-    false
+  def user_input_actions(_, server_state) do
+    {false, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
   end
 
   def switch(server_state) do

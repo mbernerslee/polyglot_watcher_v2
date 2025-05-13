@@ -243,4 +243,24 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
 
     assert {0, server_state} == FilePatches.patch(file_patches, server_state)
   end
+
+  test "handles replacements of nil" do
+    server_state = ServerStateBuilder.build()
+
+    file_patches = %{
+      "lib/nil_replace.ex" => %{
+        contents: "AAA\nBBB",
+        patches: [
+          %{search: "AAA", replace: nil},
+          %{search: "BBB", replace: "CCC"}
+        ]
+      }
+    }
+
+    Mimic.expect(FileWrapper, :read, 1, fn "lib/nil_replace.ex" -> {:ok, "AAA\nBBB"} end)
+    Mimic.expect(FileWrapper, :write, 1, fn "lib/nil_replace.ex", "\nCCC" -> :ok end)
+    Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/nil_replace.ex" -> :ok end)
+
+    assert {0, server_state} == FilePatches.patch(file_patches, server_state)
+  end
 end

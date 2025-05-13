@@ -79,12 +79,11 @@ defmodule PolyglotWatcherV2.FilePatches do
     end)
   end
 
-  # TODO test handling nil
+  #TODO just allow multi-changes, set global: true here
   defp search_and_replace(contents, search, nil) do
     search_and_replace(contents, search, "")
   end
 
-  # TODO dedup same thing in GitDiff ?
   defp search_and_replace(contents, search, replace) do
     single_match = String.replace(contents, search, replace, global: false)
     multi_match = String.replace(contents, search, replace, global: true)

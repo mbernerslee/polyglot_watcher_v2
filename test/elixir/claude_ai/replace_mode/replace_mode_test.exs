@@ -129,14 +129,25 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
     test "given state we're not meant to deal with, return false" do
       server_state = ServerStateBuilder.build()
 
-      assert false == ReplaceMode.user_input_actions("y", server_state)
-      assert false == ReplaceMode.user_input_actions("n", server_state)
-      assert false == ReplaceMode.user_input_actions("invalid", server_state)
+      assert {false, _} = ReplaceMode.user_input_actions("y", server_state)
+      assert {false, _} = ReplaceMode.user_input_actions("n", server_state)
+      assert {false, _} = ReplaceMode.user_input_actions("invalid", server_state)
+    end
+
+    test "when no action is matched, we still remove the claude_ai & set ignore_file_changes to false" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_ignore_file_changes(true)
+        |> ServerStateBuilder.with_claude_ai_file_updates(%{})
+
+      assert {false, server_state} = ReplaceMode.user_input_actions("invalid", server_state)
+
+      assert server_state.ignore_file_changes == false
+      assert server_state.claude_ai == %{}
     end
   end
-
-  # TODO new action to patch files
-  # TODO what if they select something other than y/n (groan)
 
   describe "switch/1" do
     test "given a valid server state, switches to ClaudeAI mode" do
