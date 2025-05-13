@@ -31,22 +31,21 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
     {:ok, result}
   end
 
-  defp do_parse([line | rest], true, acc) do
-    do_parse(rest, true, [line | acc])
-  end
-
-  defp do_parse([line | rest], false, acc) do
-    case capture_hunk_line(line) do
-      {:ok, line_number, line_count} ->
+  defp do_parse([line | rest], found?, acc) do
+    case {capture_hunk_line(line), found?} do
+      {{:ok, line_number, line_count}, _} ->
         last_line = String.to_integer(line_number) + String.to_integer(line_count) - 1
         lines_line = "Lines: #{line_number} - #{last_line}"
         do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc])
 
-      {:ok, line_number} ->
+      {{:ok, line_number}, _} ->
         lines_line = "Line: #{line_number}"
         do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc])
 
-      :error ->
+      {:error, true} ->
+        do_parse(rest, true, [line | acc])
+
+      {:error, false} ->
         do_parse(rest, false, acc)
     end
   end

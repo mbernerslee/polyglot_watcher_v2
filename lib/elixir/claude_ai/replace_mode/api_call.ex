@@ -201,6 +201,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     </buffer>
 
     Can you please provide a list of updates to fix the issues?
+    Don't add comments to the code please, leave commentary only in the explanation.
     """
   end
 end

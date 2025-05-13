@@ -134,5 +134,62 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
 
       assert {:ok, expected} == Parser.parse(raw)
     end
+
+    test "can parse multiple hunks" do
+      raw =
+        """
+        \e[1mdiff --git a/tmp/polyglot_watcher_v2_old_test_elixir_claude_ai_replace_mode_api_call_test.exs b/tmp/polyglot_watcher_v2_new_test_elixir_claude_ai_replace_mode_api_call_test.exs\e[m
+        \e[1mindex 76db925..61a95d5 100644\e[m
+        \e[1m--- a/tmp/polyglot_watcher_v2_old_test_elixir_claude_ai_replace_mode_api_call_test.exs\e[m
+        \e[1m+++ b/tmp/polyglot_watcher_v2_new_test_elixir_claude_ai_replace_mode_api_call_test.exs\e[m
+        \e[36m@@ -18,7 +18,7 @@\e[m \e[mdefmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do\e[m
+               lib_contents = \"lib contents OLD LIB\"\e[m
+               mix_test_output = \"mix test output\"\e[m
+         \e[m
+        \e[31m-      raise \"no\"\e[m
+        \e[32m+\e[m\e[41m      \e[m
+         \e[m
+               test_file = %{path: test_path, contents: test_contents}\e[m
+               lib_file = %{path: lib_path, contents: lib_contents}\e[m
+        \e[36m@@ -370,7 +370,7 @@\e[m \e[mdefmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do\e[m
+         \e[m
+               assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
+         \e[m
+        \e[31m-      expected_error = \"Git Diff error: :git_diff_parsing_error\"\e[m
+        \e[32m+\e[m\e[32m      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"\e[m
+               assert new_server_state.action_error == expected_error\e[m
+               assert %{server_state | action_error: expected_error} == new_server_state\e[m
+             end\e[m
+        """
+
+      expected =
+        """
+        ────────────────────────
+        Lines: 18 - 24
+        ────────────────────────
+               lib_contents = \"lib contents OLD LIB\"\e[m
+               mix_test_output = \"mix test output\"\e[m
+         \e[m
+        \e[31m-      raise \"no\"\e[m
+        \e[32m+\e[m\e[41m      \e[m
+         \e[m
+               test_file = %{path: test_path, contents: test_contents}\e[m
+               lib_file = %{path: lib_path, contents: lib_contents}\e[m
+        ────────────────────────
+        Lines: 370 - 376
+        ────────────────────────
+         \e[m
+               assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
+         \e[m
+        \e[31m-      expected_error = \"Git Diff error: :git_diff_parsing_error\"\e[m
+        \e[32m+\e[m\e[32m      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"\e[m
+               assert new_server_state.action_error == expected_error\e[m
+               assert %{server_state | action_error: expected_error} == new_server_state\e[m
+             end\e[m
+        ────────────────────────
+        """
+
+      assert {:ok, expected} == Parser.parse(raw)
+    end
   end
 end

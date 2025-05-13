@@ -29,8 +29,6 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   end
 
   def user_input_actions(user_input, server_state) do
-    IO.inspect(user_input)
-
     [ClaudeAIReplaceMode]
     |> Enum.reduce_while(nil, fn mod, _ ->
       case mod.user_input_actions(user_input, server_state) do
