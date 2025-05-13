@@ -26,7 +26,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    {:puts,
                     [
                       {[:magenta], "Switching to "},
-                      {[:magenta, :italic], "Fix All "},
+                      {[:magenta, :italic], "Fixed File "},
                       {[:magenta], "mode...\n"},
                       {[:magenta], "using the provided test path..."}
                     ]},
@@ -79,7 +79,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    {:puts,
                     [
                       {[:magenta], "Switching to "},
-                      {[:magenta, :italic], "Fix All "},
+                      {[:magenta, :italic], "Fixed File "},
                       {[:magenta], "mode...\n"},
                       {[:magenta], "using the latest failing test in memory..."}
                     ]},
@@ -124,7 +124,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    {:puts,
                     [
                       {[:red], "Switching to "},
-                      {[:red, :italic], "Fix All "},
+                      {[:red, :italic], "Fixed File "},
                       {[:red], "mode failed\n"},
                       {[:red], "I wasn't given a test_path "},
                       {[:red, :italic], "and "},
@@ -140,6 +140,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
     end
   end
 
+  #TODO deal with this!!
   # describe "switch/0" do
   #  test "works if there's at least 1 test failure in the history" do
   #    server_state =
