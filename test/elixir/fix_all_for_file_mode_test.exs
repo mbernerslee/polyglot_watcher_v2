@@ -12,6 +12,8 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       test_path = "test/cool_test.exs"
       line_number = 10
 
+      raise "no"
+
       Mimic.expect(Cache, :get_test_failure, fn :latest ->
         {:ok, {test_path, line_number}}
       end)

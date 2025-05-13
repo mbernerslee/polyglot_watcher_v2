@@ -288,10 +288,42 @@ defmodule PolyglotWatcherV2.TraverseActionsTreeTest do
       assert server_state.action_error == nil
     end
 
-    test "given a complex tree with branching paths, the route taken is as expected given the exit codes and next_action maps as defined in the tree" do
+    test "if the first action errors, putting at action error, then we put the error & quit" do
       server_state = ServerStateBuilder.build()
 
       input =
+        {%{
+           entry_point: :one,
+           actions_tree: %{
+             one: %Action{runnable: {:puts, "one"}, next_action: :two},
+             two: %Action{runnable: {:puts, "two"}, next_action: :three},
+             three: %Action{runnable: {:puts, "three"}, next_action: :four},
+             four: %Action{runnable: {:puts, "four"}, next_action: :five},
+             five: %Action{runnable: {:puts, "five"}, next_action: :exit}
+           }
+         }, server_state}
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert runnable == {:puts, "one"}
+        {0, %{server_state | action_error: "one errored!"}}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert runnable == {:puts, :red, "one errored!"}
+        {0, server_state}
+      end)
+
+      Mimic.reject(&ActionsExecutor.execute/2)
+
+      assert server_state == TraverseActionsTree.execute_all(input)
+
+      assert server_state.action_error == nil
+    end
+
+    test "given a complex tree with branching paths, the route taken is as expected given the exit codes and next_action maps as defined in the tree" do
+      server_state = ServerStateBuilder.build()
+
+      tree =
         {%{
            entry_point: :one,
            actions_tree: %{
@@ -358,7 +390,128 @@ defmodule PolyglotWatcherV2.TraverseActionsTreeTest do
 
       Mimic.reject(&ActionsExecutor.execute/2)
 
-      assert server_state == TraverseActionsTree.execute_all(input)
+      assert server_state == TraverseActionsTree.execute_all(tree)
+    end
+
+    #    test "when an action is executed, but execute_one returns a new state with an action_error, we respect it and put the error text" do
+    #      server_state = ServerStateBuilder.build()
+    #
+    #      input =
+    #        {%{
+    #           entry_point: :one,
+    #           actions_tree: %{
+    #             one: %Action{runnable: {:puts, "one"}, next_action: %{0 => :two, :fallack => :exit}},
+    #             two: %Action{runnable: {:puts, "two"}, next_action: :exit}
+    #           }
+    #         }, server_state}
+    #
+    #      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+    #        assert runnable == {:puts, "one"}
+    #        {0, %{server_state | action_error: "Error in action one"}}
+    #      end)
+    #
+    #      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+    #        assert runnable == {:puts, :red, "Error in action one"}
+    #        {0, %{server_state | action_error: nil}}
+    #      end)
+    #
+    #      Mimic.reject(&ActionsExecutor.execute/2)
+    #
+    #      new_server_state = TraverseActionsTree.execute_all(input)
+    #      assert new_server_state.action_error == nil
+    #    end
+
+    test "when an action sets action_error but execute_next continues to next action anyway" do
+      server_state = ServerStateBuilder.build()
+
+      tree = %{
+        entry_point: :clear_screen,
+        actions_tree: %{
+          clear_screen: %PolyglotWatcherV2.Action{
+            runnable: :clear_screen,
+            next_action: :put_intent_msg
+          },
+          put_intent_msg: %PolyglotWatcherV2.Action{
+            runnable: {:puts, :magenta, "Z"},
+            next_action: :mix_test
+          },
+          mix_test: %PolyglotWatcherV2.Action{
+            runnable:
+              {:mix_test, %PolyglotWatcherV2.Elixir.MixTestArgs{path: "path", max_failures: nil}},
+            next_action: %{0 => :put_success_msg, :fallback => :put_calling_claude_msg}
+          },
+          perform_api_call: %PolyglotWatcherV2.Action{
+            runnable: {:perform_claude_replace_api_call, "path"},
+            next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
+          },
+          put_awaiting_input_msg: %PolyglotWatcherV2.Action{
+            runnable: {:puts, :magenta, "X"},
+            next_action: :exit
+          },
+          put_calling_claude_msg: %PolyglotWatcherV2.Action{
+            runnable: {:puts, :magenta, "Y"},
+            next_action: :perform_api_call
+          },
+          put_success_msg: %PolyglotWatcherV2.Action{
+            runnable: :put_sarcastic_success,
+            next_action: :exit
+          }
+        }
+      }
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert runnable == :clear_screen
+        {0, server_state}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert {:puts, :magenta, "Z"} = runnable
+        {0, server_state}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert {:mix_test, _} = runnable
+        {2, server_state}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert {:puts, :magenta, "Y"} = runnable
+        {0, server_state}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert {:perform_claude_replace_api_call, _} = runnable
+        {1, %{server_state | action_error: "action error!"}}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+        assert {:puts, :red, "action error!"} = runnable
+        {0, server_state}
+      end)
+
+      Mimic.reject(&ActionsExecutor.execute/2)
+
+      TraverseActionsTree.execute_all({tree, server_state})
+
+      #  Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+      #    assert runnable == {:puts, :magenta, "X"
+      #    {0, server_state}
+      #  end)
+
+      #  Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+      #    assert runnable == {:puts, "two"}
+      #    {0, %{server_state | action_error: "Error in action two"}}
+      #  end)
+
+      #  Mimic.expect(ActionsExecutor, :execute, fn runnable, server_state ->
+      #    assert runnable == {:puts, :red, "Error in action two"}
+      #    {0, server_state}
+      #  end)
+
+      #  Mimic.reject(&ActionsExecutor.execute/2)
+
+      # new_server_state = TraverseActionsTree.execute_all(input)
+      # assert new_server_state.action_error == nil
     end
   end
 end

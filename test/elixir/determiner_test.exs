@@ -383,7 +383,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         |> ServerStateBuilder.with_claude_ai_phase(:waiting)
         |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
 
-      assert {tree, server_state} = Determiner.user_input_actions("y", server_state)
+      assert {tree, _server_state} = Determiner.user_input_actions("y\n", server_state)
       assert %{} = tree
 
       ActionsTreeValidator.validate(tree)
@@ -391,34 +391,32 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
     test "if in replace mode, awaiting user response, accept n" do
       file_updates = %{
-        "lib/cool.ex" => [
-          %{
-            search: "AAA",
-            replace: "BBB",
-            path: "lib/cool.ex",
-            explanation: "Update 1"
-          },
-          %{
-            search: "CCC",
-            replace: "DDD",
-            path: "lib/cool.ex",
-            explanation: "Update 2"
-          }
-        ],
-        "lib/cool_test.exs" => [
-          %{
-            search: "EEE",
-            replace: "FFF",
-            path: "lib/cool_test.exs",
-            explanation: "Update 3"
-          },
-          %{
-            search: "GGG",
-            replace: "HHH",
-            path: "lib/cool_test.exs",
-            explanation: "Update 4"
-          }
-        ]
+        "lib/cool.ex" => %{
+          contents: "AAA\nCCC",
+          patches: [
+            %{
+              search: "AAA",
+              replace: "BBB"
+            },
+            %{
+              search: "CCC",
+              replace: "DDD"
+            }
+          ]
+        },
+        "lib/cool_test.exs" => %{
+          contents: "EEE\nGGG",
+          patches: [
+            %{
+              search: "EEE",
+              replace: "FFF"
+            },
+            %{
+              search: "GGG",
+              replace: "HHH"
+            }
+          ]
+        }
       }
 
       server_state =
@@ -427,7 +425,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         |> ServerStateBuilder.with_claude_ai_phase(:waiting)
         |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
 
-      assert {tree, server_state} = Determiner.user_input_actions("n", server_state)
+      assert {tree, _server_state} = Determiner.user_input_actions("n\n", server_state)
       assert %{} = tree
 
       ActionsTreeValidator.validate(tree)

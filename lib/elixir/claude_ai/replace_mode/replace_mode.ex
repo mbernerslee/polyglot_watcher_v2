@@ -4,8 +4,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
 
   @ex Determiner.ex()
   @exs Determiner.exs()
-  @yes "y"
-  @no "n"
+  @yes "y\n"
+  @no "n\n"
 
   def user_input_actions(
         @yes,
@@ -15,22 +15,36 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
         } = server_state
       ) do
     {%{
-       entry_point: :put_patching_files_msg,
+       entry_point: :patch_files,
        actions_tree: %{
-         put_patching_files_msg: %Action{
-           runnable: {:puts, :magenta, "Writing file changes..."},
-           next_action: :patch_files
-         },
          patch_files: %Action{
            runnable: {:patch_files, file_updates},
            next_action: :exit
          }
        }
-     }, server_state}
+     }, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
   end
 
-  def user_input_actions(_, server_state) do
-    IO.inspect("SADD!")
+  def user_input_actions(
+        @no,
+        %{
+          elixir: %{mode: :claude_ai_replace},
+          claude_ai: %{phase: :waiting, file_updates: _file_updates}
+        } = server_state
+      ) do
+    {%{
+       entry_point: :put_msg,
+       actions_tree: %{
+         put_msg: %Action{
+           runnable: {:puts, :magenta, "Ok, ignoring suggestion..."},
+           next_action: :exit
+         }
+       }
+     }, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
+  end
+
+  # TODO could purge state, & ignore_file_changes = true here ??
+  def user_input_actions(_, _server_state) do
     false
   end
 

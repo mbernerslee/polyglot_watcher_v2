@@ -5,16 +5,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
 
-  # TODO split up the cache retieval & file fetching? it sounds like we store file contents in the cache when we don't...
+  # # Cache retrieval and file fetching are already separated in the get_files_from_cache/1 function
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
          {:ok, instruct_result} <- instruct(prompt, api_key),
-         lib_test_to_path <- lib_test_to_path(files),
          {:ok, updates} <- group_updates_by_file(instruct_result, files),
-         {:ok, git_diffs} <- git_diff(updates, files),
-         :ok <- put_diffs_with_explanations(git_diffs, updates, lib_test_to_path) do
-      update_server_state(updates, files, server_state)
+         {:ok, git_diffs} <- git_diff(updates),
+         :ok <- put_diffs_with_explanations(git_diffs, updates) do
+      update_server_state(updates, server_state)
     else
       {:error, :cache_miss} ->
         action_error = "I failed because my cache did not contain the file #{test_path} :-("
@@ -37,27 +36,16 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
         {1, %{server_state | action_error: action_error}}
 
       {:error, :git_diff} ->
-        {1, server_state}
+        action_error = "Git Diff error"
+        {1, %{server_state | action_error: action_error}}
     end
   end
 
-  defp lib_test_to_path(files) do
-    %{
-      lib: %{path: lib_path},
-      test: %{path: test_path}
-    } = files
-
-    %{lib: lib_path, test: test_path}
-  end
-
-  defp git_diff(updates, files) do
+  defp git_diff(updates) do
     updates
-    |> Map.new(fn {lib_or_test, file_updates} ->
-      %{contents: contents} = Map.fetch!(files, lib_or_test)
-
-      {lib_or_test, %{contents: contents, search_replace: file_updates}}
+    |> Map.new(fn {path, %{contents: contents, patches: patches}} ->
+      {path, %{contents: contents, search_replace: patches}}
     end)
-    |> IO.inspect()
     |> GitDiff.run()
     |> case do
       {:ok, res} -> {:ok, res}
@@ -65,19 +53,18 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  defp put_diffs_with_explanations(git_diffs, updates, lib_test_to_path) do
+  defp put_diffs_with_explanations(git_diffs, updates) do
     Puts.on_new_line([
       {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
       {[:magenta], "████████████████ Claude Response ████████████████\n"},
       {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
     ])
 
-    Enum.each(updates, fn {lib_or_test, path_updates} ->
-      path = Map.fetch!(lib_test_to_path, lib_or_test)
-      git_diff = Map.fetch!(git_diffs, lib_or_test)
+    Enum.each(updates, fn {path, %{contents: _contents, patches: patches}} ->
+      git_diff = Map.fetch!(git_diffs, path)
 
       explanations =
-        path_updates
+        patches
         |> Enum.map(& &1.explanation)
         |> Enum.join("\n")
 
@@ -109,49 +96,37 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       } = update
 
       cond do
-        file_path == lib.path -> {:ok, :lib, lib}
-        file_path == test.path -> {:ok, :test, test}
+        file_path == lib.path -> {:ok, lib}
+        file_path == test.path -> {:ok, test}
         true -> {:error, {:instructor_lite, :invalid_file_path}}
       end
       |> case do
-        {:ok, lib_or_test, file} ->
-          single_update = %{
+        {:ok, file} ->
+          patch = %{
             search: search,
             replace: replace,
-            explanation: explanation,
-            path: file.path,
-            contents: file.contents
+            explanation: explanation
           }
 
-          {:cont, {:ok, Map.update(acc, lib_or_test, [single_update], &[single_update | &1])}}
+          {:cont,
+           {:ok,
+            Map.update(
+              acc,
+              file.path,
+              %{contents: file.contents, patches: [patch]},
+              &Map.update!(&1, :patches, fn patches -> patches ++ [patch] end)
+            )}}
 
         error ->
           {:halt, error}
       end
     end)
-    |> case do
-      {:ok, updates} ->
-        {:ok, Map.new(updates, fn {path, updates} -> {path, Enum.reverse(updates)} end)}
-
-      error ->
-        error
-    end
   end
 
-  # TODO continue here. file_updates MUST contain the file contents once & only once. better data structure needed
-  defp update_server_state(updates, %{test: test, lib: lib} = files, server_state) do
-    IO.inspect(updates)
-
-    updates =
-      Map.new(updates, fn {lib_or_test, file_updates} ->
-        %{path: path} = Map.fetch!(files, lib_or_test)
-        {path, file_updates}
-      end)
-
+  # file_updates structure: %{file_path => %{contents: string, patches: [%{search: string, replace: string, explanation: string}]}}
+  defp update_server_state(updates, server_state) do
     server_state =
       server_state
-      |> put_in([:files, test.path], test.contents)
-      |> put_in([:files, lib.path], lib.contents)
       |> put_in([:claude_ai, :file_updates], updates)
       |> put_in([:claude_ai, :phase], :waiting)
       |> Map.replace!(:ignore_file_changes, true)

@@ -89,7 +89,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
 
       assert %{
-               files: files,
                claude_ai: %{
                  file_updates: file_updates,
                  phase: :waiting
@@ -97,14 +96,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                ignore_file_changes: true
              } = new_server_state
 
-      assert %{test_path => test_contents, lib_path => lib_contents} == files
-
       assert %{
                lib_path => %{
                  patches: [
                    %{
                      search: "OLD LIB",
-                     replace: "NEW LIB"
+                     replace: "NEW LIB",
+                     explanation: "some lib code was awful"
                    }
                  ],
                  contents: lib_contents
@@ -113,7 +111,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                  patches: [
                    %{
                      search: "OLD TEST",
-                     replace: "NEW TEST"
+                     replace: "NEW TEST",
+                     explanation: "some test code was awful"
                    }
                  ],
                  contents: test_contents
@@ -311,21 +310,22 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       assert %{claude_ai: %{file_updates: file_updates}} = new_server_state
 
       assert %{
-               ^lib_path => [
-                 %{
-                   search: "old content 1",
-                   replace: "new content 1",
-                   path: ^lib_path,
-                   explanation: "Update 1"
-                 },
-                 %{
-                   search: "old content 2",
-                   replace: "new content 2",
-                   path: ^lib_path,
-                   explanation: "Update 2"
-                 }
-               ]
-             } = file_updates
+               lib_path => %{
+                 patches: [
+                   %{
+                     search: "old content 1",
+                     replace: "new content 1",
+                     explanation: "Update 1"
+                   },
+                   %{
+                     search: "old content 2",
+                     replace: "new content 2",
+                     explanation: "Update 2"
+                   }
+                 ],
+                 contents: lib_contents
+               }
+             } == file_updates
     end
 
     test "when returns something we can't parse errors, we put an action_error" do

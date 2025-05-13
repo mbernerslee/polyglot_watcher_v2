@@ -31,6 +31,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:claude_ai, :request], request)
   end
 
+  def with_ignore_file_changes(server_state, bool) do
+    Map.replace!(server_state, :ignore_file_changes, bool)
+  end
+
   def with_claude_ai_phase(server_state, phase) do
     put_in(server_state, [:claude_ai, :phase], phase)
   end
