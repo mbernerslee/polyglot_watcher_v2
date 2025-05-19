@@ -91,17 +91,17 @@ defmodule PolyglotWatcherV2.Server do
       |> Determine.actions(state)
       |> TraverseActionsTree.execute_all()
 
-    set_ignore_file_changes(false)
+    set_ignore_file_changes(state.ignore_file_changes)
+
+    if state.ignore_file_changes == true do
+      Logger.debug("#{__MODULE__} Setting ignore_file_changes: true")
+    end
+
     {:noreply, state}
   end
 
-  def handle_info(_, %{ignore_file_changes: true} = state) do
+  def handle_info(_ignored, %{ignore_file_changes: true} = state) do
     {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:ignore_file_changes, ignore_file_changes?}, state) do
-    {:noreply, %{state | ignore_file_changes: ignore_file_changes?}}
   end
 
   @impl true
@@ -113,6 +113,11 @@ defmodule PolyglotWatcherV2.Server do
 
     listen_for_user_input()
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:ignore_file_changes, ignore_file_changes?}, state) do
+    {:noreply, %{state | ignore_file_changes: ignore_file_changes?}}
   end
 
   defp determine_os do

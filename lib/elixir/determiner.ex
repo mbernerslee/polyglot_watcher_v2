@@ -29,6 +29,23 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   end
 
   def user_input_actions(user_input, server_state) do
+    [ClaudeAIReplaceMode]
+    |> Enum.reduce_while(server_state, fn mod, server_state ->
+      case mod.user_input_actions(user_input, server_state) do
+        {false, server_state} ->
+          {:cont, server_state}
+
+        {tree, server_state} ->
+          {:halt, {tree, server_state}}
+      end
+    end)
+    |> case do
+      {tree, server_state} -> {tree, server_state}
+      server_state -> switch_mode_actions(user_input, server_state)
+    end
+  end
+
+  defp switch_mode_actions(user_input, server_state) do
     ex_space = "#{@ex} "
 
     if String.starts_with?(user_input, ex_space) do

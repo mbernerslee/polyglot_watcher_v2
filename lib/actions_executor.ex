@@ -15,7 +15,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAI,
     EnvironmentVariables,
     FileSystem,
-    GitDiff,
+    FilePatches,
     Puts,
     ShellCommandRunner
   }
@@ -40,10 +40,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   defp do_execute({:run_sys_cmd, cmd, args}, server_state) do
     {_std_out, exit_code} = System.cmd(cmd, args, into: IO.stream(:stdio, :line))
     {exit_code, server_state}
-  end
-
-  defp do_execute({:git_diff, file_path, search, replacement}, server_state) do
-    GitDiff.run(file_path, search, replacement, server_state)
   end
 
   defp do_execute({:puts, messages}, server_state) do
@@ -86,6 +82,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
+  defp do_execute({:patch_files, patches}, server_state) do
+    FilePatches.patch(patches, server_state)
+  end
+
   defp do_execute(:load_in_memory_prompt, server_state) do
     ClaudeAIDefaultMode.load_in_memory_prompt(server_state)
   end
@@ -94,20 +94,12 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(test_path, server_state)
   end
 
-  defp do_execute({:build_claude_replace_api_request, test_path}, server_state) do
-    ClaudeAIReplaceMode.RequestBuilder.build(test_path, server_state)
-  end
-
-  defp do_execute(:build_claude_replace_blocks, server_state) do
-    ClaudeAIReplaceMode.BlocksBuilder.parse(server_state)
-  end
-
-  defp do_execute(:build_claude_replace_actions, server_state) do
-    ClaudeAIReplaceMode.ActionsBuilder.build(server_state)
-  end
-
   defp do_execute(:perform_claude_api_request, server_state) do
     ClaudeAI.perform_api_call(server_state)
+  end
+
+  defp do_execute({:perform_claude_replace_api_call, test_path}, server_state) do
+    ClaudeAIReplaceMode.APICall.perform(test_path, server_state)
   end
 
   defp do_execute(:parse_claude_api_response, server_state) do
@@ -178,6 +170,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp actually_clear_screen? do
-    Application.get_env(:polyglot_watcher_v2, :actually_clear_screen) |> IO.inspect()
+    Application.get_env(:polyglot_watcher_v2, :actually_clear_screen)
   end
 end

@@ -9,21 +9,10 @@ defmodule PolyglotWatcherV2.TraverseActionsTree do
     execute_all(entry_point, actions_tree, server_state)
   end
 
-  defp execute_all(action_name, actions_tree, %{action_error: nil} = server_state) do
+  defp execute_all(action_name, actions_tree, server_state) do
     action_name = Map.fetch!(actions_tree, action_name)
     {next_action_name, server_state} = execute_one(action_name, server_state)
-
-    case next_action_name do
-      :exit -> server_state
-      :execute_stored_actions -> execute_stored_actions(server_state)
-      :quit_the_program -> System.stop(0)
-      next_action_name -> execute_all(next_action_name, actions_tree, server_state)
-    end
-  end
-
-  defp execute_all(_action_name, _actions_tree, %{action_error: error} = server_state) do
-    {_, server_state} = ActionsExecutor.execute({:puts, :red, error}, server_state)
-    %{server_state | action_error: nil}
+    execute_next(next_action_name, actions_tree, server_state)
   end
 
   defp execute_stored_actions(%{stored_actions: stored_actions} = server_state) do
@@ -43,5 +32,19 @@ defmodule PolyglotWatcherV2.TraverseActionsTree do
       end
 
     {next_action_name, server_state}
+  end
+
+  defp execute_next(next_action_name, actions_tree, %{action_error: nil} = server_state) do
+    case next_action_name do
+      :exit -> server_state
+      :execute_stored_actions -> execute_stored_actions(server_state)
+      :quit_the_program -> System.stop(0)
+      next_action_name -> execute_all(next_action_name, actions_tree, server_state)
+    end
+  end
+
+  defp execute_next(_next_action_name, _actions_tree, %{action_error: error} = server_state) do
+    {_, server_state} = ActionsExecutor.execute({:puts, :red, error}, server_state)
+    %{server_state | action_error: nil}
   end
 end

@@ -109,11 +109,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
-      assert %{entry_point: :clear_screen, actions_tree: actions_tree} = tree
-
-      # check an arbitrarily chosen action exists in the tree
-      assert actions_tree[:build_replace_actions] != nil
-
       ActionsTreeValidator.validate(tree)
     end
   end
@@ -342,6 +337,92 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       server_state = ServerStateBuilder.build()
 
       assert {:none, ^server_state} = Determiner.user_input_actions("ex xxxxx", server_state)
+    end
+
+    test "if in replace mode, awaiting user response, accept y" do
+      file_updates = %{
+        "lib/cool.ex" => [
+          %{
+            search: "AAA",
+            replace: "BBB",
+            path: "lib/cool.ex",
+            explanation: "Update 1"
+          },
+          %{
+            search: "CCC",
+            replace: "DDD",
+            path: "lib/cool.ex",
+            explanation: "Update 2"
+          }
+        ],
+        "lib/cool_test.exs" => [
+          %{
+            search: "EEE",
+            replace: "FFF",
+            path: "lib/cool_test.exs",
+            explanation: "Update 3"
+          },
+          %{
+            search: "GGG",
+            replace: "HHH",
+            path: "lib/cool_test.exs",
+            explanation: "Update 4"
+          }
+        ]
+      }
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
+
+      assert {tree, _server_state} = Determiner.user_input_actions("y\n", server_state)
+      assert %{} = tree
+
+      ActionsTreeValidator.validate(tree)
+    end
+
+    test "if in replace mode, awaiting user response purge the state even given output that otherwise isn't understood" do
+      file_updates = %{
+        "lib/cool.ex" => %{
+          contents: "AAA\nCCC",
+          patches: [
+            %{
+              search: "AAA",
+              replace: "BBB"
+            },
+            %{
+              search: "CCC",
+              replace: "DDD"
+            }
+          ]
+        },
+        "lib/cool_test.exs" => %{
+          contents: "EEE\nGGG",
+          patches: [
+            %{
+              search: "EEE",
+              replace: "FFF"
+            },
+            %{
+              search: "GGG",
+              replace: "HHH"
+            }
+          ]
+        }
+      }
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
+        |> ServerStateBuilder.with_ignore_file_changes(true)
+
+      assert {:none, server_state} = Determiner.user_input_actions("nope\n", server_state)
+
+      assert server_state.claude_ai == %{}
     end
   end
 end

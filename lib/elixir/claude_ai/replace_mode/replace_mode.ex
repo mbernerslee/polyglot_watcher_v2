@@ -4,6 +4,48 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
 
   @ex Determiner.ex()
   @exs Determiner.exs()
+  @yes "y\n"
+  @no "n\n"
+
+  def user_input_actions(
+        @yes,
+        %{
+          elixir: %{mode: :claude_ai_replace},
+          claude_ai: %{phase: :waiting, file_updates: file_updates}
+        } = server_state
+      ) do
+    {%{
+       entry_point: :patch_files,
+       actions_tree: %{
+         patch_files: %Action{
+           runnable: {:patch_files, file_updates},
+           next_action: :exit
+         }
+       }
+     }, %{server_state | claude_ai: %{}}}
+  end
+
+  def user_input_actions(
+        @no,
+        %{
+          elixir: %{mode: :claude_ai_replace},
+          claude_ai: %{phase: :waiting, file_updates: _file_updates}
+        } = server_state
+      ) do
+    {%{
+       entry_point: :put_msg,
+       actions_tree: %{
+         put_msg: %Action{
+           runnable: {:puts, :magenta, "Ok, ignoring suggestion..."},
+           next_action: :exit
+         }
+       }
+     }, %{server_state | claude_ai: %{}}}
+  end
+
+  def user_input_actions(_, server_state) do
+    {false, %{server_state | claude_ai: %{}}}
+  end
 
   def switch(server_state) do
     {%{
@@ -73,31 +115,19 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
-           next_action: %{0 => :put_success_msg, :fallback => :build_claude_replace_api_request}
-         },
-         build_claude_replace_api_request: %Action{
-           runnable: {:build_claude_replace_api_request, test_path},
-           next_action: :put_calling_claude_msg
+           next_action: %{0 => :put_success_msg, :fallback => :put_calling_claude_msg}
          },
          put_calling_claude_msg: %Action{
            runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
-           next_action: :perform_claude_api_request
+           next_action: :perform_api_call
          },
-         perform_claude_api_request: %Action{
-           runnable: :perform_claude_api_request,
-           next_action: :parse_claude_response
+         perform_api_call: %Action{
+           runnable: {:perform_claude_replace_api_call, test_path},
+           next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
          },
-         parse_claude_response: %Action{
-           runnable: :parse_claude_api_response,
-           next_action: :build_replace_blocks
-         },
-         build_replace_blocks: %Action{
-           runnable: :build_claude_replace_blocks,
-           next_action: :build_replace_actions
-         },
-         build_replace_actions: %Action{
-           runnable: :build_claude_replace_actions,
-           next_action: :execute_stored_actions
+         put_awaiting_input_msg: %Action{
+           runnable: {:puts, :magenta, "Accept file changes (y/n)?"},
+           next_action: :exit
          },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}
        }

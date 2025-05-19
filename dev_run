@@ -1,4 +1,10 @@
 #!/bin/bash
 
 MIX_ENV=dev mix escript.build
-./polyglot_watcher_v2_dev "$@"
+
+if [[ $? -eq 0 ]]; then
+  ./polyglot_watcher_v2_dev "$@"
+else
+  echo "mix escript.build failed!!!"
+  exit 1
+fi

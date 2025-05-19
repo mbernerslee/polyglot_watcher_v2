@@ -1,5 +1,6 @@
 defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
   use ExUnit.Case, async: true
+  use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Cache, FixedFileMode, MixTestArgs}
@@ -26,7 +27,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    {:puts,
                     [
                       {[:magenta], "Switching to "},
-                      {[:magenta, :italic], "Fix All "},
+                      {[:magenta, :italic], "Fixed File "},
                       {[:magenta], "mode...\n"},
                       {[:magenta], "using the provided test path..."}
                     ]},
@@ -79,7 +80,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    {:puts,
                     [
                       {[:magenta], "Switching to "},
-                      {[:magenta, :italic], "Fix All "},
+                      {[:magenta, :italic], "Fixed File "},
                       {[:magenta], "mode...\n"},
                       {[:magenta], "using the latest failing test in memory..."}
                     ]},
@@ -124,7 +125,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                    {:puts,
                     [
                       {[:red], "Switching to "},
-                      {[:red, :italic], "Fix All "},
+                      {[:red, :italic], "Fixed File "},
                       {[:red], "mode failed\n"},
                       {[:red], "I wasn't given a test_path "},
                       {[:red, :italic], "and "},
@@ -140,47 +141,49 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
     end
   end
 
-  # describe "switch/0" do
-  #  test "works if there's at least 1 test failure in the history" do
-  #    server_state =
-  #      ServerStateBuilder.build()
-  #      |> ServerStateBuilder.with_elixir_failures([{"test/x_test.exs", 100}])
+  describe "switch/0" do
+    test "works if there's at least 1 test failure in the history" do
+      server_state = ServerStateBuilder.build()
 
-  #    assert {tree, _server_state} = FixedFileMode.switch(server_state)
+      Mimic.expect(Cache, :get_test_failure, fn :latest ->
+        {:ok, {"test/x_test.exs", 100}}
+      end)
 
-  #    expected_action_tree_keys = [
-  #      :clear_screen,
-  #      :put_switch_mode_msg,
-  #      :switch_mode,
-  #      :put_intent_msg,
-  #      :mix_test,
-  #      :put_success_msg,
-  #      :put_failure_msg
-  #    ]
+      assert {tree, _server_state} = FixedFileMode.switch(server_state)
 
-  #    assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, "test/x_test.exs:100"}}} =
-  #             tree.actions_tree.switch_mode
+      expected_action_tree_keys = [
+        :clear_screen,
+        :switch_mode,
+        :put_switch_mode_msg,
+        :put_mix_test_msg,
+        :mix_test,
+        :put_success_msg,
+        :put_failure_msg
+      ]
 
-  #    ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-  #    ActionsTreeValidator.validate(tree)
-  #  end
+      assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, {"test/x_test.exs", 100}}}} =
+               tree.actions_tree.switch_mode
 
-  #  test "fails if there're no test failures in the history" do
-  #    server_state =
-  #      ServerStateBuilder.build()
-  #      |> ServerStateBuilder.with_elixir_failures([])
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
 
-  #    assert {tree, _server_state} = FixedFileMode.switch(server_state)
+    test "fails if there're no test failures in the history" do
+      server_state = ServerStateBuilder.build()
 
-  #    expected_action_tree_keys = [
-  #      :clear_screen,
-  #      :put_switch_mode_failure_msg
-  #    ]
+      Mimic.expect(Cache, :get_test_failure, fn :latest -> {:error, :not_found} end)
 
-  #    ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-  #    ActionsTreeValidator.validate(tree)
-  #  end
-  # end
+      assert {tree, _server_state} = FixedFileMode.switch(server_state)
+
+      expected_action_tree_keys = [
+        :clear_screen,
+        :put_error_msg
+      ]
+
+      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
+      ActionsTreeValidator.validate(tree)
+    end
+  end
 
   describe "determine_actions/1" do
     test "returns the expected actions" do

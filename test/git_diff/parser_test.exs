@@ -134,5 +134,108 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
 
       assert {:ok, expected} == Parser.parse(raw)
     end
+
+    test "can parse multiple hunks" do
+      raw =
+        """
+        \e[1mdiff --git a/tmp/polyglot_watcher_v2_old_test_elixir_claude_ai_replace_mode_api_call_test.exs b/tmp/polyglot_watcher_v2_new_test_elixir_claude_ai_replace_mode_api_call_test.exs\e[m
+        \e[1mindex 76db925..61a95d5 100644\e[m
+        \e[1m--- a/tmp/polyglot_watcher_v2_old_test_elixir_claude_ai_replace_mode_api_call_test.exs\e[m
+        \e[1m+++ b/tmp/polyglot_watcher_v2_new_test_elixir_claude_ai_replace_mode_api_call_test.exs\e[m
+        \e[36m@@ -18,7 +18,7 @@\e[m \e[mdefmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do\e[m
+               lib_contents = \"lib contents OLD LIB\"\e[m
+               mix_test_output = \"mix test output\"\e[m
+         \e[m
+        \e[31m-      raise \"no\"\e[m
+        \e[32m+\e[m\e[41m      \e[m
+         \e[m
+               test_file = %{path: test_path, contents: test_contents}\e[m
+               lib_file = %{path: lib_path, contents: lib_contents}\e[m
+        \e[36m@@ -370,7 +370,7 @@\e[m \e[mdefmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do\e[m
+         \e[m
+               assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
+         \e[m
+        \e[31m-      expected_error = \"Git Diff error: :git_diff_parsing_error\"\e[m
+        \e[32m+\e[m\e[32m      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"\e[m
+               assert new_server_state.action_error == expected_error\e[m
+               assert %{server_state | action_error: expected_error} == new_server_state\e[m
+             end\e[m
+        """
+
+      expected =
+        """
+        ────────────────────────
+        Lines: 18 - 24
+        ────────────────────────
+               lib_contents = \"lib contents OLD LIB\"
+               mix_test_output = \"mix test output\"
+
+        -      raise \"no\"
+        +
+
+               test_file = %{path: test_path, contents: test_contents}
+               lib_file = %{path: lib_path, contents: lib_contents}
+        ────────────────────────
+        Lines: 370 - 376
+        ────────────────────────
+
+               assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+        -      expected_error = \"Git Diff error: :git_diff_parsing_error\"
+        +      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"
+               assert new_server_state.action_error == expected_error
+               assert %{server_state | action_error: expected_error} == new_server_state
+             end
+        ────────────────────────
+        """
+
+      assert {:ok, expected} == Parser.parse(raw)
+    end
+
+    test "when no hunk start is found, return error" do
+      raw =
+        """
+        diff --git a/file1 b/file2
+        index 1234567..abcdefg 100644
+        --- a/file1
+        +++ b/file2
+        This is not a valid git diff output
+        """
+
+      assert {:error, {:git_diff_parse, :no_hunk_start}} = Parser.parse(raw)
+    end
+
+    test "in the very confusing case when the text of the file has a git diff hunk start in it, we ignore it" do
+      raw =
+        """
+        diff --git a/tmp/polyglot_watcher_v2_old b/tmp/polyglot_watcher_v2_new
+        index 53fea5a..ed29468 100644
+        --- a/tmp/polyglot_watcher_v2_old
+        +++ b/tmp/polyglot_watcher_v2_new
+        @@ -1,5 +1,5 @@
+           defmodule Cool do
+             def cool(text) do
+        -      text
+        +      "@@ -10,13 +10,13 @@"
+             end
+           end
+        """
+
+      expected =
+        """
+        ────────────────────────
+        Lines: 1 - 5
+        ────────────────────────
+           defmodule Cool do
+             def cool(text) do
+        -      text
+        +      "@@ -10,13 +10,13 @@"
+             end
+           end
+        ────────────────────────
+        """
+
+      assert {:ok, expected} == Parser.parse(raw)
+    end
   end
 end
