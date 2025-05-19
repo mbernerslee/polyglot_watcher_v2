@@ -7,9 +7,9 @@ See the section 'Watcher usage and modes' below.
 ## Installation
 
 ### Prerequisites
-- [https://elixir-lang.org/](Elixir) >= 1.18 - Probably works with somewhat lower versions, but not for sure
-- [https://www.erlang.org/](Erlang / OTP 27)
-- It's highly recommended to install both with [https://asdf-vm.com/guide/getting-started.html](ASDF)
+- [Elixir](https://elixir-lang.org/) >= 1.18 - Probably works with somewhat lower versions, but not for sure
+- [Erlang / OTP 27](https://www.erlang.org/)
+- It's highly recommended to install both with [ASDF](https://asdf-vm.com/guide/getting-started.html)
 
 if you're on Debian or Mac simply do:
 
