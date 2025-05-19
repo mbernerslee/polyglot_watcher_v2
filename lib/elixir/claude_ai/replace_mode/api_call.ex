@@ -5,11 +5,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
 
+  #TODO make output prettier
+  #TODO stop several changes being allowed for 1 update? (global = false? or explicit line number if multple matches?)
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
          {:ok, instruct_result} <- instruct(prompt, api_key),
-         {:ok, updates} <- group_updates_by_file(instruct_result, files),
+         {:ok, updates} <- group_updates(instruct_result, files),
          {:ok, git_diffs} <- git_diff(updates),
          :ok <- put_diffs_with_explanations(git_diffs, updates) do
       update_server_state(updates, server_state)
@@ -36,35 +38,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  ### updates
-  #  [
-  #  {"lib/a.ex",
-  #   %{
-  #     contents: "lib contents OLD LIB",
-  #     patches: [
-  #       %{
-  #         search: "OLD LIB",
-  #         replace: "NEW LIB",
-  #         explanation: "some lib code was awful"
-  #       }
-  #     ]
-  #   }},
-  #  {"test/a_test.exs",
-  #   %{
-  #     contents: "test contents OLD TEST",
-  #     patches: [
-  #       %{
-  #         search: "OLD TEST",
-  #         replace: "NEW TEST",
-  #         explanation: "some test code was awful"
-  #       }
-  #     ]
-  #   }}
-  # ]
-
   defp git_diff(updates) do
     updates
-    |> IO.inspect()
     |> GitDiff.run()
     |> case do
       {:ok, res} -> {:ok, res}
@@ -79,18 +54,23 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
     ])
 
-    Enum.each(updates, fn {path, %{contents: _contents, patches: patches}} ->
-      git_diff = Map.fetch!(git_diffs, path)
+    # TODO this sorting is untested :-( find a way?
+    Enum.reduce(updates, [], fn {path, %{patches: patches}}, acc ->
+      Enum.reduce(patches, acc, fn %{index: index, explanation: explanation}, inner ->
+        git_diff =
+          git_diffs
+          |> Map.fetch!(path)
+          |> Map.fetch!(index)
 
-      explanations =
-        patches
-        |> Enum.map(& &1.explanation)
-        |> Enum.join("\n")
-
+        [%{path: path, git_diff: git_diff, explanation: explanation, index: index} | inner]
+      end)
+    end)
+    |> Enum.sort(&(&1.index <= &2.index))
+    |> Enum.each(fn %{path: path, git_diff: git_diff, explanation: explanation} ->
       Puts.on_new_line([
         {[], path <> "\n"},
         {[], git_diff},
-        {[], explanations},
+        {[], explanation},
         {[], "\n────────────────────────\n"}
       ])
     end)
@@ -100,49 +80,52 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     ])
   end
 
-  defp group_updates_by_file(%CodeFileUpdates{updates: []}, _) do
+  defp group_updates(%CodeFileUpdates{updates: []}, _) do
     {:error, {:instructor_lite, :no_changes_suggested}}
   end
 
-  defp group_updates_by_file(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
-    updates
-    |> Enum.reduce_while({:ok, %{}}, fn update, {:ok, acc} ->
-      %CodeFileUpdate{
-        file_path: file_path,
-        explanation: explanation,
-        search: search,
-        replace: replace
-      } = update
+  defp group_updates(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
+    do_group_updates(%{}, 1, updates, test, lib)
+  end
 
-      cond do
-        file_path == lib.path -> {:ok, lib}
-        file_path == test.path -> {:ok, test}
-        true -> {:error, {:instructor_lite, :invalid_file_path}}
-      end
-      |> case do
-        {:ok, file} ->
-          patch = %{
-            search: search,
-            replace: replace,
-            explanation: explanation
-          }
+  defp do_group_updates(acc, _index, [], _test, _lib) do
+    {:ok, Map.to_list(acc)}
+  end
 
-          {:cont,
-           {:ok,
-            Map.update(
-              acc,
-              file.path,
-              %{contents: file.contents, patches: [patch]},
-              &Map.update!(&1, :patches, fn patches -> patches ++ [patch] end)
-            )}}
+  defp do_group_updates(acc, index, [update | rest], test, lib) do
+    %CodeFileUpdate{
+      file_path: file_path,
+      explanation: explanation,
+      search: search,
+      replace: replace
+    } = update
 
-        error ->
-          {:halt, error}
-      end
-    end)
+    cond do
+      file_path == lib.path -> {:ok, lib}
+      file_path == test.path -> {:ok, test}
+      true -> {:error, {:instructor_lite, :invalid_file_path}}
+    end
     |> case do
-      {:ok, updates} -> {:ok, Map.to_list(updates)}
-      error -> error
+      {:ok, file} ->
+        patch = %{
+          search: search,
+          replace: replace,
+          explanation: explanation,
+          index: index
+        }
+
+        acc =
+          Map.update(
+            acc,
+            file.path,
+            %{contents: file.contents, patches: [patch]},
+            &Map.update!(&1, :patches, fn patches -> patches ++ [patch] end)
+          )
+
+        do_group_updates(acc, index + 1, rest, test, lib)
+
+      error ->
+        error
     end
   end
 

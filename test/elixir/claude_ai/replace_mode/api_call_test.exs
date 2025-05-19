@@ -82,8 +82,42 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
         {std_out, 1}
       end)
 
-      Mimic.expect(Puts, :on_new_line, 4, fn _ ->
-        :ok
+      Mimic.expect(Puts, :on_new_line, 1, fn
+        [
+          {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
+          {[:magenta], "████████████████ Claude Response ████████████████\n"},
+          {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
+        ] ->
+          :ok
+      end)
+
+      Mimic.expect(Puts, :on_new_line, 1, fn
+        [
+          {[], "lib/a.ex\n"},
+          {[],
+           "────────────────────────\n1) Line: 1\n────────────────────────\n-test contents OLD TEST\n+test contents NEW TEST\n────────────────────────\n"},
+          {[], "some lib code was awful"},
+          {[], "\n────────────────────────\n"}
+        ] ->
+          :ok
+      end)
+
+      Mimic.expect(Puts, :on_new_line, 1, fn
+        [
+          {[], "test/a_test.exs\n"},
+          {[],
+           "────────────────────────\n2) Line: 1\n────────────────────────\n-lib contents OLD LIB\n+lib contents NEW LIB\n────────────────────────\n"},
+          {[], "some test code was awful"},
+          {[], "\n────────────────────────\n"}
+        ] ->
+          :ok
+      end)
+
+      Mimic.expect(Puts, :on_new_line, 1, fn
+        [
+          {[:magenta], "█████████████████████████████████████████████████\n"}
+        ] ->
+          :ok
       end)
 
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
@@ -102,7 +136,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                     %{
                       search: "OLD LIB",
                       replace: "NEW LIB",
-                      explanation: "some lib code was awful"
+                      explanation: "some lib code was awful",
+                      index: 1
                     }
                   ],
                   contents: lib_contents
@@ -113,14 +148,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                     %{
                       search: "OLD TEST",
                       replace: "NEW TEST",
-                      explanation: "some test code was awful"
+                      explanation: "some test code was awful",
+                      index: 2
                     }
                   ],
                   contents: test_contents
                 }}
              ] == file_updates
-
-      raise "no"
     end
 
     test "when reading the cache returns error, return error" do
@@ -289,46 +323,78 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
          }}
       end)
 
-      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
-        std_out =
-          """
-          diff --git a/x_lib_old b/x_lib_new
-          index 102dcaf..818aacb 100644
-          --- a/x_lib_old
-          +++ b/x_lib_new
-          @@ -1,2 +1,2 @@
-          -old content 1
-          -old content 2
-          +new content 1
-          +new content 2
-          """
+      Mimic.expect(SystemWrapper, :cmd, 2, fn
+        "git",
+        [
+          _,
+          _,
+          _,
+          "/tmp/polyglot_watcher_v2_old_lib_a_ex_1",
+          "/tmp/polyglot_watcher_v2_new_lib_a_ex_1"
+        ] ->
+          std_out =
+            """
+            diff --git a/x_lib_old b/x_lib_new
+            index 102dcaf..818aacb 100644
+            --- a/x_lib_old
+            +++ b/x_lib_new
+            @@ -1,2 +1,2 @@
+            -old content 1
+            +new content 1
+            """
 
-        {std_out, 1}
+          {std_out, 1}
+
+        "git",
+        [
+          _,
+          _,
+          _,
+          "/tmp/polyglot_watcher_v2_old_lib_a_ex_2",
+          "/tmp/polyglot_watcher_v2_new_lib_a_ex_2"
+        ] ->
+          std_out =
+            """
+            diff --git a/x_lib_old b/x_lib_new
+            index 102dcaf..818aacb 100644
+            --- a/x_lib_old
+            +++ b/x_lib_new
+            @@ -1,2 +1,2 @@
+            -old content 2
+            +new content 2
+            """
+
+          {std_out, 1}
       end)
 
-      Mimic.expect(Puts, :on_new_line, 3, fn _ -> :ok end)
+      Mimic.expect(Puts, :on_new_line, 4, fn _ -> :ok end)
 
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
 
       assert %{claude_ai: %{file_updates: file_updates}} = new_server_state
 
-      assert %{
-               lib_path => %{
-                 patches: [
-                   %{
-                     search: "old content 1",
-                     replace: "new content 1",
-                     explanation: "Update 1"
-                   },
-                   %{
-                     search: "old content 2",
-                     replace: "new content 2",
-                     explanation: "Update 2"
-                   }
-                 ],
-                 contents: lib_contents
+      assert [
+               {
+                 lib_path,
+                 %{
+                   patches: [
+                     %{
+                       search: "old content 1",
+                       replace: "new content 1",
+                       explanation: "Update 1",
+                       index: 1
+                     },
+                     %{
+                       search: "old content 2",
+                       replace: "new content 2",
+                       explanation: "Update 2",
+                       index: 2
+                     }
+                   ],
+                   contents: lib_contents
+                 }
                }
-             } == file_updates
+             ] == file_updates
     end
 
     test "when returns something we can't parse errors, we put an action_error" do

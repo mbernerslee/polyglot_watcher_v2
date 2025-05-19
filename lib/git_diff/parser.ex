@@ -5,10 +5,10 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
 
   @bar_line "────────────────────────"
 
-  def parse(git_diff_output) do
+  def parse(git_diff_output, index) do
     git_diff_output
     |> String.split("\n")
-    |> do_parse(false, [])
+    |> do_parse(false, [], index)
     |> case do
       {:ok, result} ->
         {:ok, result}
@@ -18,36 +18,36 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
     end
   end
 
-  defp do_parse([], false, _acc) do
+  defp do_parse([], false, _acc, _index) do
     {:error, {:git_diff_parse, :no_hunk_start}}
   end
 
-  defp do_parse([""], true, acc) do
+  defp do_parse([""], true, acc, _index) do
     result = ["", @bar_line | acc] |> Enum.reverse() |> Enum.join("\n")
     {:ok, result}
   end
 
-  defp do_parse([], true, acc) do
+  defp do_parse([], true, acc, _index) do
     result = ["", @bar_line | acc] |> Enum.reverse() |> Enum.join("\n")
     {:ok, result}
   end
 
-  defp do_parse([line | rest], found?, acc) do
+  defp do_parse([line | rest], found?, acc, index) do
     case {capture_hunk_line(line), found?} do
       {{:ok, line_number, line_count}, _} ->
         last_line = String.to_integer(line_number) + String.to_integer(line_count) - 1
-        lines_line = "Lines: #{line_number} - #{last_line}"
-        do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc])
+        lines_line = "#{index}) Lines: #{line_number} - #{last_line}"
+        do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc], index)
 
       {{:ok, line_number}, _} ->
-        lines_line = "Line: #{line_number}"
-        do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc])
+        lines_line = "#{index}) Line: #{line_number}"
+        do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc], index)
 
       {:error, true} ->
-        do_parse(rest, true, [String.trim_trailing(line) | acc])
+        do_parse(rest, true, [String.trim_trailing(line) | acc], index)
 
       {:error, false} ->
-        do_parse(rest, false, acc)
+        do_parse(rest, false, acc, index)
     end
   end
 

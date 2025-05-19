@@ -17,11 +17,13 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       search_replace_lib = [
         %{
           search: "def hello, do: \"world\"",
-          replace: "def hello, do: \"universe\""
+          replace: "def hello, do: \"universe\"",
+          index: 1
         },
         %{
           search: "def goodbye, do: \"farewell\"",
-          replace: "def goodbye, do: \"see you later\""
+          replace: "def goodbye, do: \"see you later\"",
+          index: 2
         }
       ]
 
@@ -35,24 +37,26 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       search_replace_test = [
         %{
           search: "def some, do: \"test\"",
-          replace: "def some_new, do: \"thingey\""
+          replace: "def some_new, do: \"thingey\"",
+          index: 3
         },
         %{
           search: "def other, do: \"test thing\"",
-          replace: "def other_new, do: \"other new thingey\""
+          replace: "def other_new, do: \"other new thingey\"",
+          index: 4
         }
       ]
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemWrapper, :cmd, 2, fn
+      Mimic.expect(SystemWrapper, :cmd, 4, fn
         "git",
         [
           "diff",
           "--no-index",
           "--color",
-          "/tmp/polyglot_watcher_v2_old_lib",
-          "/tmp/polyglot_watcher_v2_new_lib"
+          "/tmp/polyglot_watcher_v2_old_lib_1",
+          "/tmp/polyglot_watcher_v2_new_lib_1"
         ] ->
           {
             """
@@ -63,8 +67,29 @@ defmodule PolyglotWatcherV2.GitDiffTest do
             @@ -1,4 +1,4 @@
              defmodule Lib do
             -  def hello, do: "world"
-            -  def goodbye, do: "farewell"
             +  def hello, do: "universe"
+             end
+            """,
+            1
+          }
+
+        "git",
+        [
+          "diff",
+          "--no-index",
+          "--color",
+          "/tmp/polyglot_watcher_v2_old_lib_2",
+          "/tmp/polyglot_watcher_v2_new_lib_2"
+        ] ->
+          {
+            """
+            diff --git a/old b/new
+            index 1234567..abcdefg 100644
+            --- a/old
+            +++ b/new
+            @@ -1,4 +1,4 @@
+             defmodule Lib do
+            -  def goodbye, do: "farewell"
             +  def goodbye, do: "see you later"
              end
             """,
@@ -76,8 +101,8 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           "diff",
           "--no-index",
           "--color",
-          "/tmp/polyglot_watcher_v2_old_test",
-          "/tmp/polyglot_watcher_v2_new_test"
+          "/tmp/polyglot_watcher_v2_old_test_3",
+          "/tmp/polyglot_watcher_v2_new_test_3"
         ] ->
           {
             """
@@ -88,8 +113,29 @@ defmodule PolyglotWatcherV2.GitDiffTest do
             @@ -1,4 +1,4 @@
              defmodule Lib do
             -  def some, do: "test"
-            -  def other, do: "test thing"
             +  def some_new, do: "thingey"
+             end
+            """,
+            1
+          }
+
+        "git",
+        [
+          "diff",
+          "--no-index",
+          "--color",
+          "/tmp/polyglot_watcher_v2_old_test_4",
+          "/tmp/polyglot_watcher_v2_new_test_4"
+        ] ->
+          {
+            """
+            diff --git a/old b/new
+            index 1234567..abcdefg 100644
+            --- a/old
+            +++ b/new
+            @@ -1,4 +1,4 @@
+             defmodule Lib do
+            -  def other, do: "test thing"
             +  def other_new, do: "other new thingey"
              end
             """,
@@ -97,56 +143,94 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           }
       end)
 
-      expected_diff_lib =
+      expected_diff_lib_1 =
         """
         ────────────────────────
-        Lines: 1 - 4
+        1) Lines: 1 - 4
         ────────────────────────
          defmodule Lib do
         -  def hello, do: \"world\"
-        -  def goodbye, do: \"farewell\"
         +  def hello, do: \"universe\"
+         end
+        ────────────────────────
+        """
+
+      expected_diff_lib_2 =
+        """
+        ────────────────────────
+        2) Lines: 1 - 4
+        ────────────────────────
+         defmodule Lib do
+        -  def goodbye, do: \"farewell\"
         +  def goodbye, do: \"see you later\"
          end
         ────────────────────────
         """
 
-      expected_diff_test =
+      expected_diff_test_3 =
         """
         ────────────────────────
-        Lines: 1 - 4
+        3) Lines: 1 - 4
         ────────────────────────
          defmodule Lib do
         -  def some, do: \"test\"
-        -  def other, do: \"test thing\"
         +  def some_new, do: \"thingey\"
+         end
+        ────────────────────────
+        """
+
+      expected_diff_test_4 =
+        """
+        ────────────────────────
+        4) Lines: 1 - 4
+        ────────────────────────
+         defmodule Lib do
+        -  def other, do: \"test thing\"
         +  def other_new, do: \"other new thingey\"
          end
         ────────────────────────
         """
 
-      Mimic.expect(FileWrapper, :rm_rf, 4, fn
-        "/tmp/polyglot_watcher_v2_old_lib" = path ->
+      Mimic.expect(FileWrapper, :rm_rf, 8, fn
+        "/tmp/polyglot_watcher_v2_old_lib_1" = path ->
           {:ok, [path]}
 
-        "/tmp/polyglot_watcher_v2_new_lib" = path ->
+        "/tmp/polyglot_watcher_v2_old_lib_2" = path ->
           {:ok, [path]}
 
-        "/tmp/polyglot_watcher_v2_old_test" = path ->
+        "/tmp/polyglot_watcher_v2_new_lib_1" = path ->
           {:ok, [path]}
 
-        "/tmp/polyglot_watcher_v2_new_test" = path ->
+        "/tmp/polyglot_watcher_v2_new_lib_2" = path ->
+          {:ok, [path]}
+
+        "/tmp/polyglot_watcher_v2_old_test_3" = path ->
+          {:ok, [path]}
+
+        "/tmp/polyglot_watcher_v2_new_test_3" = path ->
+          {:ok, [path]}
+
+        "/tmp/polyglot_watcher_v2_old_test_4" = path ->
+          {:ok, [path]}
+
+        "/tmp/polyglot_watcher_v2_new_test_4" = path ->
           {:ok, [path]}
       end)
 
-      assert {:ok, %{"lib" => actual_lib_diff, "test" => actual_test_diff}} =
-               GitDiff.run(%{
-                 "lib" => %{contents: old_contents_lib, search_replace: search_replace_lib},
-                 "test" => %{contents: old_contents_test, search_replace: search_replace_test}
-               })
+      assert {:ok,
+              %{
+                "lib" => %{1 => actual_lib_diff_1, 2 => actual_lib_diff_2},
+                "test" => %{3 => actual_test_diff_3, 4 => actual_test_diff_4}
+              }} =
+               GitDiff.run([
+                 {"lib", %{contents: old_contents_lib, patches: search_replace_lib}},
+                 {"test", %{contents: old_contents_test, patches: search_replace_test}}
+               ])
 
-      assert expected_diff_lib == actual_lib_diff
-      assert expected_diff_test == actual_test_diff
+      assert expected_diff_lib_1 == actual_lib_diff_1
+      assert expected_diff_lib_2 == actual_lib_diff_2
+      assert expected_diff_test_3 == actual_test_diff_3
+      assert expected_diff_test_4 == actual_test_diff_4
     end
 
     test "if replace is nil, delete the search text" do
@@ -160,24 +244,26 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       search_replace_lib = [
         %{
           search: "def hello, do: \"world\"",
-          replace: nil
+          replace: nil,
+          index: 1
         },
         %{
           search: "def goodbye, do: \"farewell\"",
-          replace: nil
+          replace: nil,
+          index: 2
         }
       ]
 
-      Mimic.expect(FileWrapper, :write, 1, fn _, _ -> :ok end)
+      Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemWrapper, :cmd, 1, fn
+      Mimic.expect(SystemWrapper, :cmd, 2, fn
         "git",
         [
           "diff",
           "--no-index",
           "--color",
-          "/tmp/polyglot_watcher_v2_old_lib",
-          "/tmp/polyglot_watcher_v2_new_lib"
+          "/tmp/polyglot_watcher_v2_old_lib_1",
+          "/tmp/polyglot_watcher_v2_new_lib_1"
         ] ->
           {
             """
@@ -188,6 +274,27 @@ defmodule PolyglotWatcherV2.GitDiffTest do
             @@ -1,4 +1,4 @@
              defmodule Lib do
             -  def hello, do: "world"
+             end
+            """,
+            1
+          }
+
+        "git",
+        [
+          "diff",
+          "--no-index",
+          "--color",
+          "/tmp/polyglot_watcher_v2_old_lib_2",
+          "/tmp/polyglot_watcher_v2_new_lib_2"
+        ] ->
+          {
+            """
+            diff --git a/old b/new
+            index 1234567..abcdefg 100644
+            --- a/old
+            +++ b/new
+            @@ -1,4 +1,4 @@
+             defmodule Lib do
             -  def goodbye, do: "farewell"
              end
             """,
@@ -195,32 +302,39 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           }
       end)
 
-      expected_diff_lib =
+      expected_diff_lib_1 =
         """
         ────────────────────────
-        Lines: 1 - 4
+        1) Lines: 1 - 4
         ────────────────────────
          defmodule Lib do
         -  def hello, do: \"world\"
+         end
+        ────────────────────────
+        """
+
+      expected_diff_lib_2 =
+        """
+        ────────────────────────
+        2) Lines: 1 - 4
+        ────────────────────────
+         defmodule Lib do
         -  def goodbye, do: \"farewell\"
          end
         ────────────────────────
         """
 
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn
-        "/tmp/polyglot_watcher_v2_old_lib" = path ->
-          {:ok, [path]}
-
-        "/tmp/polyglot_watcher_v2_new_lib" = path ->
-          {:ok, [path]}
+      Mimic.expect(FileWrapper, :rm_rf, 4, fn
+        path -> {:ok, [path]}
       end)
 
-      assert {:ok, %{"lib" => actual_lib_diff}} =
-               GitDiff.run(%{
-                 "lib" => %{contents: old_contents_lib, search_replace: search_replace_lib}
-               })
+      assert {:ok, %{"lib" => %{1 => actual_lib_diff_1, 2 => actual_lib_diff_2}}} =
+               GitDiff.run([
+                 {"lib", %{contents: old_contents_lib, patches: search_replace_lib}}
+               ])
 
-      assert expected_diff_lib == actual_lib_diff
+      assert expected_diff_lib_1 == actual_lib_diff_1
+      assert expected_diff_lib_2 == actual_lib_diff_2
     end
 
     test "given file update keys with / in them, they are handled" do
@@ -234,18 +348,27 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       search_replace_lib = [
         %{
           search: "def hello, do: \"world\"",
-          replace: "def hello, do: \"universe\""
+          replace: "def hello, do: \"universe\"",
+          index: 1
         },
         %{
           search: "def goodbye, do: \"farewell\"",
-          replace: "def goodbye, do: \"see you later\""
+          replace: "def goodbye, do: \"see you later\"",
+          index: 2
         }
       ]
 
       Mimic.expect(FileWrapper, :write, 1, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemWrapper, :cmd, 1, fn
-        "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, 2, fn
+        "git",
+        [
+          _,
+          _,
+          _,
+          "/tmp/polyglot_watcher_v2_old_lib_some_path_ok_1",
+          "/tmp/polyglot_watcher_v2_new_lib_some_path_ok_1"
+        ] ->
           {
             """
             diff --git a/old b/new
@@ -255,8 +378,29 @@ defmodule PolyglotWatcherV2.GitDiffTest do
             @@ -1,4 +1,4 @@
              defmodule Lib do
             -  def hello, do: "world"
-            -  def goodbye, do: "farewell"
             +  def hello, do: "universe"
+             end
+            """,
+            1
+          }
+
+        "git",
+        [
+          _,
+          _,
+          _,
+          "/tmp/polyglot_watcher_v2_old_lib_some_path_ok_2",
+          "/tmp/polyglot_watcher_v2_new_lib_some_path_ok_2"
+        ] ->
+          {
+            """
+            diff --git a/old b/new
+            index 1234567..abcdefg 100644
+            --- a/old
+            +++ b/new
+            @@ -1,4 +1,4 @@
+             defmodule Lib do
+            -  def goodbye, do: "farewell"
             +  def goodbye, do: "see you later"
              end
             """,
@@ -264,37 +408,45 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           }
       end)
 
-      expected_diff_lib =
+      expected_diff_lib_1 =
         """
         ────────────────────────
-        Lines: 1 - 4
+        1) Lines: 1 - 4
         ────────────────────────
          defmodule Lib do
         -  def hello, do: \"world\"
-        -  def goodbye, do: \"farewell\"
         +  def hello, do: \"universe\"
+         end
+        ────────────────────────
+        """
+
+      expected_diff_lib_2 =
+        """
+        ────────────────────────
+        2) Lines: 1 - 4
+        ────────────────────────
+         defmodule Lib do
+        -  def goodbye, do: \"farewell\"
         +  def goodbye, do: \"see you later\"
          end
         ────────────────────────
         """
 
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn
-        "/tmp/polyglot_watcher_v2_old_lib_some_path_ok" = path ->
-          {:ok, [path]}
-
-        "/tmp/polyglot_watcher_v2_new_lib_some_path_ok" = path ->
-          {:ok, [path]}
+      Mimic.expect(FileWrapper, :rm_rf, 4, fn
+        path -> {:ok, [path]}
       end)
 
-      assert {:ok, %{"lib/some/path/ok" => actual_lib_diff}} =
-               GitDiff.run(%{
-                 "lib/some/path/ok" => %{
-                   contents: old_contents_lib,
-                   search_replace: search_replace_lib
-                 }
-               })
+      assert {:ok, %{"lib/some/path/ok" => %{1 => actual_lib_diff_1, 2 => actual_lib_diff_2}}} =
+               GitDiff.run([
+                 {"lib/some/path/ok",
+                  %{
+                    contents: old_contents_lib,
+                    patches: search_replace_lib
+                  }}
+               ])
 
-      assert expected_diff_lib == actual_lib_diff
+      assert expected_diff_lib_1 == actual_lib_diff_1
+      assert expected_diff_lib_2 == actual_lib_diff_2
     end
 
     test "when we're not searching for the entire file, we produce the diff we expect" do
@@ -310,23 +462,17 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       end
       """
 
-      search_replace = [
+      patches = [
         %{
           search: "def hello do\n    IO.puts(\"Hello, world!\")\n  end",
-          replace: "def hello do\n    IO.puts(\"Hello, universe!\")\n  end"
+          replace: "def hello do\n    IO.puts(\"Hello, universe!\")\n  end",
+          index: 1
         }
       ]
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemWrapper, :cmd, fn "git",
-                                           [
-                                             "diff",
-                                             "--no-index",
-                                             "--color",
-                                             "/tmp/polyglot_watcher_v2_old_example",
-                                             "/tmp/polyglot_watcher_v2_new_example"
-                                           ] ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         {
           """
           diff --git a/old b/new
@@ -350,7 +496,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       expected_diff = """
       ────────────────────────
-      Lines: 1 - 6
+      1) Lines: 1 - 6
       ────────────────────────
        defmodule Example do
          def hello do
@@ -362,58 +508,58 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       ────────────────────────
       """
 
-      assert {:ok, %{"example" => actual_diff}} =
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+      assert {:ok, %{"example" => %{1 => actual_diff}}} =
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
 
       assert expected_diff == actual_diff
     end
 
     test "if writing the 'old' file fails, return an error" do
       old_contents = "Some content"
-      search_replace = [%{search: "Some", replace: "New"}]
+      patches = [%{search: "Some", replace: "New", index: 1}]
 
       Mimic.expect(FileWrapper, :write, 1, fn
-        "/tmp/polyglot_watcher_v2_old_example", _contents ->
+        "/tmp/polyglot_watcher_v2_old_example_1", _contents ->
           {:error, :eacces}
       end)
 
       Mimic.reject(&SystemWrapper.cmd/2)
 
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
-
       assert {:error, {:failed_to_write_tmp_file, _, :eacces}} =
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
     end
 
     test "if writing the 'new' file fails, return an error" do
       old_contents = "Some content"
-      search_replace = [%{search: "Some", replace: "New"}]
+      patches = [%{search: "Some", replace: "New", index: 1}]
 
       Mimic.expect(FileWrapper, :write, 2, fn
-        "/tmp/polyglot_watcher_v2_new_example", _contents ->
+        "/tmp/polyglot_watcher_v2_new_example_1", _contents ->
           {:error, :eacces}
 
-        "/tmp/polyglot_watcher_v2_old_example", _contents ->
+        "/tmp/polyglot_watcher_v2_old_example_1", _contents ->
           :ok
       end)
 
       Mimic.reject(&SystemWrapper.cmd/2)
-
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
+      Mimic.reject(&FileWrapper.rm_rf/1)
 
       assert {:error, {:failed_to_write_tmp_file, _, :eacces}} =
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+               GitDiff.run([
+                 {
+                   "example",
+                   %{contents: old_contents, patches: patches}
+                 }
+               ])
     end
 
     test "if the git diff returns some error output, then return an error" do
       old_contents = "Some content"
-      search_replace = [%{search: "Some", replace: "New"}]
+      patches = [%{search: "Some", replace: "New", index: 1}]
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
@@ -421,17 +567,15 @@ defmodule PolyglotWatcherV2.GitDiffTest do
         {"fatal: error occurred", 1}
       end)
 
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
-
       assert {:error, :git_diff_parsing_error} ==
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
     end
 
     test "if the read file contents contains the search text twice, replace them all" do
       old_contents = "Some content that matches twice. Some content that matches twice."
-      search_replace = [%{search: "Some content that matches twice", replace: "New text"}]
+      patches = [%{search: "Some content that matches twice", replace: "New text", index: 1}]
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
@@ -454,24 +598,24 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       expected_diff = """
       ────────────────────────
-      Line: 1
+      1) Line: 1
       ────────────────────────
       -Some content that matches twice. Some content that matches twice.
       +New text. New text.
       ────────────────────────
       """
 
-      assert {:ok, %{"example" => actual_diff}} =
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+      assert {:ok, %{"example" => %{1 => actual_diff}}} =
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
 
       assert expected_diff == actual_diff
     end
 
     test "when the git diff is not in a format that we can parse, return an error" do
       old_contents = "Some content"
-      search_replace = [%{search: "Some", replace: "New"}]
+      patches = [%{search: "Some", replace: "New", index: 1}]
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
@@ -479,43 +623,38 @@ defmodule PolyglotWatcherV2.GitDiffTest do
         {"This is not a valid git diff format", 0}
       end)
 
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
-
       assert {:error, :git_diff_parsing_error} ==
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
     end
 
     test "when there's a problem with the file system and we fail to write the tmp file, we return an error" do
       old_contents = "Some content"
-      search_replace = [%{search: "Some", replace: "New"}]
+      patches = [%{search: "Some", replace: "New", index: 1}]
 
       Mimic.expect(FileWrapper, :write, 1, fn _, _ -> {:error, :eacces} end)
 
       Mimic.reject(&SystemWrapper.cmd/2)
 
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
-
       assert {:error,
-              {:failed_to_write_tmp_file, "/tmp/polyglot_watcher_v2_old_example", :eacces}} =
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+              {:failed_to_write_tmp_file, "/tmp/polyglot_watcher_v2_old_example_1", :eacces}} =
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
     end
 
     test "when search fails to find a match, return an error" do
       old_contents = "Some content"
-      search_replace = [%{search: "NonExistent", replace: "New"}]
+      patches = [%{search: "NonExistent", replace: "New", index: 1}]
 
       Mimic.reject(&FileWrapper.write/2)
       Mimic.reject(&SystemWrapper.cmd/2)
-      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
 
       assert {:error, {:search_failed, "NonExistent", "New"}} ==
-               GitDiff.run(%{
-                 "example" => %{contents: old_contents, search_replace: search_replace}
-               })
+               GitDiff.run([
+                 {"example", %{contents: old_contents, patches: patches}}
+               ])
     end
   end
 end

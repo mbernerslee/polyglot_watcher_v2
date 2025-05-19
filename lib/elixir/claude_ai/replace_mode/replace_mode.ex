@@ -8,6 +8,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   @yes "y\n"
   @no "n\n"
 
+  #TODO fix patch files, the data structure is different now
   @impl PolyglotWatcherV2.Mode
   def user_input_actions(
         @yes,
