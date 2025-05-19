@@ -11,14 +11,17 @@ See the section 'Watcher usage and modes' below.
 - [Erlang / OTP 27](https://www.erlang.org/)
 - It's highly recommended to install both with [ASDF](https://asdf-vm.com/guide/getting-started.html)
 
-if you're on Debian or Mac simply do:
+Once you have the Prerequisites, if you're on Debian or Mac simply do:
 
 - `git clone git@github.com:mbernerslee/polyglot_watcher_v2.git`
 - `cd polyglot_watcher_v2`
 - `./install`
+- - The install script makes some assumptions about what you have in your PATH. It will fail if it adds its symlink to a directory that in fact is not in your PATH. You're on your own to fix it if that happens
 - now you can run `polyglot_watcher_v2` from anywhere
 
-...otherwise you'll have to look at how the `install` script works and figure out how to install it on your OS.
+
+...if you're on a different OS you'll have to look at how the `install` script works and figure out how to install it yourself. It shouldn't be too hard (unless you're on windows, in which case good luck to you).
+
 
 ## Watcher usage and modes
 
