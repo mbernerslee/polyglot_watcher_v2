@@ -36,11 +36,35 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
+  ### updates
+  #  [
+  #  {"lib/a.ex",
+  #   %{
+  #     contents: "lib contents OLD LIB",
+  #     patches: [
+  #       %{
+  #         search: "OLD LIB",
+  #         replace: "NEW LIB",
+  #         explanation: "some lib code was awful"
+  #       }
+  #     ]
+  #   }},
+  #  {"test/a_test.exs",
+  #   %{
+  #     contents: "test contents OLD TEST",
+  #     patches: [
+  #       %{
+  #         search: "OLD TEST",
+  #         replace: "NEW TEST",
+  #         explanation: "some test code was awful"
+  #       }
+  #     ]
+  #   }}
+  # ]
+
   defp git_diff(updates) do
     updates
-    |> Map.new(fn {path, %{contents: contents, patches: patches}} ->
-      {path, %{contents: contents, search_replace: patches}}
-    end)
+    |> IO.inspect()
     |> GitDiff.run()
     |> case do
       {:ok, res} -> {:ok, res}
@@ -116,6 +140,10 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
           {:halt, error}
       end
     end)
+    |> case do
+      {:ok, updates} -> {:ok, Map.to_list(updates)}
+      error -> error
+    end
   end
 
   # file_updates structure: %{file_path => %{contents: string, patches: [%{search: string, replace: string, explanation: string}]}}

@@ -95,28 +95,32 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                }
              } = new_server_state
 
-      assert %{
-               lib_path => %{
-                 patches: [
-                   %{
-                     search: "OLD LIB",
-                     replace: "NEW LIB",
-                     explanation: "some lib code was awful"
-                   }
-                 ],
-                 contents: lib_contents
-               },
-               test_path => %{
-                 patches: [
-                   %{
-                     search: "OLD TEST",
-                     replace: "NEW TEST",
-                     explanation: "some test code was awful"
-                   }
-                 ],
-                 contents: test_contents
-               }
-             } == file_updates
+      assert [
+               {lib_path,
+                %{
+                  patches: [
+                    %{
+                      search: "OLD LIB",
+                      replace: "NEW LIB",
+                      explanation: "some lib code was awful"
+                    }
+                  ],
+                  contents: lib_contents
+                }},
+               {test_path,
+                %{
+                  patches: [
+                    %{
+                      search: "OLD TEST",
+                      replace: "NEW TEST",
+                      explanation: "some test code was awful"
+                    }
+                  ],
+                  contents: test_contents
+                }}
+             ] == file_updates
+
+      raise "no"
     end
 
     test "when reading the cache returns error, return error" do
