@@ -167,25 +167,25 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         Lines: 18 - 24
         ────────────────────────
-               lib_contents = \"lib contents OLD LIB\"
-               mix_test_output = \"mix test output\"
-
-        -      raise \"no\"
-        +
-
-               test_file = %{path: test_path, contents: test_contents}
-               lib_file = %{path: lib_path, contents: lib_contents}
+               lib_contents = \"lib contents OLD LIB\"\e[m
+               mix_test_output = \"mix test output\"\e[m
+         \e[m
+        \e[31m-      raise \"no\"\e[m
+        \e[32m+\e[m\e[41m      \e[m
+         \e[m
+               test_file = %{path: test_path, contents: test_contents}\e[m
+               lib_file = %{path: lib_path, contents: lib_contents}\e[m
         ────────────────────────
         Lines: 370 - 376
         ────────────────────────
-
-               assert {1, new_server_state} = APICall.perform(test_path, server_state)
-
-        -      expected_error = \"Git Diff error: :git_diff_parsing_error\"
-        +      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"
-               assert new_server_state.action_error == expected_error
-               assert %{server_state | action_error: expected_error} == new_server_state
-             end
+         \e[m
+               assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
+         \e[m
+        \e[31m-      expected_error = \"Git Diff error: :git_diff_parsing_error\"\e[m
+        \e[32m+\e[m\e[32m      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"\e[m
+               assert new_server_state.action_error == expected_error\e[m
+               assert %{server_state | action_error: expected_error} == new_server_state\e[m
+             end\e[m
         ────────────────────────
         """
 

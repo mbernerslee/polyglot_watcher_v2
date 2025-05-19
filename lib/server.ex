@@ -5,11 +5,12 @@ defmodule PolyglotWatcherV2.Server do
   alias PolyglotWatcherV2.{
     TraverseActionsTree,
     Determine,
-    FSWatch,
-    Inotifywait,
     UserInput,
+    ServerState,
     StartupMessage
   }
+
+  alias PolyglotWatcherV2.FileSystemWatchers.{Inotifywait, FSWatch}
 
   @process_name :server
 
@@ -19,7 +20,7 @@ defmodule PolyglotWatcherV2.Server do
     port: nil,
     ignore_file_changes: false,
     starting_dir: nil,
-    elixir: %{mode: :default, failures: []},
+    elixir: %{mode: :default},
     claude_ai: %{},
     rust: %{mode: :default},
     env_vars: %{},
@@ -68,6 +69,8 @@ defmodule PolyglotWatcherV2.Server do
         @initial_state,
         %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
       )
+
+    server_state = struct!(ServerState, server_state)
 
     server_state =
       command_line_args

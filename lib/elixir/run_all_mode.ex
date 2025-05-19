@@ -1,6 +1,8 @@
 defmodule PolyglotWatcherV2.Elixir.RunAllMode do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.Action
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
@@ -22,6 +24,7 @@ defmodule PolyglotWatcherV2.Elixir.RunAllMode do
      }, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(server_state) do
     {%{
        entry_point: :clear_screen,

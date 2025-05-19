@@ -1,9 +1,10 @@
 defmodule PolyglotWatcherV2.ServerStateBuilder do
-  alias PolyglotWatcherV2.Inotifywait
+  alias PolyglotWatcherV2.FileSystemWatchers.Inotifywait
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
+  alias PolyglotWatcherV2.ServerState
 
   def build do
-    %{
+    %ServerState{
       port: nil,
       ignore_file_changes: false,
       elixir: %{mode: :default},

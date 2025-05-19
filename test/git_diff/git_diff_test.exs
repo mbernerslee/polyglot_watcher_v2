@@ -2,7 +2,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
   use ExUnit.Case, async: true
   use Mimic
 
-  alias PolyglotWatcherV2.{GitDiff, SystemCall}
+  alias PolyglotWatcherV2.{GitDiff, SystemWrapper}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
   describe "run/3" do
@@ -45,7 +45,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, 2, fn
+      Mimic.expect(SystemWrapper, :cmd, 2, fn
         "git",
         [
           "diff",
@@ -170,7 +170,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 1, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, 1, fn
+      Mimic.expect(SystemWrapper, :cmd, 1, fn
         "git",
         [
           "diff",
@@ -244,7 +244,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 1, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, 1, fn
+      Mimic.expect(SystemWrapper, :cmd, 1, fn
         "git", _ ->
           {
             """
@@ -319,14 +319,14 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, fn "git",
-                                        [
-                                          "diff",
-                                          "--no-index",
-                                          "--color",
-                                          "/tmp/polyglot_watcher_v2_old_example",
-                                          "/tmp/polyglot_watcher_v2_new_example"
-                                        ] ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git",
+                                           [
+                                             "diff",
+                                             "--no-index",
+                                             "--color",
+                                             "/tmp/polyglot_watcher_v2_old_example",
+                                             "/tmp/polyglot_watcher_v2_new_example"
+                                           ] ->
         {
           """
           diff --git a/old b/new
@@ -379,7 +379,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           {:error, :eacces}
       end)
 
-      Mimic.reject(&SystemCall.cmd/2)
+      Mimic.reject(&SystemWrapper.cmd/2)
 
       Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
 
@@ -401,7 +401,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
           :ok
       end)
 
-      Mimic.reject(&SystemCall.cmd/2)
+      Mimic.reject(&SystemWrapper.cmd/2)
 
       Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
 
@@ -417,7 +417,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         {"fatal: error occurred", 1}
       end)
 
@@ -435,7 +435,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         {
           """
           diff --git a/old b/new
@@ -475,7 +475,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
 
-      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         {"This is not a valid git diff format", 0}
       end)
 
@@ -493,7 +493,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
 
       Mimic.expect(FileWrapper, :write, 1, fn _, _ -> {:error, :eacces} end)
 
-      Mimic.reject(&SystemCall.cmd/2)
+      Mimic.reject(&SystemWrapper.cmd/2)
 
       Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
 
@@ -509,7 +509,7 @@ defmodule PolyglotWatcherV2.GitDiffTest do
       search_replace = [%{search: "NonExistent", replace: "New"}]
 
       Mimic.reject(&FileWrapper.write/2)
-      Mimic.reject(&SystemCall.cmd/2)
+      Mimic.reject(&SystemWrapper.cmd/2)
       Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
 
       assert {:error, {:search_failed, "NonExistent", "New"}} ==

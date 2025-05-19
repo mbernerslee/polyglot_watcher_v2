@@ -4,7 +4,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestArgs
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
-  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
+  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemWrapper}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
   @lib_path "/home/berners/src/fib/lib/another.ex"
@@ -34,7 +34,7 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
 
   describe "handle_continue/1" do
     test "reads the ExUnit test failures manifest, the test file for the failing tests, & updates it in the GenServer state" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 

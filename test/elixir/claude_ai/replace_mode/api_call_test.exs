@@ -2,7 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
   use ExUnit.Case, async: true
   use Mimic
   alias PolyglotWatcherV2.ServerStateBuilder
-  alias PolyglotWatcherV2.SystemCall
+  alias PolyglotWatcherV2.SystemWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall
@@ -52,7 +52,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
          }}
       end)
 
-      Mimic.expect(SystemCall, :cmd, 1, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, 1, fn "git", _ ->
         std_out =
           """
           diff --git a/x_test_old b/x_test_new
@@ -67,7 +67,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
         {std_out, 1}
       end)
 
-      Mimic.expect(SystemCall, :cmd, 1, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, 1, fn "git", _ ->
         std_out =
           """
           diff --git a/x_lib_old b/x_lib_new
@@ -285,7 +285,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
          }}
       end)
 
-      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         std_out =
           """
           diff --git a/x_lib_old b/x_lib_new
@@ -361,7 +361,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
          }}
       end)
 
-      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         {"im blowing up", 1}
       end)
 

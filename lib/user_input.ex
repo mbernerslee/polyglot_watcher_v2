@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.UserInput do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.Determiner, as: ElixirDeterminer
   alias PolyglotWatcherV2.Rust.Determiner, as: RustDeterminer
@@ -7,6 +8,7 @@ defmodule PolyglotWatcherV2.UserInput do
   @helps ["help\n", "help"]
   @help_and_quits ["help_and_quit\n", "help_and_quit"]
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(user_input, server_state) do
     @languages
     |> Enum.reduce_while({:none, server_state}, fn language_module, {:none, server_state} ->

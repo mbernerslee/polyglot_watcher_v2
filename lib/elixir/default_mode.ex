@@ -1,10 +1,12 @@
 defmodule PolyglotWatcherV2.Elixir.DefaultMode do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.{Action, FilePath}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{extension: @exs} = file_path, server_state) do
     test_path = FilePath.stringify(file_path)
     mix_test_args = %MixTestArgs{path: test_path}
@@ -31,6 +33,7 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
      }, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{extension: @ex} = lib_path, server_state) do
     lib_path_string = FilePath.stringify(lib_path)
 

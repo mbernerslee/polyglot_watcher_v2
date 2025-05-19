@@ -6,7 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
   alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, Puts, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Cache, Determiner, DefaultMode}
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode
-  alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
+  alias PolyglotWatcherV2.SystemWrapper
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
   @ex Determiner.ex()

@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.{Action, FilePath}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
 
@@ -7,6 +8,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   @yes "y\n"
   @no "n\n"
 
+  @impl PolyglotWatcherV2.Mode
   def user_input_actions(
         @yes,
         %{
@@ -25,6 +27,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
      }, %{server_state | claude_ai: %{}}}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def user_input_actions(
         @no,
         %{
@@ -43,10 +46,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
      }, %{server_state | claude_ai: %{}}}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def user_input_actions(_, server_state) do
     {false, %{server_state | claude_ai: %{}}}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
@@ -81,11 +86,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
      }, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{extension: @exs} = test_path, server_state) do
     test_path_string = FilePath.stringify(test_path)
     do_determine_actions(test_path_string, server_state)
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{extension: @ex} = lib_path, server_state) do
     lib_path_string = FilePath.stringify(lib_path)
 

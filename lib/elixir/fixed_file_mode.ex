@@ -1,8 +1,10 @@
 defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     case Cache.get_test_failure(:latest) do
       {:ok, {test_path, line_number}} ->
@@ -61,6 +63,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
     end
   end
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state, test_path) do
     actions_tree =
       test_path
@@ -90,6 +93,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
     {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%{elixir: %{mode: {:fixed_file, test_path}}} = server_state) do
     actions_tree =
       test_path

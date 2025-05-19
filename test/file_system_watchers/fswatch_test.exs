@@ -1,6 +1,7 @@
-defmodule PolyglotWatcherV2.FSWatchTest do
+defmodule PolyglotWatcherV2.FileSystemWatchers.FSWatchTest do
   use ExUnit.Case, async: true
   alias PolyglotWatcherV2.{FilePath, FSWatch}
+  alias PolyglotWatcherV2.FileSystemWatchers.FSWatch
 
   describe "parse_std_out/1" do
     test "can dedupe & return a file path" do

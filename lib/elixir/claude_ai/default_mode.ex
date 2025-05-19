@@ -1,10 +1,12 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.{Action, ClaudeAI, EnvironmentVariables, FilePath, FileSystem, Puts}
   alias PolyglotWatcherV2.Elixir.{Cache, Determiner, EquivalentPath, MixTestArgs}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     {%{
        entry_point: :clear_screen,
@@ -39,11 +41,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
      }, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{extension: @exs} = test_path, server_state) do
     test_path_string = FilePath.stringify(test_path)
     do_determine_actions(test_path_string, server_state)
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{extension: @ex} = lib_path, server_state) do
     lib_path_string = FilePath.stringify(lib_path)
 
