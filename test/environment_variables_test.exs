@@ -3,7 +3,7 @@ defmodule PolyglotWatcherV2.EnvironmentVariablesTest do
   use Mimic
 
   alias PolyglotWatcherV2.{EnvironmentVariables, ServerStateBuilder}
-  alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
+  alias PolyglotWatcherV2.SystemWrapper
 
   describe "read_and_persist/2" do
     test "given an env var key which exists on the system & server state, we persist it in the server state" do

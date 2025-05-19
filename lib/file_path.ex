@@ -1,6 +1,11 @@
 defmodule PolyglotWatcherV2.FilePath do
   defstruct path: nil, extension: nil
 
+  @type t() :: %__MODULE__{
+          path: String.t(),
+          extension: String.t()
+        }
+
   def build(relative_path) do
     case split_by_final_full_stop(relative_path) do
       %{path: ""} ->

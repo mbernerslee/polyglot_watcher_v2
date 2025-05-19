@@ -9,7 +9,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   Into memory
   """
 
-  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
+  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemWrapper}
   alias PolyglotWatcherV2.Elixir.EquivalentPath
   alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
@@ -30,7 +30,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   end
 
   defp find_manifest_file do
-    case SystemCall.cmd("find", [".", "-name", ".mix_test_failures"]) do
+    case SystemWrapper.cmd("find", [".", "-name", ".mix_test_failures"]) do
       {path, 0} -> {:ok, path}
       _error -> :error
     end

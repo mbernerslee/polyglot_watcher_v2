@@ -1,9 +1,5 @@
-defmodule PolyglotWatcherV2.EnvironmentVariables.SystemWrapper do
-  def get_env(key), do: System.get_env(key)
-end
-
 defmodule PolyglotWatcherV2.EnvironmentVariables do
-  alias PolyglotWatcherV2.EnvironmentVariables.SystemWrapper
+  alias PolyglotWatcherV2.SystemWrapper
 
   def read_and_persist(key, server_state) do
     case SystemWrapper.get_env(key) do

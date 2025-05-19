@@ -1,6 +1,7 @@
-defmodule PolyglotWatcherV2.InotifywaitTest do
+defmodule PolyglotWatcherV2.FileSystemWatchers.InotifywaitTest do
   use ExUnit.Case, async: true
   alias PolyglotWatcherV2.{FilePath, Inotifywait}
+  alias PolyglotWatcherV2.FileSystemWatchers.Inotifywait
 
   describe "parse_std_out/1" do
     test "can return a file path" do

@@ -1,7 +1,9 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllMode do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(server_state) do
     actions_tree =
       Map.merge(fix_all_actions_loop(), %{
@@ -14,6 +16,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
     {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     actions_tree =
       Map.merge(fix_all_actions_loop(), %{

@@ -1,7 +1,7 @@
 defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
   use ExUnit.Case, async: true
   use Mimic
-  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemCall}
+  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemWrapper}
   alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.Elixir.Cache.{CacheItem, Init}
 
@@ -78,7 +78,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
 
   describe "run/0" do
     test "reads the ExUnit test failures manifest, parses it & updates it in the GenServer state" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 
@@ -122,7 +122,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
 
     test "handles describe blocks which change the ExUnit Failure manifest structure to have the test named prefixed by it" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 
@@ -190,19 +190,19 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
 
     test "returns no files when no manifest file was found by 'find'" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ -> {"", 0} end)
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ -> {"", 0} end)
 
       assert %{} == Init.run()
     end
 
     test "returns no files when 'find' system call errors" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ -> {"error", 1} end)
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ -> {"error", 1} end)
 
       assert %{} == Init.run()
     end
 
     test "when a test file is not found, ignore it, but keep the others" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 
@@ -236,7 +236,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
 
     test "when no equivalent lib file is found, keep the test file but make the lib file nil" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 
@@ -266,7 +266,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
 
     test "handles empty manifest" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 
@@ -280,7 +280,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.InitTest do
     end
 
     test "when the manifests tests aren't found in the test contents we igonre them" do
-      Mimic.expect(SystemCall, :cmd, fn _, _ ->
+      Mimic.expect(SystemWrapper, :cmd, fn _, _ ->
         {"./_build/test/lib/fib/.mix/.mix_test_failures\n", 0}
       end)
 

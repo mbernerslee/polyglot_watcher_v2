@@ -1,9 +1,14 @@
-defmodule PolyglotWatcherV2.Inotifywait do
+defmodule PolyglotWatcherV2.FileSystemWatchers.Inotifywait do
+  @behaviour PolyglotWatcherV2.FileSystemWatchers.Behaviour
   alias PolyglotWatcherV2.FilePath
 
+  @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def startup_command, do: ["inotifywait", ".", "-rmqe", "close_write"]
+
+  @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def startup_message, do: "Starting inotifywait..."
 
+  @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def parse_std_out(std_out, _working_dir) do
     std_out
     |> String.split("\n")

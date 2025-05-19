@@ -1,5 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParserTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   alias PolyglotWatcherV2.Elixir.Cache.TestFileASTParser
 
   describe "run/1" do

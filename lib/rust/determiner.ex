@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.Rust.Determiner do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.{Action, FilePath}
 
   @rs "rs"
@@ -6,6 +7,7 @@ defmodule PolyglotWatcherV2.Rust.Determiner do
 
   def rs, do: @rs
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{} = file_path, server_state) do
     if file_path.extension in @extensions do
       by_mode(file_path, server_state)
@@ -14,6 +16,7 @@ defmodule PolyglotWatcherV2.Rust.Determiner do
     end
   end
 
+  @impl PolyglotWatcherV2.Mode
   def user_input_actions(user_input, server_state) do
     rs_space = "#{@rs} "
 

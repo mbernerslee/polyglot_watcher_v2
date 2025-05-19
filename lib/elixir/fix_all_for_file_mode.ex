@@ -4,10 +4,12 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
 
   This was preferable in a trade-off vs the much more cumbersome alternative
   """
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     case Cache.get_test_failure(:latest) do
       {:ok, {test_path, _line_number}} ->
@@ -68,6 +70,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
     end
   end
 
+  @impl PolyglotWatcherV2.Mode
   def switch(server_state, test_path) do
     my_specific_actions_tree = %{
       clear_screen: %Action{
@@ -98,6 +101,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
     {tree, server_state}
   end
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%{elixir: %{mode: {:fix_all_for_file, test_path}}} = server_state) do
     my_specific_actions_tree = %{
       clear_screen: %Action{

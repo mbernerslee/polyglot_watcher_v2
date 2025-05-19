@@ -1,5 +1,5 @@
 defmodule PolyglotWatcherV2.GitDiff do
-  alias PolyglotWatcherV2.{FileSystem, SystemCall}
+  alias PolyglotWatcherV2.{FileSystem, SystemWrapper}
   alias PolyglotWatcherV2.GitDiff.Parser
 
   @old "/tmp/polyglot_watcher_v2_old"
@@ -93,7 +93,7 @@ defmodule PolyglotWatcherV2.GitDiff do
 
   defp run_git_diff(old, new) do
     {std_out, _exit_code} =
-      SystemCall.cmd("git", ["diff", "--no-index", "--color", old, new])
+      SystemWrapper.cmd("git", ["diff", "--no-index", "--color", old, new])
 
     case Parser.parse(std_out) do
       {:ok, git_diff} -> {:ok, git_diff}

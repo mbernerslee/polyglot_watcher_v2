@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.Determiner do
+  @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.{Action, FilePath}
 
   alias PolyglotWatcherV2.Elixir.{
@@ -20,6 +21,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   def ex, do: @ex
   def exs, do: @exs
 
+  @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{} = file_path, server_state) do
     if file_path.extension in @extensions do
       by_mode(file_path, server_state)
@@ -28,6 +30,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     end
   end
 
+  @impl PolyglotWatcherV2.Mode
   def user_input_actions(user_input, server_state) do
     [ClaudeAIReplaceMode]
     |> Enum.reduce_while(server_state, fn mod, server_state ->

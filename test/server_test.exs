@@ -1,7 +1,7 @@
 defmodule PolyglotWatcherV2.ServerTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureIO
-  alias PolyglotWatcherV2.{Server, ServerStateBuilder}
+  alias PolyglotWatcherV2.{Server, ServerState, ServerStateBuilder}
 
   describe "start_link/2" do
     test "with no command line args given, spawns the server process with default starting state" do
@@ -9,10 +9,12 @@ defmodule PolyglotWatcherV2.ServerTest do
         assert {:ok, pid} = Server.start_link([], [])
         assert is_pid(pid)
 
-        assert %{port: port, elixir: elixir, rust: rust, files: files} = :sys.get_state(pid)
+        assert %ServerState{port: port, elixir: elixir, rust: rust, files: files} =
+                 :sys.get_state(pid)
+
         assert files == %{}
         assert is_port(port)
-        assert %{failures: [], mode: :default} == elixir
+        assert %{mode: :default} == elixir
         assert %{mode: :default} == rust
       end)
     end
