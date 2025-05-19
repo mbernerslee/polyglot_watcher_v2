@@ -79,7 +79,6 @@ defmodule PolyglotWatcherV2.FilePatches do
     end)
   end
 
-  #TODO just allow multi-changes, set global: true here
   defp search_and_replace(contents, search, nil) do
     search_and_replace(contents, search, "")
   end

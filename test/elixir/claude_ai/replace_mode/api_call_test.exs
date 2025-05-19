@@ -92,8 +92,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                claude_ai: %{
                  file_updates: file_updates,
                  phase: :waiting
-               },
-               ignore_file_changes: true
+               }
              } = new_server_state
 
       assert %{

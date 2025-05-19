@@ -486,5 +486,36 @@ defmodule PolyglotWatcherV2.GitDiffTest do
                  "example" => %{contents: old_contents, search_replace: search_replace}
                })
     end
+
+    test "when there's a problem with the file system and we fail to write the tmp file, we return an error" do
+      old_contents = "Some content"
+      search_replace = [%{search: "Some", replace: "New"}]
+
+      Mimic.expect(FileWrapper, :write, 1, fn _, _ -> {:error, :eacces} end)
+
+      Mimic.reject(&SystemCall.cmd/2)
+
+      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
+
+      assert {:error,
+              {:failed_to_write_tmp_file, "/tmp/polyglot_watcher_v2_old_example", :eacces}} =
+               GitDiff.run(%{
+                 "example" => %{contents: old_contents, search_replace: search_replace}
+               })
+    end
+
+    test "when search fails to find a match, return an error" do
+      old_contents = "Some content"
+      search_replace = [%{search: "NonExistent", replace: "New"}]
+
+      Mimic.reject(&FileWrapper.write/2)
+      Mimic.reject(&SystemCall.cmd/2)
+      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
+
+      assert {:error, {:search_failed, "NonExistent", "New"}} ==
+               GitDiff.run(%{
+                 "example" => %{contents: old_contents, search_replace: search_replace}
+               })
+    end
   end
 end

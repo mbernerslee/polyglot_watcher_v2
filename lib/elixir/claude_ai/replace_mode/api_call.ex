@@ -34,10 +34,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       {:error, {:git_diff, error}} ->
         action_error = "Git Diff error: #{inspect(error)}"
         {1, %{server_state | action_error: action_error}}
-
-      {:error, :git_diff} ->
-        action_error = "Git Diff error"
-        {1, %{server_state | action_error: action_error}}
     end
   end
 
@@ -129,7 +125,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       server_state
       |> put_in([:claude_ai, :file_updates], updates)
       |> put_in([:claude_ai, :phase], :waiting)
-      |> Map.replace!(:ignore_file_changes, true)
 
     {0, server_state}
   end

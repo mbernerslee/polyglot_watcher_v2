@@ -1,24 +1,29 @@
 defmodule PolyglotWatcherV2.GitDiff.Parser do
-  @line_count_regex ~r|@@ \-(?<line_number>[0-9]+),(?<line_count>[0-9]+)\s\+[0-9]+,[0-9]+ @@|
-  @one_line_regex ~r|@@ \-(?<line_number>[0-9]+)\s\+[0-9]+ @@|
+  @line_count_regex ~r|^@@ \-(?<line_number>[0-9]+),(?<line_count>[0-9]+)\s\+[0-9]+,[0-9]+ @@|
+  @one_line_regex ~r|^@@ \-(?<line_number>[0-9]+)\s\+[0-9]+ @@|
 
   @bar_line "────────────────────────"
 
   def parse(git_diff_output) do
     git_diff_output
+    |> remove_ansi_escape_sequences()
     |> String.split("\n")
     |> do_parse(false, [])
     |> case do
       {:ok, result} ->
         {:ok, result}
 
-      {:error, :no_hunk_start} ->
-        {:error, no_hunk_start_error(git_diff_output)}
+      {:error, {:git_diff_parse, :no_hunk_start}} ->
+        {:error, {:git_diff_parse, :no_hunk_start}}
     end
   end
 
+  defp remove_ansi_escape_sequences(text) do
+    Regex.replace(~r/\e\[[0-9;]*[a-zA-Z]/, text, "")
+  end
+
   defp do_parse([], false, _acc) do
-    {:error, :no_hunk_start}
+    {:error, {:git_diff_parse, :no_hunk_start}}
   end
 
   defp do_parse([""], true, acc) do
@@ -43,7 +48,7 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
         do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc])
 
       {:error, true} ->
-        do_parse(rest, true, [line | acc])
+        do_parse(rest, true, [String.trim_trailing(line) | acc])
 
       {:error, false} ->
         do_parse(rest, false, acc)
@@ -63,17 +68,5 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
           {:cont, :error}
       end
     end)
-  end
-
-  defp no_hunk_start_error(raw) do
-    """
-    I failed to find the start of a hunk in the format:
-    @@ -1,5 +1,5 @@
-
-    The raw output from git diff was:
-    #{raw}
-
-    This is terminal to the Claude AI operation I'm afraid so I'm giving up.
-    """
   end
 end

@@ -104,6 +104,3 @@ defmodule PolyglotWatcherV2.GitDiff do
     end
   end
 end
-
-# TODO - stop it recursing. its still doing it
-# TODO continue here - better error messages for all APICall failure varients. maximise info shown to user, including "raw" claude api response

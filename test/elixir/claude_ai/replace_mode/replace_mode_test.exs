@@ -55,7 +55,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
 
       assert {tree, server_state} = ReplaceMode.user_input_actions(@yes, server_state)
 
-      assert server_state.ignore_file_changes == false
       assert server_state.claude_ai == %{}
 
       assert %{
@@ -110,7 +109,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
 
       assert {tree, server_state} = ReplaceMode.user_input_actions(@no, server_state)
 
-      assert server_state.ignore_file_changes == false
       assert server_state.claude_ai == %{}
 
       assert %{
@@ -134,7 +132,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
       assert {false, _} = ReplaceMode.user_input_actions("invalid", server_state)
     end
 
-    test "when no action is matched, we still remove the claude_ai & set ignore_file_changes to false" do
+    test "when no action is matched, we still remove the claude_ai" do
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
@@ -144,7 +142,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
 
       assert {false, server_state} = ReplaceMode.user_input_actions("invalid", server_state)
 
-      assert server_state.ignore_file_changes == false
       assert server_state.claude_ai == %{}
     end
   end

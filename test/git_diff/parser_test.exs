@@ -167,25 +167,71 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         Lines: 18 - 24
         ────────────────────────
-               lib_contents = \"lib contents OLD LIB\"\e[m
-               mix_test_output = \"mix test output\"\e[m
-         \e[m
-        \e[31m-      raise \"no\"\e[m
-        \e[32m+\e[m\e[41m      \e[m
-         \e[m
-               test_file = %{path: test_path, contents: test_contents}\e[m
-               lib_file = %{path: lib_path, contents: lib_contents}\e[m
+               lib_contents = \"lib contents OLD LIB\"
+               mix_test_output = \"mix test output\"
+
+        -      raise \"no\"
+        +
+
+               test_file = %{path: test_path, contents: test_contents}
+               lib_file = %{path: lib_path, contents: lib_contents}
         ────────────────────────
         Lines: 370 - 376
         ────────────────────────
-         \e[m
-               assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
-         \e[m
-        \e[31m-      expected_error = \"Git Diff error: :git_diff_parsing_error\"\e[m
-        \e[32m+\e[m\e[32m      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"\e[m
-               assert new_server_state.action_error == expected_error\e[m
-               assert %{server_state | action_error: expected_error} == new_server_state\e[m
-             end\e[m
+
+               assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+        -      expected_error = \"Git Diff error: :git_diff_parsing_error\"
+        +      expected_error = \"Git Diff error: \\\"im blowing up\\\"\"
+               assert new_server_state.action_error == expected_error
+               assert %{server_state | action_error: expected_error} == new_server_state
+             end
+        ────────────────────────
+        """
+
+      assert {:ok, expected} == Parser.parse(raw)
+    end
+
+    test "when no hunk start is found, return error" do
+      raw =
+        """
+        diff --git a/file1 b/file2
+        index 1234567..abcdefg 100644
+        --- a/file1
+        +++ b/file2
+        This is not a valid git diff output
+        """
+
+      assert {:error, {:git_diff_parse, :no_hunk_start}} = Parser.parse(raw)
+    end
+
+    test "in the very confusing case when the text of the file has a git diff hunk start in it, we ignore it" do
+      raw =
+        """
+        diff --git a/tmp/polyglot_watcher_v2_old b/tmp/polyglot_watcher_v2_new
+        index 53fea5a..ed29468 100644
+        --- a/tmp/polyglot_watcher_v2_old
+        +++ b/tmp/polyglot_watcher_v2_new
+        @@ -1,5 +1,5 @@
+           defmodule Cool do
+             def cool(text) do
+        -      text
+        +      "@@ -10,13 +10,13 @@"
+             end
+           end
+        """
+
+      expected =
+        """
+        ────────────────────────
+        Lines: 1 - 5
+        ────────────────────────
+           defmodule Cool do
+             def cool(text) do
+        -      text
+        +      "@@ -10,13 +10,13 @@"
+             end
+           end
         ────────────────────────
         """
 
@@ -193,57 +239,3 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
     end
   end
 end
-
-#TODO fix parsing fail:
-#────────────────────────
-#Lines: 429 - 439
-#────────────────────────
-#                })
-#     end
-#
-#-    test "if the read file contents contains the search text twice, replace them all (scary)" do
-#+    test "if the read file contents contains the search text twice, replace them all" do
-#       old_contents = "Some content that matches twice. Some content that matches twice."
-#       search_replace = [%{search: "Some content that matches twice", replace: "New text"}]
-#
-#-      raise "write me"
-#+      Mimic.expect(FileWrapper, :write, 2, fn _, _ -> :ok end)
-#+
-#+      Mimic.expect(SystemCall, :cmd, fn "git", _ ->
-#+        {
-#+          """
-#+          diff --git a/old b/new
-#+          index 1234567..abcdefg 100644
-#+          --- a/old
-#+          +++ b/new
-#────────────────────────
-#Line: 1
-#────────────────────────
-#+          -Some content that matches twice. Some content that matches twice.
-#+          +New text. New text.
-#+          """,
-#+          0
-#+        }
-#+      end)
-#+
-#+      Mimic.expect(FileWrapper, :rm_rf, 2, fn _ -> {:ok, []} end)
-#+
-#+      expected_diff = """
-#+      ────────────────────────
-#+      Lines: 1 - 1
-#+      ────────────────────────
-#+      -Some content that matches twice. Some content that matches twice.
-#+      +New text. New text.
-#+      ────────────────────────
-#+      """
-#+
-#+      assert {:ok, %{"example" => actual_diff}} =
-#+               GitDiff.run(%{
-#+                 "example" => %{contents: old_contents, search_replace: search_replace}
-#+               })
-#+
-#+      assert expected_diff == actual_diff
-#     end
-#
-#     test "when the git diff is not in a format that we can parse, return an error" do
-#────────────────────────

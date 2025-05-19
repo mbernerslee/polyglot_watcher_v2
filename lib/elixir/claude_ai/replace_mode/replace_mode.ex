@@ -22,7 +22,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
            next_action: :exit
          }
        }
-     }, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
+     }, %{server_state | claude_ai: %{}}}
   end
 
   def user_input_actions(
@@ -40,11 +40,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
            next_action: :exit
          }
        }
-     }, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
+     }, %{server_state | claude_ai: %{}}}
   end
 
   def user_input_actions(_, server_state) do
-    {false, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
+    {false, %{server_state | claude_ai: %{}}}
   end
 
   def switch(server_state) do
@@ -129,30 +129,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
            runnable: {:puts, :magenta, "Accept file changes (y/n)?"},
            next_action: :exit
          },
-         # build_claude_replace_api_request: %Action{
-         #  runnable: {:build_claude_replace_api_request, test_path},
-         #  next_action: :put_calling_claude_msg
-         # },
-         # put_calling_claude_msg: %Action{
-         #  runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
-         #  next_action: :perform_claude_api_request
-         # },
-         # perform_claude_api_request: %Action{
-         #  runnable: :perform_claude_api_request,
-         #  next_action: :parse_claude_response
-         # },
-         # parse_claude_response: %Action{
-         #  runnable: :parse_claude_api_response,
-         #  next_action: :build_replace_blocks
-         # },
-         # build_replace_blocks: %Action{
-         #  runnable: :build_claude_replace_blocks,
-         #  next_action: :build_replace_actions
-         # },
-         # build_replace_actions: %Action{
-         #  runnable: :build_claude_replace_actions,
-         #  next_action: :execute_stored_actions
-         # },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}
        }
      }, server_state}

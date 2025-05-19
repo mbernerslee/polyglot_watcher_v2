@@ -423,7 +423,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       assert {:none, server_state} = Determiner.user_input_actions("nope\n", server_state)
 
       assert server_state.claude_ai == %{}
-      assert server_state.ignore_file_changes == false
     end
   end
 end
