@@ -7,12 +7,9 @@ defmodule PolyglotWatcherV2.GitDiff do
 
   def run(request) do
     result =
-      Enum.reduce_while(request, {:ok, %{}}, fn {key,
-                                                 %{
-                                                   contents: contents,
-                                                   search_replace: search_replace
-                                                 }},
-                                                {:ok, acc} ->
+      Enum.reduce_while(request, {:ok, %{}}, fn {key, file}, {:ok, acc} ->
+        %{contents: contents, search_replace: search_replace} = file
+
         case run_one(key, contents, search_replace) do
           {:ok, git_diff} ->
             {:cont, {:ok, Map.put(acc, key, git_diff)}}

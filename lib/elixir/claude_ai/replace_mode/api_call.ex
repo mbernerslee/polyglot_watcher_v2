@@ -5,7 +5,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
 
-  # # Cache retrieval and file fetching are already separated in the get_files_from_cache/1 function
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
