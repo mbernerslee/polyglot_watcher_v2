@@ -2,11 +2,54 @@ defmodule PolyglotWatcherV2.FilePatches do
   alias PolyglotWatcherV2.FileSystem
   alias PolyglotWatcherV2.Puts
 
-  def patch(file_patches, server_state) do
-    file_patches
-    |> Map.to_list()
+  # TODO change it to keep patches in the server_state in a more general way
+  # then we can change this to not require file_patches as an arg, and you say patch(index, server_state) or patch(:all, server_state)
+  def patch(selector, %{file_patches: file_patches} = server_state) do
+    {use, keep} = select(file_patches, selector)
+
+    use
     |> build_patches(server_state)
     |> write_patches()
+    |> update_patches(keep)
+  end
+
+  defp select(file_patches, :all) do
+    {file_patches, nil}
+  end
+
+  defp select(file_patches, indices) do
+    {use, keep} =
+      Enum.reduce(file_patches, {[], []}, fn {path, file_patch}, {use, keep} ->
+        %{patches: patches, contents: contents} = file_patch
+
+        {use_patches, keep_patches} = Enum.split_with(patches, &(&1.index in indices))
+
+        use_entry = file_patch(path, use_patches, contents)
+        keep_entry = file_patch(path, keep_patches, contents)
+
+        {[use_entry | use], [keep_entry | keep]}
+      end)
+
+    use = use |> List.flatten() |> Enum.reverse()
+    keep = keep |> List.flatten() |> Enum.reverse()
+
+    {use, keep}
+  end
+
+  defp file_patch(_path, [], _contents) do
+    []
+  end
+
+  defp file_patch(path, patches, contents) do
+    [{path, %{patches: patches, contents: contents}}]
+  end
+
+  defp update_patches({:ok, server_state}, keep) do
+    {0, %{server_state | file_patches: keep}}
+  end
+
+  defp update_patches({:error, server_state}, _) do
+    {1, %{server_state | file_patches: nil}}
   end
 
   defp write_patches({:ok, {patches, server_state}}) do
@@ -14,11 +57,11 @@ defmodule PolyglotWatcherV2.FilePatches do
   end
 
   defp write_patches({:error, server_state}) do
-    {1, server_state}
+    {:error, server_state}
   end
 
   defp do_write_patches([], server_state) do
-    {0, server_state}
+    {:ok, server_state}
   end
 
   defp do_write_patches([{path, new_contents} | rest], server_state) do
@@ -29,25 +72,25 @@ defmodule PolyglotWatcherV2.FilePatches do
 
       error ->
         action_error = "Failed to write update to #{path}. Error was #{inspect(error)}"
-        {1, %{server_state | action_error: action_error}}
+        {:error, %{server_state | action_error: action_error}}
     end
   end
 
   defp build_patches(patches, server_state) do
-    do_build_patches([], patches, server_state)
+    build_patches([], patches, server_state)
   end
 
-  defp do_build_patches(acc, [], server_state) do
+  defp build_patches(acc, [], server_state) do
     {:ok, {acc, server_state}}
   end
 
-  defp do_build_patches(acc, [{path, %{patches: patches}} | rest], server_state) do
+  defp build_patches(acc, [{path, %{patches: patches}} | rest], server_state) do
     case build_file_patch(path, patches, server_state) do
       {:ok, path, new_file_contents} ->
-        do_build_patches([{path, new_file_contents} | acc], rest, server_state)
+        build_patches([{path, new_file_contents} | acc], rest, server_state)
 
       :noop ->
-        do_build_patches(acc, rest, server_state)
+        build_patches(acc, rest, server_state)
 
       {:error, server_state} ->
         {:error, server_state}
@@ -84,18 +127,12 @@ defmodule PolyglotWatcherV2.FilePatches do
   end
 
   defp search_and_replace(contents, search, replace) do
-    single_match = String.replace(contents, search, replace, global: false)
     multi_match = String.replace(contents, search, replace, global: true)
 
-    cond do
-      multi_match == contents ->
-        {:error, :search_failed}
-
-      single_match == multi_match ->
-        {:ok, single_match}
-
-      true ->
-        {:error, :search_multiple_matches}
+    if multi_match == contents do
+      {:error, :search_failed}
+    else
+      {:ok, multi_match}
     end
   end
 end

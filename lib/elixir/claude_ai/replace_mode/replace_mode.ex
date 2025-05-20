@@ -8,20 +8,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   @yes "y\n"
   @no "n\n"
 
-  #TODO fix patch files, the data structure is different now
+  # TODO fix patch files, the data structure is different now
   @impl PolyglotWatcherV2.Mode
   def user_input_actions(
         @yes,
         %{
           elixir: %{mode: :claude_ai_replace},
-          claude_ai: %{phase: :waiting, file_updates: file_updates}
+          claude_ai: %{phase: :waiting}
         } = server_state
       ) do
     {%{
        entry_point: :patch_files,
        actions_tree: %{
          patch_files: %Action{
-           runnable: {:patch_files, file_updates},
+           runnable: {:patch_files, :all},
            next_action: :exit
          }
        }
@@ -33,7 +33,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
         @no,
         %{
           elixir: %{mode: :claude_ai_replace},
-          claude_ai: %{phase: :waiting, file_updates: _file_updates}
+          claude_ai: %{phase: :waiting}
         } = server_state
       ) do
     {%{

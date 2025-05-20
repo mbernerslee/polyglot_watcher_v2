@@ -124,9 +124,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       assert %{
                claude_ai: %{
-                 file_updates: file_updates,
                  phase: :waiting
-               }
+               },
+               file_patches: file_patches
              } = new_server_state
 
       assert [
@@ -154,7 +154,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                   ],
                   contents: test_contents
                 }}
-             ] == file_updates
+             ] == file_patches
     end
 
     test "when reading the cache returns error, return error" do
@@ -371,7 +371,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
 
-      assert %{claude_ai: %{file_updates: file_updates}} = new_server_state
+      assert %{file_patches: file_patches} = new_server_state
 
       assert [
                {
@@ -394,7 +394,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                    contents: lib_contents
                  }
                }
-             ] == file_updates
+             ] == file_patches
     end
 
     test "when returns something we can't parse errors, we put an action_error" do

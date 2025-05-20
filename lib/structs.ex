@@ -49,6 +49,10 @@ defmodule PolyglotWatcherV2.ServerState do
 
   @type rust_state :: %{mode: language_mode()}
 
+  @type file_patch ::
+          {String.t(),
+           %{contents: String.t(), patches: %{search: String.t(), replace: String.t()}}}
+
   @type t :: %__MODULE__{
           port: port() | nil,
           ignore_file_changes: boolean(),
@@ -61,7 +65,8 @@ defmodule PolyglotWatcherV2.ServerState do
           env_vars: %{optional(String.t()) => String.t()},
           files: %{optional(any()) => file_info()},
           stored_actions: any(),
-          action_error: any()
+          action_error: any(),
+          file_patches: [file_patch()] | nil
         }
 
   @enforce_keys [
@@ -76,7 +81,8 @@ defmodule PolyglotWatcherV2.ServerState do
     :env_vars,
     :files,
     :stored_actions,
-    :action_error
+    :action_error,
+    :file_patches
   ]
 
   defstruct port: nil,
@@ -90,5 +96,6 @@ defmodule PolyglotWatcherV2.ServerState do
             env_vars: %{},
             files: %{},
             stored_actions: nil,
-            action_error: nil
+            action_error: nil,
+            file_patches: nil
 end

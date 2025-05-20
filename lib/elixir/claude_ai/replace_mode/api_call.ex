@@ -5,16 +5,16 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
 
-  #TODO make output prettier
-  #TODO stop several changes being allowed for 1 update? (global = false? or explicit line number if multple matches?)
+  # TODO make output prettier
+  # TODO stop several changes being allowed for 1 update? (global = false? or explicit line number if multple matches?)
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
          {:ok, instruct_result} <- instruct(prompt, api_key),
-         {:ok, updates} <- group_updates(instruct_result, files),
-         {:ok, git_diffs} <- git_diff(updates),
-         :ok <- put_diffs_with_explanations(git_diffs, updates) do
-      update_server_state(updates, server_state)
+         {:ok, file_patches} <- build_file_patches(instruct_result, files),
+         {:ok, git_diffs} <- git_diff(file_patches),
+         :ok <- put_diffs_with_explanations(git_diffs, file_patches) do
+      update_server_state(file_patches, server_state)
     else
       {:error, :cache_miss} ->
         action_error = "I failed because my cache did not contain the file #{test_path} :-("
@@ -38,8 +38,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  defp git_diff(updates) do
-    updates
+  defp git_diff(file_patches) do
+    file_patches
     |> GitDiff.run()
     |> case do
       {:ok, res} -> {:ok, res}
@@ -47,7 +47,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  defp put_diffs_with_explanations(git_diffs, updates) do
+  defp put_diffs_with_explanations(git_diffs, file_patches) do
     Puts.on_new_line([
       {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
       {[:magenta], "████████████████ Claude Response ████████████████\n"},
@@ -55,7 +55,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     ])
 
     # TODO this sorting is untested :-( find a way?
-    Enum.reduce(updates, [], fn {path, %{patches: patches}}, acc ->
+    Enum.reduce(file_patches, [], fn {path, %{patches: patches}}, acc ->
       Enum.reduce(patches, acc, fn %{index: index, explanation: explanation}, inner ->
         git_diff =
           git_diffs
@@ -80,19 +80,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     ])
   end
 
-  defp group_updates(%CodeFileUpdates{updates: []}, _) do
+  # TODO could pull this function out & test it separately? Test it returns properly ordered file_patches too?
+  defp build_file_patches(%CodeFileUpdates{updates: []}, _) do
     {:error, {:instructor_lite, :no_changes_suggested}}
   end
 
-  defp group_updates(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
-    do_group_updates(%{}, 1, updates, test, lib)
+  defp build_file_patches(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
+    build_file_patches(%{}, 1, updates, test, lib)
   end
 
-  defp do_group_updates(acc, _index, [], _test, _lib) do
+  defp build_file_patches(acc, _index, [], _test, _lib) do
     {:ok, Map.to_list(acc)}
   end
 
-  defp do_group_updates(acc, index, [update | rest], test, lib) do
+  defp build_file_patches(acc, index, [update | rest], test, lib) do
     %CodeFileUpdate{
       file_path: file_path,
       explanation: explanation,
@@ -122,18 +123,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
             &Map.update!(&1, :patches, fn patches -> patches ++ [patch] end)
           )
 
-        do_group_updates(acc, index + 1, rest, test, lib)
+        build_file_patches(acc, index + 1, rest, test, lib)
 
       error ->
         error
     end
   end
 
-  # file_updates structure: %{file_path => %{contents: string, patches: [%{search: string, replace: string, explanation: string}]}}
-  defp update_server_state(updates, server_state) do
+  defp update_server_state(file_patches, server_state) do
     server_state =
       server_state
-      |> put_in([:claude_ai, :file_updates], updates)
+      |> put_in([:file_patches], file_patches)
       |> put_in([:claude_ai, :phase], :waiting)
 
     {0, server_state}

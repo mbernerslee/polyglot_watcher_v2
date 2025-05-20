@@ -82,8 +82,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
-  defp do_execute({:patch_files, patches}, server_state) do
-    FilePatches.patch(patches, server_state)
+  defp do_execute({:patch_files, selector}, server_state) do
+    FilePatches.patch(selector, server_state)
   end
 
   defp do_execute(:load_in_memory_prompt, server_state) do
