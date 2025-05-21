@@ -26,7 +26,8 @@ defmodule PolyglotWatcherV2.Server do
     env_vars: %{},
     files: %{},
     stored_actions: nil,
-    action_error: nil
+    action_error: nil,
+    file_patches: nil
   }
 
   @supported_oss %{

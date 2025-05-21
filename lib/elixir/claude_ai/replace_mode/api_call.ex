@@ -1,18 +1,19 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Elixir.Cache
-  alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
+  alias PolyglotWatcherV2.InstructorLiteSchemas.CodeFileUpdates
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilder
 
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
          {:ok, instruct_result} <- instruct(prompt, api_key),
-         {:ok, updates} <- group_updates_by_file(instruct_result, files),
-         {:ok, git_diffs} <- git_diff(updates),
-         :ok <- put_diffs_with_explanations(git_diffs, updates) do
-      update_server_state(updates, server_state)
+         {:ok, file_patches} <- FilePatchesBuilder.build(instruct_result, files),
+         {:ok, git_diffs} <- git_diff(file_patches),
+         :ok <- put_diffs_with_explanations(git_diffs, file_patches) do
+      update_server_state(file_patches, server_state)
     else
       {:error, :cache_miss} ->
         action_error = "I failed because my cache did not contain the file #{test_path} :-("
@@ -36,11 +37,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  defp git_diff(updates) do
-    updates
-    |> Map.new(fn {path, %{contents: contents, patches: patches}} ->
-      {path, %{contents: contents, search_replace: patches}}
-    end)
+  defp git_diff(file_patches) do
+    file_patches
     |> GitDiff.run()
     |> case do
       {:ok, res} -> {:ok, res}
@@ -48,25 +46,29 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
-  defp put_diffs_with_explanations(git_diffs, updates) do
+  defp put_diffs_with_explanations(git_diffs, file_patches) do
     Puts.on_new_line([
       {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
       {[:magenta], "████████████████ Claude Response ████████████████\n"},
       {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
     ])
 
-    Enum.each(updates, fn {path, %{contents: _contents, patches: patches}} ->
-      git_diff = Map.fetch!(git_diffs, path)
+    Enum.reduce(file_patches, [], fn {path, %{patches: patches}}, acc ->
+      Enum.reduce(patches, acc, fn %{index: index, explanation: explanation}, inner ->
+        git_diff =
+          git_diffs
+          |> Map.fetch!(path)
+          |> Map.fetch!(index)
 
-      explanations =
-        patches
-        |> Enum.map(& &1.explanation)
-        |> Enum.join("\n")
-
+        [%{path: path, git_diff: git_diff, explanation: explanation, index: index} | inner]
+      end)
+    end)
+    |> Enum.sort(&(&1.index <= &2.index))
+    |> Enum.each(fn %{path: path, git_diff: git_diff, explanation: explanation} ->
       Puts.on_new_line([
         {[], path <> "\n"},
         {[], git_diff},
-        {[], explanations},
+        {[], explanation},
         {[], "\n────────────────────────\n"}
       ])
     end)
@@ -76,54 +78,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     ])
   end
 
-  defp group_updates_by_file(%CodeFileUpdates{updates: []}, _) do
-    {:error, {:instructor_lite, :no_changes_suggested}}
-  end
-
-  defp group_updates_by_file(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
-    updates
-    |> Enum.reduce_while({:ok, %{}}, fn update, {:ok, acc} ->
-      %CodeFileUpdate{
-        file_path: file_path,
-        explanation: explanation,
-        search: search,
-        replace: replace
-      } = update
-
-      cond do
-        file_path == lib.path -> {:ok, lib}
-        file_path == test.path -> {:ok, test}
-        true -> {:error, {:instructor_lite, :invalid_file_path}}
-      end
-      |> case do
-        {:ok, file} ->
-          patch = %{
-            search: search,
-            replace: replace,
-            explanation: explanation
-          }
-
-          {:cont,
-           {:ok,
-            Map.update(
-              acc,
-              file.path,
-              %{contents: file.contents, patches: [patch]},
-              &Map.update!(&1, :patches, fn patches -> patches ++ [patch] end)
-            )}}
-
-        error ->
-          {:halt, error}
-      end
-    end)
-  end
-
-  # file_updates structure: %{file_path => %{contents: string, patches: [%{search: string, replace: string, explanation: string}]}}
-  defp update_server_state(updates, server_state) do
+  defp update_server_state(file_patches, server_state) do
     server_state =
       server_state
-      |> put_in([:claude_ai, :file_updates], updates)
+      |> put_in([:file_patches], file_patches)
       |> put_in([:claude_ai, :phase], :waiting)
+      |> Map.replace!(:ignore_file_changes, true)
 
     {0, server_state}
   end
@@ -138,6 +98,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     |> case do
       {:ok, result} -> {:ok, result}
       {:error, error} -> {:error, {:instructor_lite, error}}
+      {:error, kind, details} -> {:error, {:instructor_lite, {kind, details}}}
     end
   end
 

@@ -3,7 +3,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
 
   alias PolyglotWatcherV2.GitDiff.Parser
 
-  describe "parse/1" do
+  describe "parse/2" do
     test "given a valid git diff output with 1 hunk in it, the expected output is returned" do
       raw =
         """
@@ -23,7 +23,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
       expected =
         """
         ────────────────────────
-        Lines: 1 - 5
+        1) Lines: 1 - 5
         ────────────────────────
            defmodule Cool do
              def cool(text) do
@@ -34,7 +34,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw)
+      assert {:ok, expected} == Parser.parse(raw, 1)
     end
 
     test "when the last line is not a newline its ok" do
@@ -57,7 +57,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
       expected =
         """
         ────────────────────────
-        Lines: 1 - 5
+        3) Lines: 1 - 5
         ────────────────────────
            defmodule Cool do
              def cool(text) do
@@ -68,7 +68,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw)
+      assert {:ok, expected} == Parser.parse(raw, 3)
     end
 
     # apparently this is possible. see link
@@ -88,14 +88,14 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
       expected =
         """
         ────────────────────────
-        Line: 1
+        2) Line: 1
         ────────────────────────
         -      text
         +      "cool " <> text
         ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw)
+      assert {:ok, expected} == Parser.parse(raw, 2)
     end
 
     test "can handle diffs that aren't at the top of the file" do
@@ -119,7 +119,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
       expected =
         """
         ────────────────────────
-        Lines: 11 - 17
+        4) Lines: 11 - 17
         ────────────────────────
                                                                       {:none, server_state} ->
                case language_module.determine_actions(file_path, server_state) do
@@ -132,7 +132,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw)
+      assert {:ok, expected} == Parser.parse(raw, 4)
     end
 
     test "can parse multiple hunks" do
@@ -165,7 +165,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
       expected =
         """
         ────────────────────────
-        Lines: 18 - 24
+        5) Lines: 18 - 24
         ────────────────────────
                lib_contents = \"lib contents OLD LIB\"\e[m
                mix_test_output = \"mix test output\"\e[m
@@ -176,7 +176,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
                test_file = %{path: test_path, contents: test_contents}\e[m
                lib_file = %{path: lib_path, contents: lib_contents}\e[m
         ────────────────────────
-        Lines: 370 - 376
+        5) Lines: 370 - 376
         ────────────────────────
          \e[m
                assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
@@ -189,7 +189,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw)
+      assert {:ok, expected} == Parser.parse(raw, 5)
     end
 
     test "when no hunk start is found, return error" do
@@ -202,7 +202,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         This is not a valid git diff output
         """
 
-      assert {:error, {:git_diff_parse, :no_hunk_start}} = Parser.parse(raw)
+      assert {:error, {:git_diff_parse, :no_hunk_start}} = Parser.parse(raw, 5)
     end
 
     test "in the very confusing case when the text of the file has a git diff hunk start in it, we ignore it" do
@@ -224,7 +224,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
       expected =
         """
         ────────────────────────
-        Lines: 1 - 5
+        7) Lines: 1 - 5
         ────────────────────────
            defmodule Cool do
              def cool(text) do
@@ -235,7 +235,7 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw)
+      assert {:ok, expected} == Parser.parse(raw, 7)
     end
   end
 end

@@ -42,6 +42,10 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     {exit_code, server_state}
   end
 
+  defp do_execute({:update_server_state, fun}, server_state) do
+    {0, fun.(server_state)}
+  end
+
   defp do_execute({:puts, messages}, server_state) do
     {Puts.on_new_line(messages), server_state}
   end
@@ -82,8 +86,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FileSystem.read_and_persist(path, key, server_state)
   end
 
-  defp do_execute({:patch_files, patches}, server_state) do
-    FilePatches.patch(patches, server_state)
+  defp do_execute({:patch_files, selector}, server_state) do
+    FilePatches.patch(selector, server_state)
   end
 
   defp do_execute(:load_in_memory_prompt, server_state) do

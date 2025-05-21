@@ -8,11 +8,11 @@ defmodule PolyglotWatcherV2.GitDiff do
   def run(request) do
     result =
       Enum.reduce_while(request, {:ok, %{}}, fn {key, file}, {:ok, acc} ->
-        %{contents: contents, search_replace: search_replace} = file
+        %{contents: contents, patches: search_replace} = file
 
-        case run_one(key, contents, search_replace) do
-          {:ok, git_diff} ->
-            {:cont, {:ok, Map.put(acc, key, git_diff)}}
+        case run(acc, key, contents, search_replace) do
+          {:ok, acc} ->
+            {:cont, {:ok, acc}}
 
           {:error, {:failed_to_write_tmp_file, file_path, error}} ->
             {:halt, {:error, {:failed_to_write_tmp_file, file_path, error}}}
@@ -31,45 +31,46 @@ defmodule PolyglotWatcherV2.GitDiff do
     result
   end
 
-  defp run_one(key, contents, search_replace) do
-    key = key |> to_string() |> String.replace("/", "_")
-    old = @old <> "_#{key}"
-    new = @new <> "_#{key}"
-
-    result =
-      with {:ok, new_file_contents} <- new_file_contents(contents, search_replace),
-           :ok <- write_tmp_file(old, contents),
-           :ok <- write_tmp_file(new, new_file_contents),
-           {:ok, git_diff} <- run_git_diff(old, new) do
-        {:ok, git_diff}
-      else
-        {:error, {:failed_to_write_tmp_file, file_path, error}} ->
-          {:error, {:failed_to_write_tmp_file, file_path, error}}
-
-        {:error, :git_diff_parsing_error} ->
-          {:error, :git_diff_parsing_error}
-
-        {:error, :search_failed, search, replace} ->
-          {:error, :search_failed, search, replace}
-
-        {:error, :search_multiple_matches, search, replace} ->
-          {:error, :search_multiple_matches, search, replace}
-      end
-
-    FileSystem.rm_rf(old)
-    FileSystem.rm_rf(new)
-
-    result
+  defp run(acc, _key, _contents, []) do
+    {:ok, acc}
   end
 
-  defp new_file_contents(contents, search_replace) do
-    Enum.reduce_while(search_replace, {:ok, contents}, fn %{search: search, replace: replace},
-                                                          {:ok, contents} ->
-      case search_and_replace(contents, search, replace) do
-        {:ok, new_contents} -> {:cont, {:ok, new_contents}}
-        {:error, error} -> {:halt, {:error, error, search, replace}}
-      end
-    end)
+  defp run(acc, key, contents, [patch | patches]) do
+    %{search: search, replace: replace, index: index} = patch
+
+    key_with_underscores =
+      key
+      |> to_string()
+      |> String.replace("/", "_")
+      |> String.replace(".", "_")
+
+    old = @old <> "_#{key_with_underscores}_#{index}"
+    new = @new <> "_#{key_with_underscores}_#{index}"
+
+    with {:ok, new_file_contents} <- search_and_replace(contents, search, replace),
+         :ok <- write_tmp_file(old, contents),
+         :ok <- write_tmp_file(new, new_file_contents),
+         {:ok, git_diff} <- run_git_diff(old, new, index) do
+      FileSystem.rm_rf(old)
+      FileSystem.rm_rf(new)
+
+      acc
+      |> Map.put_new(key, %{})
+      |> put_in([key, index], git_diff)
+      |> run(key, contents, patches)
+    else
+      {:error, {:failed_to_write_tmp_file, file_path, error}} ->
+        {:error, {:failed_to_write_tmp_file, file_path, error}}
+
+      {:error, :git_diff_parsing_error} ->
+        {:error, :git_diff_parsing_error}
+
+      {:error, :search_failed} ->
+        {:error, :search_failed, search, replace}
+
+      {:error, :search_multiple_matches, search, replace} ->
+        {:error, :search_multiple_matches, search, replace}
+    end
   end
 
   defp search_and_replace(contents, search, nil) do
@@ -91,11 +92,11 @@ defmodule PolyglotWatcherV2.GitDiff do
     end
   end
 
-  defp run_git_diff(old, new) do
+  defp run_git_diff(old, new, index) do
     {std_out, _exit_code} =
       SystemWrapper.cmd("git", ["diff", "--no-index", "--color", old, new])
 
-    case Parser.parse(std_out) do
+    case Parser.parse(std_out, index) do
       {:ok, git_diff} -> {:ok, git_diff}
       {:error, _error} -> {:error, :git_diff_parsing_error}
     end

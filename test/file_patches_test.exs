@@ -7,38 +7,46 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.ServerStateBuilder
 
-  describe "patch/2" do
+  describe "patch/2 - :all" do
     test "given 2 files, which both exist, patches to them are written to file" do
-      server_state = ServerStateBuilder.build()
+      file_patches = [
+        {"lib/cool.ex",
+         %{
+           contents: "AAA\nCCC",
+           patches: [
+             %{
+               search: "AAA",
+               replace: "BBB",
+               index: 1
+             },
+             %{
+               search: "CCC",
+               replace: "DDD",
+               index: 2
+             }
+           ]
+         }},
+        {"test/cool_test.exs",
+         %{
+           contents: "EEE\nGGG",
+           patches: [
+             %{
+               search: "EEE",
+               replace: "FFF",
+               index: 3
+             },
+             %{
+               search: "GGG",
+               replace: "HHH",
+               index: 4
+             }
+           ]
+         }}
+      ]
 
-      file_patches = %{
-        "lib/cool.ex" => %{
-          contents: "AAA\nCCC",
-          patches: [
-            %{
-              search: "AAA",
-              replace: "BBB"
-            },
-            %{
-              search: "CCC",
-              replace: "DDD"
-            }
-          ]
-        },
-        "test/cool_test.exs" => %{
-          contents: "EEE\nGGG",
-          patches: [
-            %{
-              search: "EEE",
-              replace: "FFF"
-            },
-            %{
-              search: "GGG",
-              replace: "HHH"
-            }
-          ]
-        }
-      }
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
 
       Mimic.expect(FileWrapper, :read, 2, fn
         "lib/cool.ex" -> {:ok, "AAA\nCCC"}
@@ -55,32 +63,41 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
         "Updated test/cool_test.exs" -> :ok
       end)
 
-      assert {0, server_state} == FilePatches.patch(file_patches, server_state)
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
     end
 
-    test "when a file does not exist, but another does, make no file changes" do
-      server_state = ServerStateBuilder.build()
-
-      file_patches = %{
-        "lib/existing.ex" => %{
-          contents: "AAA\nCCC",
-          patches: [
-            %{
-              search: "AAA",
-              replace: "BBB"
-            }
-          ]
+    test "when a file does not exist, but another does, make no file changes and removed all file_patches from the server_state" do
+      file_patches = [
+        {
+          "lib/existing.ex",
+          %{
+            contents: "AAA\nCCC",
+            patches: [
+              %{
+                search: "AAA",
+                replace: "BBB",
+                index: 1
+              }
+            ]
+          }
         },
-        "lib/non_existent.ex" => %{
-          contents: "DDD\nFFF",
-          patches: [
-            %{
-              search: "DDD",
-              replace: "EEE"
-            }
-          ]
-        }
-      }
+        {"lib/non_existent.ex",
+         %{
+           contents: "DDD\nFFF",
+           patches: [
+             %{
+               search: "DDD",
+               replace: "EEE",
+               index: 2
+             }
+           ]
+         }}
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
 
       Mimic.expect(FileWrapper, :read, 2, fn
         "lib/existing.ex" -> {:ok, "AAA\nCCC"}
@@ -90,37 +107,46 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.reject(FileWrapper, :write, 2)
       Mimic.reject(Puts, :on_new_line, 1)
 
-      assert {1,
+      assert {:error,
               %{
                 server_state
                 | action_error:
-                    "Failed to write update to lib/non_existent.ex. Error was {:error, :enoent}"
-              }} == FilePatches.patch(file_patches, server_state)
+                    "Failed to write update to lib/non_existent.ex. Error was {:error, :enoent}",
+                  file_patches: nil
+              }} == FilePatches.patch(:all, server_state)
     end
 
     test "given 2 files, when one does not contain any search text, make no file changes and return error" do
-      server_state = ServerStateBuilder.build()
-
-      file_patches = %{
-        "lib/existing.ex" => %{
-          contents: "AAA\nCCC",
-          patches: [
-            %{
-              search: "AAA",
-              replace: "BBB"
-            }
-          ]
+      file_patches = [
+        {
+          "lib/existing.ex",
+          %{
+            contents: "AAA\nCCC",
+            patches: [
+              %{
+                search: "AAA",
+                replace: "BBB",
+                index: 1
+              }
+            ]
+          }
         },
-        "lib/no_match.ex" => %{
-          contents: "DDD\nFFF",
-          patches: [
-            %{
-              search: "XXX",
-              replace: "YYY"
-            }
-          ]
-        }
-      }
+        {"lib/no_match.ex",
+         %{
+           contents: "DDD\nFFF",
+           patches: [
+             %{
+               search: "XXX",
+               replace: "YYY",
+               index: 2
+             }
+           ]
+         }}
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
 
       Mimic.expect(FileWrapper, :read, 2, fn
         "lib/existing.ex" -> {:ok, "AAA\nCCC"}
@@ -130,137 +156,332 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.reject(FileWrapper, :write, 2)
       Mimic.reject(Puts, :on_new_line, 1)
 
-      assert {1,
+      assert {:error,
               %{
                 server_state
                 | action_error:
-                    "Failed to write update to lib/no_match.ex. Error was {:error, :search_failed}"
-              }} == FilePatches.patch(file_patches, server_state)
+                    "Failed to write update to lib/no_match.ex. Error was {:error, :search_failed}",
+                  file_patches: nil
+              }} == FilePatches.patch(:all, server_state)
     end
 
-    test "given 2 files, when one contains the search text multiple times, return error and make no file changes" do
-      server_state = ServerStateBuilder.build()
-
-      file_patches = %{
-        "lib/single_match.ex" => %{
-          contents: "AAA\nCCC",
-          patches: [
-            %{
-              search: "AAA",
-              replace: "BBB"
-            }
-          ]
+    test "given 2 files, when one contains the search text multiple times, allow it & update both places" do
+      file_patches = [
+        {
+          "lib/single_match.ex",
+          %{
+            contents: "AAA\nCCC",
+            patches: [
+              %{
+                search: "AAA",
+                replace: "BBB",
+                index: 1
+              }
+            ]
+          }
         },
-        "lib/multiple_matches.ex" => %{
-          contents: "DDD\nDDD\nFFF",
-          patches: [
-            %{
-              search: "DDD",
-              replace: "EEE"
-            }
-          ]
-        }
-      }
+        {"lib/multiple_matches.ex",
+         %{
+           contents: "DDD\nDDD\nFFF",
+           patches: [
+             %{
+               search: "DDD",
+               replace: "EEE",
+               index: 2
+             }
+           ]
+         }}
+      ]
 
-      Mimic.expect(FileWrapper, :read, 1, fn
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
+
+      Mimic.expect(FileWrapper, :read, 2, fn
         "lib/single_match.ex" -> {:ok, "AAA\nCCC"}
         "lib/multiple_matches.ex" -> {:ok, "DDD\nDDD\nFFF"}
       end)
 
-      Mimic.reject(FileWrapper, :write, 2)
+      Mimic.expect(FileWrapper, :write, 2, fn
+        "lib/single_match.ex", "BBB\nCCC" -> :ok
+        "lib/multiple_matches.ex", "EEE\nEEE\nFFF" -> :ok
+      end)
+
+      Mimic.expect(Puts, :on_new_line, 2, fn
+        "Updated lib/single_match.ex" -> :ok
+        "Updated lib/multiple_matches.ex" -> :ok
+      end)
+
+      assert {{:ok, :done},
+              %{
+                server_state
+                | action_error: nil,
+                  file_patches: nil
+              }} == FilePatches.patch(:all, server_state)
+    end
+
+    test "when file_patches is nil in the server state, return ok done" do
+      server_state = ServerStateBuilder.build()
+      |> Map.put(:file_patches, nil)
+
+      Mimic.reject(&FileWrapper.read/1)
+      Mimic.reject(&FileWrapper.write/2)
+      Mimic.reject(&Puts.on_new_line/1)
+
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
+    end
+
+    test "given a file with an empty patch list, no changes are made" do
+      file_patches = [
+        {
+          "lib/empty_patch.ex",
+          %{
+            contents: "AAA\nBBB",
+            patches: []
+          }
+        }
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
+
+      Mimic.reject(&FileWrapper.read/1)
+      Mimic.reject(&FileWrapper.write/2)
+      Mimic.reject(&Puts.on_new_line/1)
+
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
+    end
+
+    test "when writing to a file fails, return an error" do
+      file_patches = [
+        {
+          "lib/write_fail.ex",
+          %{
+            contents: "AAA\nCCC",
+            patches: [%{search: "AAA", replace: "BBB", index: 1}]
+          }
+        }
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
+
+      Mimic.expect(FileWrapper, :read, 1, fn "lib/write_fail.ex" -> {:ok, "AAA\nCCC"} end)
+
+      Mimic.expect(FileWrapper, :write, 1, fn "lib/write_fail.ex", "BBB\nCCC" ->
+        {:error, :eacces}
+      end)
+
       Mimic.reject(Puts, :on_new_line, 1)
 
-      assert {1,
+      assert {:error,
               %{
                 server_state
                 | action_error:
-                    "Failed to write update to lib/multiple_matches.ex. Error was {:error, :search_multiple_matches}"
-              }} == FilePatches.patch(file_patches, server_state)
+                    "Failed to write update to lib/write_fail.ex. Error was {:error, :eacces}",
+                  file_patches: nil
+              }} ==
+               FilePatches.patch(:all, server_state)
+    end
+
+    test "given a file with multiple patches, all patches are applied" do
+      file_patches = [
+        {"lib/multi_patch.ex",
+         %{
+           contents: "AAA\nBBB\nCCC",
+           patches: [
+             %{search: "AAA", replace: "XXX", index: 1},
+             %{search: "BBB", replace: "YYY", index: 2},
+             %{search: "CCC", replace: "ZZZ", index: 3}
+           ]
+         }}
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
+
+      Mimic.expect(FileWrapper, :read, 1, fn "lib/multi_patch.ex" -> {:ok, "AAA\nBBB\nCCC"} end)
+      Mimic.expect(FileWrapper, :write, 1, fn "lib/multi_patch.ex", "XXX\nYYY\nZZZ" -> :ok end)
+      Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/multi_patch.ex" -> :ok end)
+
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
+    end
+
+    test "handles replacements of nil" do
+      file_patches = [
+        {
+          "lib/nil_replace.ex",
+          %{
+            contents: "AAA\nBBB",
+            patches: [
+              %{search: "AAA", replace: nil, index: 1},
+              %{search: "BBB", replace: "CCC", index: 2}
+            ]
+          }
+        }
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
+
+      Mimic.expect(FileWrapper, :read, 1, fn "lib/nil_replace.ex" -> {:ok, "AAA\nBBB"} end)
+      Mimic.expect(FileWrapper, :write, 1, fn "lib/nil_replace.ex", "\nCCC" -> :ok end)
+      Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/nil_replace.ex" -> :ok end)
+
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
     end
   end
 
-  test "given a file with an empty patch list, no changes are made" do
-    server_state = ServerStateBuilder.build()
+  describe "patch/2 - subset" do
+    test "given a list of integers, only applies those patches, and keeps the rest" do
+      file_patches = [
+        {"lib/cool.ex",
+         %{
+           contents: "AAA\nCCC",
+           patches: [
+             %{
+               search: "AAA",
+               replace: "BBB",
+               index: 1
+             },
+             %{
+               search: "CCC",
+               replace: "DDD",
+               index: 2
+             }
+           ]
+         }},
+        {"test/cool_test.exs",
+         %{
+           contents: "EEE\nGGG",
+           patches: [
+             %{
+               search: "EEE",
+               replace: "FFF",
+               index: 3
+             },
+             %{
+               search: "GGG",
+               replace: "HHH",
+               index: 4
+             }
+           ]
+         }}
+      ]
 
-    file_patches = %{
-      "lib/empty_patch.ex" => %{
-        contents: "AAA\nBBB",
-        patches: []
-      }
-    }
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
 
-    Mimic.reject(&FileWrapper.read/1)
-    Mimic.reject(&FileWrapper.write/2)
-    Mimic.reject(&Puts.on_new_line/1)
+      Mimic.expect(FileWrapper, :read, 2, fn
+        "lib/cool.ex" -> {:ok, "AAA\nCCC"}
+        "test/cool_test.exs" -> {:ok, "EEE\nGGG"}
+      end)
 
-    assert {0, server_state} == FilePatches.patch(file_patches, server_state)
-  end
+      Mimic.expect(FileWrapper, :write, 2, fn
+        "lib/cool.ex", "BBB\nCCC" -> :ok
+        "test/cool_test.exs", "FFF\nGGG" -> :ok
+      end)
 
-  test "when writing to a file fails, return an error" do
-    server_state = ServerStateBuilder.build()
+      Mimic.expect(Puts, :on_new_line, 2, fn
+        "Updated lib/cool.ex" -> :ok
+        "Updated test/cool_test.exs" -> :ok
+      end)
 
-    file_patches = %{
-      "lib/write_fail.ex" => %{
-        contents: "AAA\nCCC",
-        patches: [%{search: "AAA", replace: "BBB"}]
-      }
-    }
+      expected_remaining_patches = [
+        {"lib/cool.ex",
+         %{
+           contents: "AAA\nCCC",
+           patches: [
+             %{
+               search: "CCC",
+               replace: "DDD",
+               index: 2
+             }
+           ]
+         }},
+        {"test/cool_test.exs",
+         %{
+           contents: "EEE\nGGG",
+           patches: [
+             %{
+               search: "GGG",
+               replace: "HHH",
+               index: 4
+             }
+           ]
+         }}
+      ]
 
-    Mimic.expect(FileWrapper, :read, 1, fn "lib/write_fail.ex" -> {:ok, "AAA\nCCC"} end)
+      assert {{:ok, :cont}, %{server_state | file_patches: expected_remaining_patches}} ==
+               FilePatches.patch([1, 3], server_state)
+    end
 
-    Mimic.expect(FileWrapper, :write, 1, fn "lib/write_fail.ex", "BBB\nCCC" ->
-      {:error, :eacces}
-    end)
+    test "when every index is asked for, return ok done because no patches are left" do
+      file_patches = [
+        {"lib/cool.ex",
+         %{
+           contents: "AAA\nCCC",
+           patches: [
+             %{
+               search: "AAA",
+               replace: "BBB",
+               index: 1
+             },
+             %{
+               search: "CCC",
+               replace: "DDD",
+               index: 2
+             }
+           ]
+         }},
+        {"test/cool_test.exs",
+         %{
+           contents: "EEE\nGGG",
+           patches: [
+             %{
+               search: "EEE",
+               replace: "FFF",
+               index: 3
+             },
+             %{
+               search: "GGG",
+               replace: "HHH",
+               index: 4
+             }
+           ]
+         }}
+      ]
 
-    Mimic.reject(Puts, :on_new_line, 1)
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
 
-    assert {1,
-            %{
-              server_state
-              | action_error:
-                  "Failed to write update to lib/write_fail.ex. Error was {:error, :eacces}"
-            }} ==
-             FilePatches.patch(file_patches, server_state)
-  end
+      Mimic.expect(FileWrapper, :read, 2, fn
+        "lib/cool.ex" -> {:ok, "AAA\nCCC"}
+        "test/cool_test.exs" -> {:ok, "EEE\nGGG"}
+      end)
 
-  test "given a file with multiple patches, all patches are applied" do
-    server_state = ServerStateBuilder.build()
+      Mimic.expect(FileWrapper, :write, 2, fn
+        "lib/cool.ex", "BBB\nDDD" -> :ok
+        "test/cool_test.exs", "FFF\nHHH" -> :ok
+      end)
 
-    file_patches = %{
-      "lib/multi_patch.ex" => %{
-        contents: "AAA\nBBB\nCCC",
-        patches: [
-          %{search: "AAA", replace: "XXX"},
-          %{search: "BBB", replace: "YYY"},
-          %{search: "CCC", replace: "ZZZ"}
-        ]
-      }
-    }
+      Mimic.expect(Puts, :on_new_line, 2, fn
+        "Updated lib/cool.ex" -> :ok
+        "Updated test/cool_test.exs" -> :ok
+      end)
 
-    Mimic.expect(FileWrapper, :read, 1, fn "lib/multi_patch.ex" -> {:ok, "AAA\nBBB\nCCC"} end)
-    Mimic.expect(FileWrapper, :write, 1, fn "lib/multi_patch.ex", "XXX\nYYY\nZZZ" -> :ok end)
-    Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/multi_patch.ex" -> :ok end)
-
-    assert {0, server_state} == FilePatches.patch(file_patches, server_state)
-  end
-
-  test "handles replacements of nil" do
-    server_state = ServerStateBuilder.build()
-
-    file_patches = %{
-      "lib/nil_replace.ex" => %{
-        contents: "AAA\nBBB",
-        patches: [
-          %{search: "AAA", replace: nil},
-          %{search: "BBB", replace: "CCC"}
-        ]
-      }
-    }
-
-    Mimic.expect(FileWrapper, :read, 1, fn "lib/nil_replace.ex" -> {:ok, "AAA\nBBB"} end)
-    Mimic.expect(FileWrapper, :write, 1, fn "lib/nil_replace.ex", "\nCCC" -> :ok end)
-    Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/nil_replace.ex" -> :ok end)
-
-    assert {0, server_state} == FilePatches.patch(file_patches, server_state)
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch([1, 2, 3, 4], server_state)
+    end
   end
 end

@@ -16,7 +16,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       files: %{},
       env_vars: %{},
       stored_actions: nil,
-      action_error: nil
+      action_error: nil,
+      file_patches: nil
     }
   end
 
@@ -38,10 +39,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
 
   def with_claude_ai_phase(server_state, phase) do
     put_in(server_state, [:claude_ai, :phase], phase)
-  end
-
-  def with_claude_ai_file_updates(server_state, file_updates) do
-    put_in(server_state, [:claude_ai, :file_updates], file_updates)
   end
 
   def with_rust_mode(server_state, mode) do
@@ -82,5 +79,9 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     Map.update!(server_state, :files, fn files ->
       Map.put(files, key, nil)
     end)
+  end
+
+  def with_file_patches(server_state, file_patches) do
+    %{server_state | file_patches: file_patches}
   end
 end
