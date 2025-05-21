@@ -2,54 +2,14 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
   @behaviour PolyglotWatcherV2.Mode
   alias PolyglotWatcherV2.{Action, FilePath}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions
 
   @ex Determiner.ex()
   @exs Determiner.exs()
-  @yes "y\n"
-  @no "n\n"
-
-  # TODO fix patch files, the data structure is different now
-  @impl PolyglotWatcherV2.Mode
-  def user_input_actions(
-        @yes,
-        %{
-          elixir: %{mode: :claude_ai_replace},
-          claude_ai: %{phase: :waiting}
-        } = server_state
-      ) do
-    {%{
-       entry_point: :patch_files,
-       actions_tree: %{
-         patch_files: %Action{
-           runnable: {:patch_files, :all},
-           next_action: :exit
-         }
-       }
-     }, %{server_state | claude_ai: %{}}}
-  end
 
   @impl PolyglotWatcherV2.Mode
-  def user_input_actions(
-        @no,
-        %{
-          elixir: %{mode: :claude_ai_replace},
-          claude_ai: %{phase: :waiting}
-        } = server_state
-      ) do
-    {%{
-       entry_point: :put_msg,
-       actions_tree: %{
-         put_msg: %Action{
-           runnable: {:puts, :magenta, "Ok, ignoring suggestion..."},
-           next_action: :exit
-         }
-       }
-     }, %{server_state | claude_ai: %{}}}
-  end
-
-  @impl PolyglotWatcherV2.Mode
-  def user_input_actions(_, server_state) do
-    {false, %{server_state | claude_ai: %{}}}
+  def user_input_actions(user_input, server_state) do
+    UserInputActions.determine(user_input, server_state)
   end
 
   @impl PolyglotWatcherV2.Mode
@@ -134,7 +94,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
            next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
          },
          put_awaiting_input_msg: %Action{
-           runnable: {:puts, :magenta, "Accept file changes (y/n)?"},
+           runnable: {:puts, :magenta, UserInputActions.prompt()},
            next_action: :exit
          },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}

@@ -28,8 +28,33 @@ defmodule PolyglotWatcherV2.Tree do
         }
 end
 
+defmodule PolyglotWatcherV2.Patch do
+  alias PolyglotWatcherV2.ActionTree
+  @enforce_keys [:search, :replace, :index]
+  defstruct search: nil, replace: nil, index: nil, explanation: nil
+
+  @type t() :: %__MODULE__{
+          search: String.t(),
+          replace: String.t(),
+          index: integer(),
+          explanation: String.t() | nil
+        }
+end
+
+defmodule PolyglotWatcherV2.FilePatch do
+  alias PolyglotWatcherV2.Patch
+  @enforce_keys [:contents, :patches]
+  defstruct contents: nil, patches: []
+
+  @type t() :: %__MODULE__{
+          contents: String.t(),
+          patches: [Patch.t()]
+        }
+end
+
 defmodule PolyglotWatcherV2.ServerState do
   use PolyglotWatcherV2.AccessBehaviour
+  alias PolyglotWatcherV2.FilePatch
   @type file_info :: %{contents: String.t(), path: String.t()} | nil
 
   @type language_mode :: :default | any()
@@ -43,15 +68,12 @@ defmodule PolyglotWatcherV2.ServerState do
   @type claude_ai_state :: %{
           response: any() | nil,
           request: any() | nil,
-          phase: atom() | nil,
-          file_updates: list() | nil
+          phase: atom() | nil
         }
 
   @type rust_state :: %{mode: language_mode()}
 
-  @type file_patch ::
-          {String.t(),
-           %{contents: String.t(), patches: %{search: String.t(), replace: String.t()}}}
+  @type file_patch :: {String.t(), FilePatch.t()}
 
   @type t :: %__MODULE__{
           port: port() | nil,

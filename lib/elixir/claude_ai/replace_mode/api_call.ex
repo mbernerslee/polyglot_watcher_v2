@@ -1,17 +1,16 @@
 defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Elixir.Cache
-  alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
+  alias PolyglotWatcherV2.InstructorLiteSchemas.CodeFileUpdates
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
+  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilder
 
-  # TODO make output prettier
-  # TODO stop several changes being allowed for 1 update? (global = false? or explicit line number if multple matches?)
   def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
          {:ok, instruct_result} <- instruct(prompt, api_key),
-         {:ok, file_patches} <- build_file_patches(instruct_result, files),
+         {:ok, file_patches} <- FilePatchesBuilder.build(instruct_result, files),
          {:ok, git_diffs} <- git_diff(file_patches),
          :ok <- put_diffs_with_explanations(git_diffs, file_patches) do
       update_server_state(file_patches, server_state)
@@ -54,7 +53,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
       {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
     ])
 
-    # TODO this sorting is untested :-( find a way?
     Enum.reduce(file_patches, [], fn {path, %{patches: patches}}, acc ->
       Enum.reduce(patches, acc, fn %{index: index, explanation: explanation}, inner ->
         git_diff =
@@ -80,61 +78,12 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     ])
   end
 
-  # TODO could pull this function out & test it separately? Test it returns properly ordered file_patches too?
-  defp build_file_patches(%CodeFileUpdates{updates: []}, _) do
-    {:error, {:instructor_lite, :no_changes_suggested}}
-  end
-
-  defp build_file_patches(%CodeFileUpdates{updates: [_ | _] = updates}, %{test: test, lib: lib}) do
-    build_file_patches(%{}, 1, updates, test, lib)
-  end
-
-  defp build_file_patches(acc, _index, [], _test, _lib) do
-    {:ok, Map.to_list(acc)}
-  end
-
-  defp build_file_patches(acc, index, [update | rest], test, lib) do
-    %CodeFileUpdate{
-      file_path: file_path,
-      explanation: explanation,
-      search: search,
-      replace: replace
-    } = update
-
-    cond do
-      file_path == lib.path -> {:ok, lib}
-      file_path == test.path -> {:ok, test}
-      true -> {:error, {:instructor_lite, :invalid_file_path}}
-    end
-    |> case do
-      {:ok, file} ->
-        patch = %{
-          search: search,
-          replace: replace,
-          explanation: explanation,
-          index: index
-        }
-
-        acc =
-          Map.update(
-            acc,
-            file.path,
-            %{contents: file.contents, patches: [patch]},
-            &Map.update!(&1, :patches, fn patches -> patches ++ [patch] end)
-          )
-
-        build_file_patches(acc, index + 1, rest, test, lib)
-
-      error ->
-        error
-    end
-  end
-
   defp update_server_state(file_patches, server_state) do
     server_state =
       server_state
       |> put_in([:file_patches], file_patches)
       |> put_in([:claude_ai, :phase], :waiting)
+      |> Map.replace!(:ignore_file_changes, true)
 
     {0, server_state}
   end
@@ -149,6 +98,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     |> case do
       {:ok, result} -> {:ok, result}
       {:error, error} -> {:error, {:instructor_lite, error}}
+      {:error, kind, details} -> {:error, {:instructor_lite, {kind, details}}}
     end
   end
 

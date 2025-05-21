@@ -41,10 +41,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:claude_ai, :phase], phase)
   end
 
-  def with_claude_ai_file_updates(server_state, file_updates) do
-    put_in(server_state, [:claude_ai, :file_updates], file_updates)
-  end
-
   def with_rust_mode(server_state, mode) do
     put_in(server_state, [:rust, :mode], mode)
   end

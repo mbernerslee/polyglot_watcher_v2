@@ -63,7 +63,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
         "Updated test/cool_test.exs" -> :ok
       end)
 
-      assert {0, %{server_state | file_patches: nil}} ==
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
                FilePatches.patch(:all, server_state)
     end
 
@@ -107,7 +107,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.reject(FileWrapper, :write, 2)
       Mimic.reject(Puts, :on_new_line, 1)
 
-      assert {1,
+      assert {:error,
               %{
                 server_state
                 | action_error:
@@ -156,7 +156,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.reject(FileWrapper, :write, 2)
       Mimic.reject(Puts, :on_new_line, 1)
 
-      assert {1,
+      assert {:error,
               %{
                 server_state
                 | action_error:
@@ -212,7 +212,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
         "Updated lib/multiple_matches.ex" -> :ok
       end)
 
-      assert {0,
+      assert {{:ok, :done},
               %{
                 server_state
                 | action_error: nil,
@@ -220,7 +220,18 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
               }} == FilePatches.patch(:all, server_state)
     end
 
-    # TODO test file_patches = nil in the server state.
+    test "when file_patches is nil in the server state, return ok done" do
+      server_state = ServerStateBuilder.build()
+      |> Map.put(:file_patches, nil)
+
+      Mimic.reject(&FileWrapper.read/1)
+      Mimic.reject(&FileWrapper.write/2)
+      Mimic.reject(&Puts.on_new_line/1)
+
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
+    end
+
     test "given a file with an empty patch list, no changes are made" do
       file_patches = [
         {
@@ -240,7 +251,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.reject(&FileWrapper.write/2)
       Mimic.reject(&Puts.on_new_line/1)
 
-      assert {0, %{server_state | file_patches: nil}} ==
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
                FilePatches.patch(:all, server_state)
     end
 
@@ -267,7 +278,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
 
       Mimic.reject(Puts, :on_new_line, 1)
 
-      assert {1,
+      assert {:error,
               %{
                 server_state
                 | action_error:
@@ -298,7 +309,8 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.expect(FileWrapper, :write, 1, fn "lib/multi_patch.ex", "XXX\nYYY\nZZZ" -> :ok end)
       Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/multi_patch.ex" -> :ok end)
 
-      assert {0, %{server_state | file_patches: nil}} == FilePatches.patch(:all, server_state)
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch(:all, server_state)
     end
 
     test "handles replacements of nil" do
@@ -323,7 +335,7 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
       Mimic.expect(FileWrapper, :write, 1, fn "lib/nil_replace.ex", "\nCCC" -> :ok end)
       Mimic.expect(Puts, :on_new_line, 1, fn "Updated lib/nil_replace.ex" -> :ok end)
 
-      assert {0, %{server_state | file_patches: nil}} ==
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
                FilePatches.patch(:all, server_state)
     end
   end
@@ -409,10 +421,67 @@ defmodule PolyglotWatcherV2.FilePatchesTest do
          }}
       ]
 
-      assert {0, %{server_state | file_patches: expected_remaining_patches}} ==
+      assert {{:ok, :cont}, %{server_state | file_patches: expected_remaining_patches}} ==
                FilePatches.patch([1, 3], server_state)
+    end
 
-      # TODO continue here with more tests
+    test "when every index is asked for, return ok done because no patches are left" do
+      file_patches = [
+        {"lib/cool.ex",
+         %{
+           contents: "AAA\nCCC",
+           patches: [
+             %{
+               search: "AAA",
+               replace: "BBB",
+               index: 1
+             },
+             %{
+               search: "CCC",
+               replace: "DDD",
+               index: 2
+             }
+           ]
+         }},
+        {"test/cool_test.exs",
+         %{
+           contents: "EEE\nGGG",
+           patches: [
+             %{
+               search: "EEE",
+               replace: "FFF",
+               index: 3
+             },
+             %{
+               search: "GGG",
+               replace: "HHH",
+               index: 4
+             }
+           ]
+         }}
+      ]
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_file_patches(file_patches)
+
+      Mimic.expect(FileWrapper, :read, 2, fn
+        "lib/cool.ex" -> {:ok, "AAA\nCCC"}
+        "test/cool_test.exs" -> {:ok, "EEE\nGGG"}
+      end)
+
+      Mimic.expect(FileWrapper, :write, 2, fn
+        "lib/cool.ex", "BBB\nDDD" -> :ok
+        "test/cool_test.exs", "FFF\nHHH" -> :ok
+      end)
+
+      Mimic.expect(Puts, :on_new_line, 2, fn
+        "Updated lib/cool.ex" -> :ok
+        "Updated test/cool_test.exs" -> :ok
+      end)
+
+      assert {{:ok, :done}, %{server_state | file_patches: nil}} ==
+               FilePatches.patch([1, 2, 3, 4], server_state)
     end
   end
 end

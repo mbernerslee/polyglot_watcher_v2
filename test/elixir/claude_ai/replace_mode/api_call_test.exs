@@ -5,6 +5,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
   alias PolyglotWatcherV2.SystemWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.FilePatch
+  alias PolyglotWatcherV2.Patch
   alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
@@ -126,14 +128,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                claude_ai: %{
                  phase: :waiting
                },
-               file_patches: file_patches
+               file_patches: file_patches,
+               ignore_file_changes: true
              } = new_server_state
 
       assert [
                {lib_path,
-                %{
+                %FilePatch{
                   patches: [
-                    %{
+                    %Patch{
                       search: "OLD LIB",
                       replace: "NEW LIB",
                       explanation: "some lib code was awful",
@@ -143,9 +146,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
                   contents: lib_contents
                 }},
                {test_path,
-                %{
+                %FilePatch{
                   patches: [
-                    %{
+                    %Patch{
                       search: "OLD TEST",
                       replace: "NEW TEST",
                       explanation: "some test code was awful",
@@ -204,6 +207,94 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       assert {1, new_server_state} = APICall.perform(test_path, server_state)
 
       expected_error = "Error from InstructorLite: :some_error"
+
+      assert new_server_state.action_error == expected_error
+      assert %{server_state | action_error: expected_error} == new_server_state
+    end
+
+    test "when the instructor returns an \"unexpected response\", handle it" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "lib contents"
+      mix_test_output = "mix test output"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:error, :unexpected_response,
+         %{
+           "content" => [
+             %{
+               "id" => "toolu_01Xr1pWys26BrBjNhJdTiRX6",
+               "input" => %{},
+               "name" => "Schema",
+               "type" => "tool_use"
+             }
+           ],
+           "id" => "msg_011WzhD5hWiCXaz7GFzdFc4Y",
+           "model" => "claude-3-5-sonnet-20240620",
+           "role" => "assistant",
+           "stop_reason" => "max_tokens",
+           "stop_sequence" => nil,
+           "type" => "message",
+           "usage" => %{
+             "cache_creation_input_tokens" => 0,
+             "cache_read_input_tokens" => 0,
+             "input_tokens" => 2193,
+             "output_tokens" => 1024
+           }
+         }}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      expected_error =
+        "Error from InstructorLite: {:unexpected_response, %{\"content\" => [%{\"id\" => \"toolu_01Xr1pWys26BrBjNhJdTiRX6\", \"input\" => %{}, \"name\" => \"Schema\", \"type\" => \"tool_use\"}], \"id\" => \"msg_011WzhD5hWiCXaz7GFzdFc4Y\", \"model\" => \"claude-3-5-sonnet-20240620\", \"role\" => \"assistant\", \"stop_reason\" => \"max_tokens\", \"stop_sequence\" => nil, \"type\" => \"message\", \"usage\" => %{\"cache_creation_input_tokens\" => 0, \"cache_read_input_tokens\" => 0, \"input_tokens\" => 2193, \"output_tokens\" => 1024}}}"
+
+      assert new_server_state.action_error == expected_error
+      assert %{server_state | action_error: expected_error} == new_server_state
+    end
+
+    test "when the instructor returns any arbitrary 3 element error tuple, handle it" do
+      api_key = "secret API key"
+      test_path = "test/a_test.exs"
+      test_contents = "test contents"
+      lib_path = "lib/a.ex"
+      lib_contents = "lib contents"
+      mix_test_output = "mix test output"
+
+      test_file = %{path: test_path, contents: test_contents}
+      lib_file = %{path: lib_path, contents: lib_contents}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
+        |> ServerStateBuilder.with_claude_api_key(api_key)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+      end)
+
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+        {:error, :any_arbitrary_atom, %{"arbitrary" => "contents"}}
+      end)
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      expected_error =
+        "Error from InstructorLite: {:any_arbitrary_atom, %{\"arbitrary\" => \"contents\"}}"
 
       assert new_server_state.action_error == expected_error
       assert %{server_state | action_error: expected_error} == new_server_state
@@ -376,15 +467,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       assert [
                {
                  lib_path,
-                 %{
+                 %FilePatch{
                    patches: [
-                     %{
+                     %Patch{
                        search: "old content 1",
                        replace: "new content 1",
                        explanation: "Update 1",
                        index: 1
                      },
-                     %{
+                     %Patch{
                        search: "old content 2",
                        replace: "new content 2",
                        explanation: "Update 2",

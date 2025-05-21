@@ -6,6 +6,8 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, FilePath, ServerStateBuilder}
   alias PolyglotWatcherV2.Elixir.{Cache, Determiner}
+  alias PolyglotWatcherV2.FilePatch
+  alias PolyglotWatcherV2.Patch
 
   @ex Determiner.ex()
   @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
@@ -340,89 +342,52 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
     end
 
     test "if in replace mode, awaiting user response, accept y" do
-      file_updates = %{
-        "lib/cool.ex" => [
-          %{
-            search: "AAA",
-            replace: "BBB",
-            path: "lib/cool.ex",
-            explanation: "Update 1"
-          },
-          %{
-            search: "CCC",
-            replace: "DDD",
-            path: "lib/cool.ex",
-            explanation: "Update 2"
-          }
-        ],
-        "lib/cool_test.exs" => [
-          %{
-            search: "EEE",
-            replace: "FFF",
-            path: "lib/cool_test.exs",
-            explanation: "Update 3"
-          },
-          %{
-            search: "GGG",
-            replace: "HHH",
-            path: "lib/cool_test.exs",
-            explanation: "Update 4"
-          }
-        ]
-      }
+      file_patches = [
+        {"lib/cool.ex",
+         %FilePatch{
+           contents: "AAA\nCCC",
+           patches: [
+             %Patch{
+               search: "AAA",
+               replace: "BBB",
+               index: 1
+             },
+             %Patch{
+               search: "CCC",
+               replace: "DDD",
+               index: 2
+             }
+           ]
+         }},
+        {"lib/cool_test.exs",
+         %FilePatch{
+           contents: "EEE\nGGG",
+           patches: [
+             %Patch{
+               search: "EEE",
+               replace: "FFF",
+               index: 3
+             },
+             %Patch{
+               search: "GGG",
+               replace: "HHH",
+               index: 4
+             }
+           ]
+         }}
+      ]
 
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
         |> ServerStateBuilder.with_claude_ai_phase(:waiting)
-        |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
+        |> ServerStateBuilder.with_ignore_file_changes(true)
+        |> ServerStateBuilder.with_file_patches(file_patches)
 
       assert {tree, _server_state} = Determiner.user_input_actions("y\n", server_state)
       assert %{} = tree
 
       ActionsTreeValidator.validate(tree)
-    end
-
-    test "if in replace mode, awaiting user response purge the state even given output that otherwise isn't understood" do
-      file_updates = %{
-        "lib/cool.ex" => %{
-          contents: "AAA\nCCC",
-          patches: [
-            %{
-              search: "AAA",
-              replace: "BBB"
-            },
-            %{
-              search: "CCC",
-              replace: "DDD"
-            }
-          ]
-        },
-        "lib/cool_test.exs" => %{
-          contents: "EEE\nGGG",
-          patches: [
-            %{
-              search: "EEE",
-              replace: "FFF"
-            },
-            %{
-              search: "GGG",
-              replace: "HHH"
-            }
-          ]
-        }
-      }
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
-        |> ServerStateBuilder.with_claude_ai_file_updates(file_updates)
-        |> ServerStateBuilder.with_ignore_file_changes(true)
-
-      assert {:none, server_state} = Determiner.user_input_actions("nope\n", server_state)
-
-      assert server_state.claude_ai == %{}
     end
   end
 end

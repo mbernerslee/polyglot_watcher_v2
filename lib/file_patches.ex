@@ -2,8 +2,8 @@ defmodule PolyglotWatcherV2.FilePatches do
   alias PolyglotWatcherV2.FileSystem
   alias PolyglotWatcherV2.Puts
 
-  # TODO change it to keep patches in the server_state in a more general way
-  # then we can change this to not require file_patches as an arg, and you say patch(index, server_state) or patch(:all, server_state)
+  def patch(_selector, %{file_patches: nil} = server_state), do: {{:ok, :done}, server_state}
+
   def patch(selector, %{file_patches: file_patches} = server_state) do
     {use, keep} = select(file_patches, selector)
 
@@ -14,7 +14,7 @@ defmodule PolyglotWatcherV2.FilePatches do
   end
 
   defp select(file_patches, :all) do
-    {file_patches, nil}
+    {file_patches, []}
   end
 
   defp select(file_patches, indices) do
@@ -24,10 +24,10 @@ defmodule PolyglotWatcherV2.FilePatches do
 
         {use_patches, keep_patches} = Enum.split_with(patches, &(&1.index in indices))
 
-        use_entry = file_patch(path, use_patches, contents)
-        keep_entry = file_patch(path, keep_patches, contents)
+        use_file_patch = file_patch(path, use_patches, contents)
+        keep_file_patch = file_patch(path, keep_patches, contents)
 
-        {[use_entry | use], [keep_entry | keep]}
+        {[use_file_patch | use], [keep_file_patch | keep]}
       end)
 
     use = use |> List.flatten() |> Enum.reverse()
@@ -44,12 +44,16 @@ defmodule PolyglotWatcherV2.FilePatches do
     [{path, %{patches: patches, contents: contents}}]
   end
 
+  defp update_patches({:ok, server_state}, []) do
+    {{:ok, :done}, %{server_state | file_patches: nil}}
+  end
+
   defp update_patches({:ok, server_state}, keep) do
-    {0, %{server_state | file_patches: keep}}
+    {{:ok, :cont}, %{server_state | file_patches: keep}}
   end
 
   defp update_patches({:error, server_state}, _) do
-    {1, %{server_state | file_patches: nil}}
+    {:error, %{server_state | file_patches: nil}}
   end
 
   defp write_patches({:ok, {patches, server_state}}) do
