@@ -13,6 +13,8 @@ defmodule PolyglotWatcherV2.ConfigFile do
   # TODO wire this into server startup. Put an error & shut down the system if an error is returned. if OK put it into the server state.
   # TODO rename all the docs & code - removing references to Claude... say AI instead
   # TODO make claude modes use the model from the server state config
+  # TODO update install script to put a default config in place when you install
+  # TODO update README
   def read do
     with {:ok, contents} <- read_file(),
          {:ok, decoded} <- parse_yaml(contents),
