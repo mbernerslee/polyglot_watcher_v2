@@ -121,3 +121,23 @@ defmodule PolyglotWatcherV2.ServerState do
             action_error: nil,
             file_patches: nil
 end
+
+defmodule PolyglotWatcherV2.Config do
+  use PolyglotWatcherV2.AccessBehaviour
+
+  defmodule AI do
+    use PolyglotWatcherV2.AccessBehaviour
+    @enforce_keys [:adapter, :model]
+    defstruct adapter: nil, model: nil
+
+    @type t :: %__MODULE__{
+            adapter: module(),
+            model: String.t() | nil
+          }
+  end
+
+  @enforce_keys [:ai]
+  defstruct ai: nil
+
+  @type t() :: %__MODULE__{ai: AI.t()}
+end
