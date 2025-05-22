@@ -1,7 +1,12 @@
 defmodule PolyglotWatcherV2.ServerStateBuilder do
   alias PolyglotWatcherV2.FileSystemWatchers.Inotifywait
   alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
+  alias PolyglotWatcherV2.Const
+  alias PolyglotWatcherV2.Config
+  alias PolyglotWatcherV2.Config.AI
   alias PolyglotWatcherV2.ServerState
+
+  @claude_sonnet Const.claude_3_5_sonnet_20240620()
 
   def build do
     %ServerState{
@@ -17,7 +22,8 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       env_vars: %{},
       stored_actions: nil,
       action_error: nil,
-      file_patches: nil
+      file_patches: nil,
+      config: %Config{ai: %AI{adapter: InstructorLite.Adapters.Anthropic, model: @claude_sonnet}}
     }
   end
 

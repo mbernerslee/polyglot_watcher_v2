@@ -20,6 +20,22 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
 
   """
 
+  describe "valid_example/0" do
+    test "is a valid config" do
+      Mimic.expect(FileWrapper, :read, 1, fn
+        @path -> {:ok, ConfigFile.valid_example()}
+      end)
+
+      assert {:ok,
+              %Config{
+                ai: %AI{
+                  adapter: InstructorLite.Adapters.Anthropic,
+                  model: "claude-3-5-sonnet-20240620"
+                }
+              }} == ConfigFile.read()
+    end
+  end
+
   describe "read/1" do
     test "when a valid file exists, it is read" do
       Mimic.expect(FileWrapper, :read, 1, fn
@@ -55,8 +71,17 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
       end)
 
       assert {:error,
-              "Error reading config file at ~/.config/polyglot_watcher_v2/config.yml, because it does not exist"} ==
-               ConfigFile.read()
+              """
+              Error reading config file at #{@path}, because it does not exist.
+              You should have a backup at #{@path}.backup, but failing that you can use the default of:
+
+              ```
+                AI:
+                  vendor: Anthropic
+                  model: claude-3-5-sonnet-20240620
+
+              ```
+              """} == ConfigFile.read()
     end
 
     test "when there's an error opening the config file, return error" do

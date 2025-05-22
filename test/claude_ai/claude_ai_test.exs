@@ -16,21 +16,27 @@ defmodule PolyglotWatcherV2.ClaudeAITest do
 
       assert {0, new_server_state} = ClaudeAI.build_api_request(server_state, messages)
 
-      expected_request = %Request{
-        method: :post,
-        url: "https://api.anthropic.com/v1/messages",
-        headers: [
-          {"x-api-key", api_key},
-          {"anthropic-version", "2023-06-01"},
-          {"content-type", "application/json"}
-        ],
-        body:
-          ~s|{"messages":[{"role":"user","content":"tell me a joke"}],"max_tokens":2048,"model":"claude-3-5-sonnet-20240620"}|,
-        options: [recv_timeout: 180_000]
-      }
+      %{claude_ai: %{request: actual_request}} = new_server_state
 
-      assert put_in(server_state, [:claude_ai, :request], expected_request) ==
-               new_server_state
+      assert %Request{
+               method: :post,
+               url: "https://api.anthropic.com/v1/messages",
+               headers: [
+                 {"x-api-key", ^api_key},
+                 {"anthropic-version", "2023-06-01"},
+                 {"content-type", "application/json"}
+               ],
+               body: actual_body,
+               options: [recv_timeout: 180_000]
+             } = actual_request
+
+      assert %{
+               "max_tokens" => 2048,
+               "messages" => [%{"content" => "tell me a joke", "role" => "user"}],
+               "model" => "claude-3-5-sonnet-20240620"
+             } == Jason.decode!(actual_body)
+
+      assert put_in(server_state, [:claude_ai, :request], actual_request) == new_server_state
     end
 
     test "given a server state with a the API key missing, return the original server state and an error" do

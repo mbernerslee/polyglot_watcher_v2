@@ -103,11 +103,22 @@ create_symlink_for_mac() {
   fi
 }
 
+create_config_files() {
+  mix polyglot_watcher_v2.setup_config_files
+  if [[ $? -eq 0 ]]; then
+    echo "created polyglot_watcher_v2 config files OK"
+  else
+    echo "failed to create polyglot_watcher_v2 config files :-("
+    exit 1
+  fi
+}
+
 install_for_mac() {
   check_brew_is_installed
   install_fswatch
   check_elixir_installed
   build
+  create_config_files
   create_symlink_for_mac
   echo "Everything installed OK"
   echo "You should now simply be able to run 'polyglot_watcher_v2' now!"
@@ -118,6 +129,7 @@ install_for_debian() {
   install_inotify_tools
   check_elixir_installed
   build
+  create_config_files
   create_symlink_for_debian
   echo "Everything installed OK"
   echo "You should now simply be able to run 'polyglot_watcher_v2' now!"

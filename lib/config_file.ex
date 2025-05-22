@@ -1,19 +1,20 @@
 defmodule PolyglotWatcherV2.ConfigFile do
-  alias PolyglotWatcherV2.FileSystem
+  alias PolyglotWatcherV2.Const
   alias PolyglotWatcherV2.Config
   alias PolyglotWatcherV2.Config.AI
+  alias PolyglotWatcherV2.FileSystem
 
-  @path "~/.config/polyglot_watcher_v2/config.yml"
+  @path Const.config_file_path()
   @ai_vendors %{
     "Anthropic" => %{
       adapter: InstructorLite.Adapters.Anthropic
     }
   }
 
-  # TODO wire this into server startup. Put an error & shut down the system if an error is returned. if OK put it into the server state.
+  # TODO test the install script works (at the end when the TODOs are gone because they break the build)
   # TODO rename all the docs & code - removing references to Claude... say AI instead
   # TODO make claude modes use the model from the server state config
-  # TODO update install script to put a default config in place when you install
+  # TODO have some mechanism to know which models are valid? maybe just some link to docs (e.g. anthropic docs?)
   # TODO update README
   def read do
     with {:ok, contents} <- read_file(),
@@ -23,13 +24,31 @@ defmodule PolyglotWatcherV2.ConfigFile do
     end
   end
 
+  # TODO test it is valid!
+  # TODO replace calls to this with Const.default_config_contents/0
+  def valid_example do
+    """
+      AI:
+        vendor: Anthropic
+        model: claude-3-5-sonnet-20240620
+    """
+  end
+
   defp read_file do
     case FileSystem.read(@path) do
       {:ok, contents} ->
         {:ok, contents}
 
       {:error, :enoent} ->
-        {:error, "Error reading config file at #{@path}, because it does not exist"}
+        {:error,
+         """
+         Error reading config file at #{@path}, because it does not exist.
+         You should have a backup at #{@path}.backup, but failing that you can use the default of:
+
+         ```
+         #{valid_example()}
+         ```
+         """}
 
       {:error, error} ->
         {:error, "Error reading config file at #{@path}. The error was #{inspect(error)}"}

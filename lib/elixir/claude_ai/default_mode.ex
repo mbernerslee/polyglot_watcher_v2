@@ -158,6 +158,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
     end
   end
 
+  # TODO replace calls to this with Const.default_prompt/0
   def default_prompt do
     """
     <buffer>

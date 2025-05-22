@@ -52,9 +52,30 @@ defmodule PolyglotWatcherV2.FilePatch do
         }
 end
 
+defmodule PolyglotWatcherV2.Config do
+  use PolyglotWatcherV2.AccessBehaviour
+
+  defmodule AI do
+    use PolyglotWatcherV2.AccessBehaviour
+    @enforce_keys [:adapter, :model]
+    defstruct adapter: nil, model: nil
+
+    @type t :: %__MODULE__{
+            adapter: module(),
+            model: String.t() | nil
+          }
+  end
+
+  @enforce_keys [:ai]
+  defstruct ai: nil
+
+  @type t() :: %__MODULE__{ai: AI.t()}
+end
+
 defmodule PolyglotWatcherV2.ServerState do
   use PolyglotWatcherV2.AccessBehaviour
   alias PolyglotWatcherV2.FilePatch
+  alias PolyglotWatcherV2.Config
   @type file_info :: %{contents: String.t(), path: String.t()} | nil
 
   @type language_mode :: :default | any()
@@ -88,7 +109,8 @@ defmodule PolyglotWatcherV2.ServerState do
           files: %{optional(any()) => file_info()},
           stored_actions: any(),
           action_error: any(),
-          file_patches: [file_patch()] | nil
+          file_patches: [file_patch()] | nil,
+          config: Config.t()
         }
 
   @enforce_keys [
@@ -104,7 +126,8 @@ defmodule PolyglotWatcherV2.ServerState do
     :files,
     :stored_actions,
     :action_error,
-    :file_patches
+    :file_patches,
+    :config
   ]
 
   defstruct port: nil,
@@ -119,25 +142,6 @@ defmodule PolyglotWatcherV2.ServerState do
             files: %{},
             stored_actions: nil,
             action_error: nil,
-            file_patches: nil
-end
-
-defmodule PolyglotWatcherV2.Config do
-  use PolyglotWatcherV2.AccessBehaviour
-
-  defmodule AI do
-    use PolyglotWatcherV2.AccessBehaviour
-    @enforce_keys [:adapter, :model]
-    defstruct adapter: nil, model: nil
-
-    @type t :: %__MODULE__{
-            adapter: module(),
-            model: String.t() | nil
-          }
-  end
-
-  @enforce_keys [:ai]
-  defstruct ai: nil
-
-  @type t() :: %__MODULE__{ai: AI.t()}
+            file_patches: nil,
+            config: nil
 end
