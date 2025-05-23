@@ -45,6 +45,12 @@ defmodule PolyglotWatcherV2.Server do
 
   @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
 
+  # TODO stop ignoring config.ai.model, use it
+  # TODO consider how to check ai config args are compatible?
+  # TODO split up replace_mode/api_call into different steps, much like how ai default works
+  # TODO fix ai default mode to return raw text only. or remove it?
+  # TODO remove httpoison?
+
   def child_spec(command_line_args \\ []) do
     %{
       id: __MODULE__,

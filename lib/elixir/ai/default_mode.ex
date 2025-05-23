@@ -98,10 +98,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultMode do
          },
          build_api_request: %Action{
            runnable: {:build_ai_api_request_from_in_memory_prompt, test_path},
-           next_action: %{
-             0 => :put_calling_ai_msg,
-             :fallback => :fallback_placeholder_error
-           }
+           next_action: :put_calling_ai_msg
          },
          put_calling_ai_msg: %Action{
            runnable: {:puts, :magenta, "Waiting for AI API call response..."},
@@ -111,7 +108,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultMode do
            runnable: :perform_ai_api_request,
            next_action: %{
              0 => :parse_ai_api_response,
-             :fallback => :fallback_placeholder_error
+             :fallback => :exit
            }
          },
          parse_ai_api_response: %Action{
@@ -126,17 +123,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultMode do
              :fallback => :exit
            }
          },
-         fallback_placeholder_error: %Action{
-           runnable:
-             {:puts, :red,
-              """
-              AI fallback error
-              Oh no!
-              """},
-           next_action: :put_failure_msg
-         },
-         put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit},
-         put_failure_msg: %Action{runnable: :put_insult, next_action: :exit}
+         put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}
        }
      }, server_state}
   end
@@ -209,7 +196,13 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultMode do
   end
 
   def build_api_request_from_in_memory_prompt(_test_path, server_state) do
-    {1, server_state}
+    action_error =
+      """
+      I failed to build an AI API request because I have no AI prompt in my memory which shouldn't happen.
+      This means there's a bug in my code sadly :-(
+      """
+
+    {1, %{server_state | action_error: action_error}}
   end
 
   defp api_content(lib, test, prompt, mix_test_output) do

@@ -77,9 +77,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultModeTest do
         :perform_ai_api_request,
         :parse_ai_api_response,
         :put_parsed_ai_api_response,
-        :fallback_placeholder_error,
-        :put_success_msg,
-        :put_failure_msg
+        :put_success_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -101,9 +99,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultModeTest do
         :perform_ai_api_request,
         :parse_ai_api_response,
         :put_parsed_ai_api_response,
-        :fallback_placeholder_error,
-        :put_success_msg,
-        :put_failure_msg
+        :put_success_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -291,6 +287,35 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultModeTest do
       %{ai_state: %{request: {%{messages: [%{content: content}]}, _opts}}} = new_server_state
 
       assert content == prompt_without_placeholders
+    end
+
+    test "when there is no prompt in the server_state, we return an error" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "COOL_API_KEY")
+        |> ServerStateBuilder.with_ai_config(%AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          api_key_env_var_name: "API_KEY_NAME",
+          model: "cool-model"
+        })
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "COOL_API_KEY")
+        |> Map.delete(:ai_prompt)
+
+      assert {1, new_server_state} =
+               DefaultMode.build_api_request_from_in_memory_prompt(
+                 "test/cool_test.exs",
+                 server_state
+               )
+
+      expected_action_error =
+        """
+        I failed to build an AI API request because I have no AI prompt in my memory which shouldn't happen.
+        This means there's a bug in my code sadly :-(
+        """
+
+      assert new_server_state.action_error == expected_action_error
+
+      assert %{server_state | action_error: expected_action_error} == new_server_state
     end
   end
 
