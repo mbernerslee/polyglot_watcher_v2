@@ -54,6 +54,8 @@ using the switches listed below...
 
 ## Elixir AI Mode
 
+Right now only Claude with anthropic is supported. More to come soon
+
 ### Requirements
 
 For Claude:

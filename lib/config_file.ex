@@ -13,9 +13,6 @@ defmodule PolyglotWatcherV2.ConfigFile do
     }
   }
 
-  # TODO fix check ai default mode still works
-  # TODO update README
-  # TODO test the install script works (at the end when the TODOs are gone because they break the build)
   def read do
     with {:ok, contents} <- read_file(),
          {:ok, decoded} <- parse_yaml(contents),

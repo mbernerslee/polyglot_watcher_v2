@@ -40,9 +40,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
-      # TODO model is ignored. do sth with it
-      # TODO consider how to check args are compatible
-      # TODO create separate ticket - to split this up, and have it work like default mode does with the split actions
       Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, opts ->
         assert FakeAdaperModule == opts[:adapter]
 
