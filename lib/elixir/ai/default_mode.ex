@@ -126,7 +126,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.DefaultMode do
              :fallback => :exit
            }
          },
-         # TODO get rid of this bs action
+         # TODO (in separate branch) get rid of this bs action
          fallback_placeholder_error: %Action{
            runnable:
              {:puts, :red,

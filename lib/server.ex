@@ -58,6 +58,8 @@ defmodule PolyglotWatcherV2.Server do
 
   @impl true
   def init(command_line_args) do
+    Logger.debug("#{__MODULE__} starting up")
+
     with {:ok, os} <- determine_os(),
          {:ok, config} <- ConfigFile.read() do
       init_for_os(os, command_line_args, config)
@@ -71,11 +73,11 @@ defmodule PolyglotWatcherV2.Server do
   defp init_for_os(os, command_line_args, config) do
     watcher = Map.fetch!(@os_watchers, os)
 
-    Logger.debug(watcher.startup_message())
+    Logger.debug("#{__MODULE__} #{watcher.startup_message()}")
 
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
 
-    Logger.debug(inspect(config, pretty: true))
+    Logger.debug("#{__MODULE__} Loaded config file #{inspect(config, pretty: true)}")
 
     server_state =
       Map.merge(

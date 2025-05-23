@@ -93,12 +93,21 @@ defmodule PolyglotWatcherV2.GitDiff do
   end
 
   defp run_git_diff(old, new, index) do
+    IO.inspect(File.read!(old))
+    IO.inspect(File.read!(new))
+
     {std_out, _exit_code} =
       SystemWrapper.cmd("git", ["diff", "--no-index", "--color", old, new])
 
+    IO.inspect(std_out)
+
     case Parser.parse(std_out, index) do
-      {:ok, git_diff} -> {:ok, git_diff}
-      {:error, _error} -> {:error, :git_diff_parsing_error}
+      {:ok, git_diff} ->
+        {:ok, git_diff}
+
+      {:error, error} ->
+        IO.inspect(error)
+        {:error, :git_diff_parsing_error}
     end
   end
 end

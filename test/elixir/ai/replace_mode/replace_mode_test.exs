@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
   alias PolyglotWatcherV2.{
     Action,
     ActionsTreeValidator,
+    Config,
     FilePatch,
     FilePath,
     Patch,
@@ -85,6 +86,33 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
   end
 
   describe "switch/1" do
+    test "persists the env var given by the AI config" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "YOYO"
+        })
+
+      assert {tree, _server_state} = ReplaceMode.switch(server_state)
+
+      assert %{
+               persist_api_key: %Action{
+                 runnable: {:persist_env_var, "YOYO"},
+                 next_action: %{fallback: :no_api_key_fail_msg}
+               },
+               no_api_key_fail_msg: %PolyglotWatcherV2.Action{
+                 runnable:
+                   {:puts, :red,
+                    "I read the environment variable 'YOYO', but nothing was there, so I'm giving up! Try setting it and running me again..."},
+                 next_action: :exit
+               }
+             } = tree.actions_tree
+
+      assert ActionsTreeValidator.validate(tree)
+    end
+
     test "given a valid server state, switches to AI replace mode" do
       assert {tree, @server_state_normal_mode} = ReplaceMode.switch(@server_state_normal_mode)
 

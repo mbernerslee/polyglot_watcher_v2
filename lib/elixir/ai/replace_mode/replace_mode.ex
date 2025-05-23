@@ -1,12 +1,11 @@
 defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
   @behaviour PolyglotWatcherV2.Mode
-  alias PolyglotWatcherV2.{Action, Const, FilePath}
+  alias PolyglotWatcherV2.{Action, FilePath}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
   alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.UserInputActions
 
   @ex Determiner.ex()
   @exs Determiner.exs()
-  @anthropic_api_key_env_var_name Const.anthropic_api_key_env_var_name()
 
   @impl PolyglotWatcherV2.Mode
   def user_input_actions(user_input, server_state) do
@@ -15,6 +14,8 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
 
   @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
+    %{config: %{ai: %{api_key_env_var_name: api_key_env_var_name}}} = server_state
+
     {%{
        entry_point: :clear_screen,
        actions_tree: %{
@@ -31,13 +32,13 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
            next_action: :persist_api_key
          },
          persist_api_key: %Action{
-           runnable: {:persist_env_var, @anthropic_api_key_env_var_name},
+           runnable: {:persist_env_var, api_key_env_var_name},
            next_action: %{0 => :put_awaiting_file_save_msg, :fallback => :no_api_key_fail_msg}
          },
          no_api_key_fail_msg: %Action{
            runnable:
              {:puts, :red,
-              "I read the environment variable '#{@anthropic_api_key_env_var_name}', but nothing was there, so I'm giving up! Try setting it and running me again..."},
+              "I read the environment variable '#{api_key_env_var_name}', but nothing was there, so I'm giving up! Try setting it and running me again..."},
            next_action: :exit
          },
          put_awaiting_file_save_msg: %Action{

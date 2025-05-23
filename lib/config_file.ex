@@ -13,9 +13,7 @@ defmodule PolyglotWatcherV2.ConfigFile do
     }
   }
 
-  # TODO continue here - update claude replace mode to use config
-  # TODO check claude defult mode still works
-  # TODO have some mechanism to know which models are valid? maybe just some link to docs (e.g. anthropic docs?)
+  # TODO fix check ai default mode still works
   # TODO update README
   # TODO test the install script works (at the end when the TODOs are gone because they break the build)
   def read do
