@@ -1,4 +1,25 @@
 defmodule PolyglotWatcherV2.AI do
+  @moduledoc """
+  HTTPoison request we used to make before using InstructorLite:
+
+   %Request{
+     method: :post,
+     url: "https://api.anthropic.com/v1/messages",
+     headers: [
+       {"x-api-key", api_key},
+       {"anthropic-version", "2023-06-01"},
+       {"content-type", "application/json"}
+     ],
+     body:
+       Jason.encode!(%{
+         max_tokens: 2048,
+         model: "claude-3-5-sonnet-20240620",
+         messages: messages
+       }),
+     options: [recv_timeout: 180_000]
+   }
+
+  """
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.Config.AI
   alias PolyglotWatcherV2.InstructorLiteWrapper
@@ -96,25 +117,4 @@ defmodule PolyglotWatcherV2.AI do
     Puts.on_new_line(error, :red)
     {1, server_state}
   end
-
-  # https://docs.anthropic.com/en/api/messages-examples
-  # https://github.com/lebrunel/anthropic - use this instead?
-  # defp api_request(api_key, messages) do
-  #  %Request{
-  #    method: :post,
-  #    url: "https://api.anthropic.com/v1/messages",
-  #    headers: [
-  #      {"x-api-key", api_key},
-  #      {"anthropic-version", "2023-06-01"},
-  #      {"content-type", "application/json"}
-  #    ],
-  #    body:
-  #      Jason.encode!(%{
-  #        max_tokens: 2048,
-  #        model: "claude-3-5-sonnet-20240620",
-  #        messages: messages
-  #      }),
-  #    options: [recv_timeout: 180_000]
-  #  }
-  # end
 end

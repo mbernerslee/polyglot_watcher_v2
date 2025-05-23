@@ -92,11 +92,6 @@ defmodule PolyglotWatcherV2.AITest do
 
   describe "parse_ai_api_response/2" do
     test "given some server state containing a happy InstructorLite response, put the parsed response into the server state" do
-      # response_text = "some text"
-      # body = Jason.encode!(%{"content" => [%{"text" => response_text}]})
-
-      # response = {:ok, %Response{status_code: 200, body: body}}
-
       response = {:ok, %{raw_response: "some raw text response"}}
 
       server_state =
