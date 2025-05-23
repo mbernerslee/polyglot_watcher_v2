@@ -1,11 +1,19 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
+defmodule PolyglotWatcherV2.Elixir.AI.DefaultModeTest do
   use ExUnit.Case, async: true
   use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
 
-  alias PolyglotWatcherV2.{ActionsTreeValidator, FilePath, Puts, ServerStateBuilder}
+  alias PolyglotWatcherV2.{
+    Action,
+    ActionsTreeValidator,
+    FilePath,
+    Puts,
+    ServerStateBuilder
+  }
+
+  alias PolyglotWatcherV2.Config.AI
   alias PolyglotWatcherV2.Elixir.{Cache, Determiner, DefaultMode}
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode
+  alias PolyglotWatcherV2.Elixir.AI.DefaultMode
   alias PolyglotWatcherV2.SystemWrapper
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
@@ -16,7 +24,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
   @test_exs_file_path %FilePath{path: "test/cool_test", extension: @exs}
 
   describe "switch/1" do
-    test "given a valid server state, switches to ClaudeAI mode" do
+    test "given a valid server state, switches to AI mode" do
       assert {tree, @server_state_normal_mode} = DefaultMode.switch(@server_state_normal_mode)
 
       expected_action_tree_keys = [
@@ -32,6 +40,26 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
 
       assert ActionsTreeValidator.validate(tree)
     end
+
+    test "respects the API key name from the server_state config" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_config_ai_api_key_env_var_name("FUNKY_API_KEY")
+
+      assert {%{actions_tree: actions_tree}, _} =
+               DefaultMode.switch(server_state)
+
+      assert %{
+               persist_api_key: %Action{runnable: {:persist_env_var, "FUNKY_API_KEY"}},
+               no_api_key_fail_msg: %PolyglotWatcherV2.Action{
+                 runnable:
+                   {:puts, :red,
+                    "I read the environment variable 'FUNKY_API_KEY', but nothing was there, so I'm giving up! Try setting it and running me again..."},
+                 next_action: :exit
+               }
+             } =
+               actions_tree
+    end
   end
 
   describe "determine_actions/1" do
@@ -44,11 +72,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         :put_intent_msg,
         :mix_test,
         :load_in_memory_prompt,
-        :build_claude_api_request,
-        :put_calling_claude_msg,
-        :perform_claude_api_request,
-        :parse_claude_api_response,
-        :put_parsed_claude_api_response,
+        :build_api_request,
+        :put_calling_ai_msg,
+        :perform_ai_api_request,
+        :parse_ai_api_response,
+        :put_parsed_ai_api_response,
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
@@ -68,11 +96,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         :put_intent_msg,
         :mix_test,
         :load_in_memory_prompt,
-        :build_claude_api_request,
-        :put_calling_claude_msg,
-        :perform_claude_api_request,
-        :parse_claude_api_response,
-        :put_parsed_claude_api_response,
+        :build_api_request,
+        :put_calling_ai_msg,
+        :perform_ai_api_request,
+        :parse_ai_api_response,
+        :put_parsed_ai_api_response,
         :fallback_placeholder_error,
         :put_success_msg,
         :put_failure_msg
@@ -104,13 +132,18 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
   describe "build_api_request_from_in_memory_prompt/2" do
     test "given server_state that contains the required info to build the API call, then it is built and stored in the server_state" do
       mix_test_output = "it failed mate. get good."
-      api_key = "super-secret"
       prompt = "cool prompt dude"
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_elixir_claude_prompt(prompt)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "COOL_API_KEY")
+        |> ServerStateBuilder.with_ai_prompt(prompt)
+        |> ServerStateBuilder.with_ai_config(%AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          api_key_env_var_name: "API_KEY_NAME",
+          model: "cool-model"
+        })
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "COOL_API_KEY")
 
       Mimic.expect(Cache, :get_files, fn this_test_path ->
         assert this_test_path == "test/cool_test.exs"
@@ -129,20 +162,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
                  server_state
                )
 
-      assert %{claude_ai: %{request: api_request}} = new_server_state
-
-      assert put_in(server_state, [:claude_ai, :request], api_request) == new_server_state
-
-      assert %{body: body} = api_request
-
-      assert %{
-               "messages" => [%{"role" => "user", "content" => ^prompt}]
-             } = Jason.decode!(body)
+      assert %{ai_state: %{request: {_params, _opts}}} = new_server_state
     end
 
     test "prompt placeholders get populated" do
       mix_test_output = "it failed mate. get good."
-      api_key = "super-secret"
 
       prompt_with_placeholders = """
         Hello
@@ -185,24 +209,24 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_ai_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_ai_config(%AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          api_key_env_var_name: "API_KEY_NAME",
+          model: "cool-model"
+        })
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "COOL_API_KEY")
 
       {0, new_server_state} =
         DefaultMode.build_api_request_from_in_memory_prompt("test/cool_test.exs", server_state)
 
-      %{claude_ai: %{request: api_request}} = new_server_state
+      %{ai_state: %{request: {%{messages: [%{content: content}]}, _opts}}} = new_server_state
 
-      %{body: body} = api_request
-
-      assert %{
-               "messages" => [%{"role" => "user", "content" => ^prompt_without_placeholders}]
-             } = Jason.decode!(body)
+      assert content == prompt_without_placeholders
     end
 
     test "prompt placeholders get populated, even when there are multiple" do
       mix_test_output = "it failed mate. get good."
-      api_key = "super-secret"
 
       prompt_with_placeholders = """
         Hello
@@ -253,45 +277,20 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", api_key)
-        |> ServerStateBuilder.with_elixir_claude_prompt(prompt_with_placeholders)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "COOL_API_KEY")
+        |> ServerStateBuilder.with_ai_config(%AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          api_key_env_var_name: "API_KEY_NAME",
+          model: "cool-model"
+        })
+        |> ServerStateBuilder.with_ai_prompt(prompt_with_placeholders)
 
       {0, new_server_state} =
         DefaultMode.build_api_request_from_in_memory_prompt("test/cool_test.exs", server_state)
 
-      %{claude_ai: %{request: api_request}} = new_server_state
+      %{ai_state: %{request: {%{messages: [%{content: content}]}, _opts}}} = new_server_state
 
-      %{body: body} = api_request
-
-      assert %{
-               "messages" => [%{"role" => "user", "content" => ^prompt_without_placeholders}]
-             } = Jason.decode!(body)
-    end
-
-    test "given server_state that is missing an ANTHROPIC_API_KEY, return error" do
-      mix_test_output = "it failed mate. get good."
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_env_var("ANTHROPIC_API_KEY", nil)
-        |> ServerStateBuilder.with_default_claude_prompt()
-
-      Mimic.expect(Cache, :get_files, fn this_test_path ->
-        assert this_test_path == "test/cool_test.exs"
-
-        {:ok,
-         %{
-           test: %{path: "test/cool_test.exs", contents: "cool test"},
-           lib: %{path: "lib/cool.ex", contents: "cool lib"},
-           mix_test_output: mix_test_output
-         }}
-      end)
-
-      assert {1, server_state} ==
-               DefaultMode.build_api_request_from_in_memory_prompt(
-                 "test/cool_test.exs",
-                 server_state
-               )
+      assert content == prompt_without_placeholders
     end
   end
 
@@ -318,7 +317,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
 
       assert {0, new_server_state} = DefaultMode.load_in_memory_prompt(server_state)
 
-      assert put_in(server_state, [:elixir, :claude_prompt], prompt) == new_server_state
+      assert put_in(server_state, [:ai_prompt], prompt) == new_server_state
     end
 
     test "when the HOME env var is missing, return error, & put error msg on the screen" do
@@ -338,7 +337,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
       assert {1, server_state} == DefaultMode.load_in_memory_prompt(server_state)
     end
 
-    test "when there's no custom file, then we load the custom prompt, and put a msg saying so" do
+    test "when there's no custom file, then we put a msg saying so (and use the default prompt that was already loaded into the server_state when the server started up)" do
       home_path = "/home/el_dude"
       server_state = ServerStateBuilder.build()
 
@@ -355,10 +354,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultModeTest do
         assert style == :magenta
       end)
 
-      assert {0, new_server_state} = DefaultMode.load_in_memory_prompt(server_state)
-
-      assert put_in(server_state, [:elixir, :claude_prompt], DefaultMode.default_prompt()) ==
-               new_server_state
+      assert {0, server_state} == DefaultMode.load_in_memory_prompt(server_state)
     end
   end
 end

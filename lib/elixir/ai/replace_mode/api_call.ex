@@ -1,12 +1,18 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.InstructorLiteSchemas.CodeFileUpdates
   alias PolyglotWatcherV2.InstructorLiteWrapper
+  alias PolyglotWatcherV2.Const
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilder
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilder
 
-  def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
+  @anthropic_api_key_env_var_name Const.anthropic_api_key_env_var_name()
+
+  def perform(
+        test_path,
+        %{env_vars: %{@anthropic_api_key_env_var_name => api_key}} = server_state
+      ) do
     with {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
          {:ok, instruct_result} <- instruct(prompt, api_key),
@@ -49,7 +55,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   defp put_diffs_with_explanations(git_diffs, file_patches) do
     Puts.on_new_line([
       {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
-      {[:magenta], "████████████████ Claude Response ████████████████\n"},
+      {[:magenta], "██████████████████ AI Response ██████████████████\n"},
       {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
     ])
 
@@ -82,7 +88,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     server_state =
       server_state
       |> put_in([:file_patches], file_patches)
-      |> put_in([:claude_ai, :phase], :waiting)
+      |> put_in([:ai_state, :phase], :waiting)
       |> Map.replace!(:ignore_file_changes, true)
 
     {0, server_state}

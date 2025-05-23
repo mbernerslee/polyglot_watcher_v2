@@ -12,7 +12,7 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   require Logger
 
   alias PolyglotWatcherV2.{
-    ClaudeAI,
+    AI,
     EnvironmentVariables,
     FileSystem,
     FilePatches,
@@ -21,8 +21,8 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   }
 
   alias PolyglotWatcherV2.Elixir.{MixTest, MixTestArgs, MixTestLatest}
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
+  alias PolyglotWatcherV2.Elixir.AI.DefaultMode, as: AIDefaultMode
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode, as: AIReplaceMode
 
   def execute(command, server_state) do
     Logger.debug("#{__MODULE__} running: #{inspect(command)}")
@@ -91,27 +91,27 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp do_execute(:load_in_memory_prompt, server_state) do
-    ClaudeAIDefaultMode.load_in_memory_prompt(server_state)
+    AIDefaultMode.load_in_memory_prompt(server_state)
   end
 
-  defp do_execute({:build_claude_api_request_from_in_memory_prompt, test_path}, server_state) do
-    ClaudeAIDefaultMode.build_api_request_from_in_memory_prompt(test_path, server_state)
+  defp do_execute({:build_ai_api_request_from_in_memory_prompt, test_path}, server_state) do
+    AIDefaultMode.build_api_request_from_in_memory_prompt(test_path, server_state)
   end
 
-  defp do_execute(:perform_claude_api_request, server_state) do
-    ClaudeAI.perform_api_call(server_state)
+  defp do_execute(:perform_ai_api_request, server_state) do
+    AI.perform_api_call(server_state)
   end
 
-  defp do_execute({:perform_claude_replace_api_call, test_path}, server_state) do
-    ClaudeAIReplaceMode.APICall.perform(test_path, server_state)
+  defp do_execute({:perform_ai_replace_api_call, test_path}, server_state) do
+    AIReplaceMode.APICall.perform(test_path, server_state)
   end
 
-  defp do_execute(:parse_claude_api_response, server_state) do
-    ClaudeAI.parse_claude_api_response(server_state)
+  defp do_execute(:parse_ai_api_response, server_state) do
+    AI.parse_ai_api_response(server_state)
   end
 
-  defp do_execute(:put_parsed_claude_api_response, server_state) do
-    ClaudeAI.put_parsed_response(server_state)
+  defp do_execute(:put_parsed_ai_api_response, server_state) do
+    AI.put_parsed_response(server_state)
   end
 
   defp do_execute(:cargo_build, server_state) do

@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilder do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilder do
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
   alias PolyglotWatcherV2.FilePatch
   alias PolyglotWatcherV2.Patch

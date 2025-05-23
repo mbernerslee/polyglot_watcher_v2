@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
   use ExUnit.Case, async: true
   use Mimic
   alias PolyglotWatcherV2.ServerStateBuilder
@@ -7,7 +7,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.FilePatch
   alias PolyglotWatcherV2.Patch
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
 
@@ -25,8 +25,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn this_test_path ->
         assert this_test_path == test_path
@@ -87,7 +87,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       Mimic.expect(Puts, :on_new_line, 1, fn
         [
           {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
-          {[:magenta], "████████████████ Claude Response ████████████████\n"},
+          {[:magenta], "██████████████████ AI Response ██████████████████\n"},
           {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
         ] ->
           :ok
@@ -125,7 +125,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
 
       assert %{
-               claude_ai: %{
+               ai_state: %{
                  phase: :waiting
                },
                file_patches: file_patches,
@@ -165,8 +165,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key("dummy_key")
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key("dummy_key")
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:error, :not_found}
@@ -193,8 +193,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -225,8 +225,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -280,8 +280,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -313,8 +313,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -345,8 +345,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -387,8 +387,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -501,8 +501,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key(api_key)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}

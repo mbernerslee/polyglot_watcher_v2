@@ -13,6 +13,7 @@ defmodule PolyglotWatcherV2.Const do
   def prompt_backup_file_path, do: "#{config_dir_path()}/#{backup_prompt_file_name()}"
 
   def claude_3_5_sonnet_20240620, do: "claude-3-5-sonnet-20240620"
+  def anthropic_api_key_env_var_name, do: "ANTHROPIC_API_KEY"
 
   def default_config_contents do
     """

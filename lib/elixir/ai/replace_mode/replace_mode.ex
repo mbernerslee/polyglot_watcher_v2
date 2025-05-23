@@ -1,11 +1,12 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
   @behaviour PolyglotWatcherV2.Mode
-  alias PolyglotWatcherV2.{Action, FilePath}
+  alias PolyglotWatcherV2.{Action, Const, FilePath}
   alias PolyglotWatcherV2.Elixir.{Determiner, EquivalentPath, MixTestArgs}
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.UserInputActions
 
   @ex Determiner.ex()
   @exs Determiner.exs()
+  @anthropic_api_key_env_var_name Const.anthropic_api_key_env_var_name()
 
   @impl PolyglotWatcherV2.Mode
   def user_input_actions(user_input, server_state) do
@@ -22,21 +23,21 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
            next_action: :put_switch_mode_msg
          },
          put_switch_mode_msg: %Action{
-           runnable: {:puts, :magenta, "Switching to Claude AI Replace mode"},
+           runnable: {:puts, :magenta, "Switching to AI Replace mode"},
            next_action: :switch_mode
          },
          switch_mode: %Action{
-           runnable: {:switch_mode, :elixir, :claude_ai_replace},
+           runnable: {:switch_mode, :elixir, :ai_replace},
            next_action: :persist_api_key
          },
          persist_api_key: %Action{
-           runnable: {:persist_env_var, "ANTHROPIC_API_KEY"},
+           runnable: {:persist_env_var, @anthropic_api_key_env_var_name},
            next_action: %{0 => :put_awaiting_file_save_msg, :fallback => :no_api_key_fail_msg}
          },
          no_api_key_fail_msg: %Action{
            runnable:
              {:puts, :red,
-              "I read the environment variable 'ANTHROPIC_API_KEY', but nothing was there, so I'm giving up! Try setting it and running me again..."},
+              "I read the environment variable '#{@anthropic_api_key_env_var_name}', but nothing was there, so I'm giving up! Try setting it and running me again..."},
            next_action: :exit
          },
          put_awaiting_file_save_msg: %Action{
@@ -83,14 +84,14 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
-           next_action: %{0 => :put_success_msg, :fallback => :put_calling_claude_msg}
+           next_action: %{0 => :put_success_msg, :fallback => :put_calling_ai_msg}
          },
-         put_calling_claude_msg: %Action{
-           runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
+         put_calling_ai_msg: %Action{
+           runnable: {:puts, :magenta, "Waiting for AI API call response..."},
            next_action: :perform_api_call
          },
          perform_api_call: %Action{
-           runnable: {:perform_claude_replace_api_call, test_path},
+           runnable: {:perform_ai_replace_api_call, test_path},
            next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
          },
          put_awaiting_input_msg: %Action{

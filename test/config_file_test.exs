@@ -2,12 +2,13 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
   use ExUnit.Case, async: true
   use Mimic
 
+  alias PolyglotWatcherV2.Const
   alias PolyglotWatcherV2.Config
   alias PolyglotWatcherV2.Config.AI
   alias PolyglotWatcherV2.ConfigFile
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
-  @path "~/.config/polyglot_watcher_v2/config.yml"
+  @path "/home/berners/.config/polyglot_watcher_v2/config.yml"
   @config_with_model """
     AI:
       vendor: Anthropic
@@ -19,21 +20,22 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
       vendor: Anthropic
 
   """
+  @default_config_contents Const.default_config_contents()
+  @anthropic_api_key_env_var_name Const.anthropic_api_key_env_var_name()
 
-  describe "valid_example/0" do
-    test "is a valid config" do
-      Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:ok, ConfigFile.valid_example()}
-      end)
+  test "default_config_contents returns a valid config" do
+    Mimic.expect(FileWrapper, :read, 1, fn
+      @path -> {:ok, @default_config_contents}
+    end)
 
-      assert {:ok,
-              %Config{
-                ai: %AI{
-                  adapter: InstructorLite.Adapters.Anthropic,
-                  model: "claude-3-5-sonnet-20240620"
-                }
-              }} == ConfigFile.read()
-    end
+    assert {:ok,
+            %Config{
+              ai: %AI{
+                adapter: InstructorLite.Adapters.Anthropic,
+                model: "claude-3-5-sonnet-20240620",
+                api_key_env_var_name: @anthropic_api_key_env_var_name
+              }
+            }} == ConfigFile.read()
   end
 
   describe "read/1" do
@@ -46,7 +48,8 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
               %Config{
                 ai: %AI{
                   adapter: InstructorLite.Adapters.Anthropic,
-                  model: "claude-3-5-sonnet-20240620"
+                  model: "claude-3-5-sonnet-20240620",
+                  api_key_env_var_name: @anthropic_api_key_env_var_name
                 }
               }} == ConfigFile.read()
     end
@@ -60,7 +63,8 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
               %Config{
                 ai: %AI{
                   adapter: InstructorLite.Adapters.Anthropic,
-                  model: nil
+                  model: nil,
+                  api_key_env_var_name: @anthropic_api_key_env_var_name
                 }
               }} == ConfigFile.read()
     end
@@ -89,8 +93,7 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
         @path -> {:error, :eacces}
       end)
 
-      assert {:error,
-              "Error reading config file at ~/.config/polyglot_watcher_v2/config.yml. The error was :eacces"} ==
+      assert {:error, "Error reading config file at #{@path}. The error was :eacces"} ==
                ConfigFile.read()
     end
 

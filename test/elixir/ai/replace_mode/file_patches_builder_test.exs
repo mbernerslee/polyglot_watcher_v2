@@ -1,7 +1,7 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilderTest do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilderTest do
   use ExUnit.Case, async: true
 
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilder
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilder
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
 
   describe "build/2" do
