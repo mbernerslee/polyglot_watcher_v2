@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.UserInputActions do
   alias PolyglotWatcherV2.Action
 
   @yes "y\n"
@@ -6,7 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions do
 
   def determine(
         user_input,
-        %{elixir: %{mode: :claude_ai_replace}, claude_ai: %{phase: :waiting}} = server_state
+        %{elixir: %{mode: :ai_replace}, ai_state: %{phase: :waiting}} = server_state
       ) do
     do_determine(user_input, server_state)
   end
@@ -37,7 +37,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions do
            next_action: :exit
          }
        }
-     }, %{server_state | claude_ai: %{}, ignore_file_changes: false}}
+     }, %{server_state | ai_state: %{}, ignore_file_changes: false}}
   end
 
   defp do_determine(@no, server_state) do
@@ -49,7 +49,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions do
            next_action: :exit
          }
        }
-     }, %{server_state | claude_ai: %{}, file_patches: nil, ignore_file_changes: false}}
+     }, %{server_state | ai_state: %{}, file_patches: nil, ignore_file_changes: false}}
   end
 
   defp do_determine(user_input, server_state) do
@@ -115,7 +115,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions do
 
   defp reset_server_state(server_state) do
     server_state
-    |> Map.replace!(:claude_ai, %{})
+    |> Map.replace!(:ai_state, %{})
     |> Map.replace!(:ignore_file_changes, false)
   end
 

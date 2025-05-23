@@ -47,7 +47,8 @@ defmodule PolyglotWatcherV2.MixProject do
       {:mimic, "~> 1.7", only: :test},
       {:instructor_lite, "~> 0.3.0"},
       # yes, having 2 HTTP libraries is bad, but the docs for instructor_lite suggesting using req, so adding this for ease
-      {:req, "~> 0.5.0"}
+      {:req, "~> 0.5.0"},
+      {:yaml_elixir, "~> 2.11.0"}
     ]
   end
 end

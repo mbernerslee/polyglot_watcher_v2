@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.UserInputActionsTest do
   use ExUnit.Case, async: true
   use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
@@ -11,7 +11,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
     ServerStateBuilder
   }
 
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActions
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.UserInputActions
 
   @yes "y\n"
   @no "n\n"
@@ -51,17 +51,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
   ]
 
   describe "determine/2" do
-    test "when waiting for user input to determine if we should write Claude-proposed file changes, then make them given 'y'" do
+    test "when waiting for user input to determine if we should write AI-proposed file changes, then make them given 'y'" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(@file_patches)
 
       assert {tree, new_server_state} = UserInputActions.determine(@yes, server_state)
 
-      assert new_server_state == %{server_state | claude_ai: %{}, ignore_file_changes: false}
+      assert new_server_state == %{server_state | ai_state: %{}, ignore_file_changes: false}
 
       assert %{
                actions_tree: %{
@@ -79,15 +79,15 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
     test "works given 'no'" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(@file_patches)
 
       expected_server_state = %{
         server_state
         | file_patches: nil,
-          claude_ai: %{},
+          ai_state: %{},
           ignore_file_changes: false
       }
 
@@ -109,8 +109,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
     test "works given an single valid patch index" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(@file_patches)
 
@@ -130,8 +130,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
     test "works given multiple valid patch indices" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(@file_patches)
 
@@ -151,8 +151,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
     test "given any patch indices which do not exist in the file patches, return error" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(@file_patches)
 
@@ -165,8 +165,8 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
     test "given some jank user input, returns error" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(@file_patches)
 
@@ -176,11 +176,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.UserInputActionsTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    test "when no action is matched, we still remove the claude_ai" do
+    test "when no action is matched, we still remove the ai_state" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches([])
 

@@ -1,10 +1,20 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
+defmodule PolyglotWatcherV2.Elixir.AI.DefaultMode do
   @behaviour PolyglotWatcherV2.Mode
-  alias PolyglotWatcherV2.{Action, ClaudeAI, EnvironmentVariables, FilePath, FileSystem, Puts}
+  alias PolyglotWatcherV2.{
+    Action,
+    Const,
+    AI,
+    EnvironmentVariables,
+    FilePath,
+    FileSystem,
+    Puts
+  }
+
   alias PolyglotWatcherV2.Elixir.{Cache, Determiner, EquivalentPath, MixTestArgs}
 
   @ex Determiner.ex()
   @exs Determiner.exs()
+  @default_prompt Const.default_prompt()
 
   @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
@@ -16,21 +26,21 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
            next_action: :put_switch_mode_msg
          },
          put_switch_mode_msg: %Action{
-           runnable: {:puts, :magenta, "Switching to Claude AI mode"},
+           runnable: {:puts, :magenta, "Switching to AI mode"},
            next_action: :switch_mode
          },
          switch_mode: %Action{
-           runnable: {:switch_mode, :elixir, :claude_ai},
+           runnable: {:switch_mode, :elixir, :ai_default},
            next_action: :persist_api_key
          },
          persist_api_key: %Action{
-           runnable: {:persist_env_var, "ANTHROPIC_API_KEY"},
+           runnable: {:persist_env_var, server_state.config.ai.api_key_env_var_name},
            next_action: %{0 => :put_awaiting_file_save_msg, :fallback => :no_api_key_fail_msg}
          },
          no_api_key_fail_msg: %Action{
            runnable:
              {:puts, :red,
-              "I read the environment variable 'ANTHROPIC_API_KEY', but nothing was there, so I'm giving up! Try setting it and running me again..."},
+              "I read the environment variable '#{server_state.config.ai.api_key_env_var_name}', but nothing was there, so I'm giving up! Try setting it and running me again..."},
            next_action: :exit
          },
          put_awaiting_file_save_msg: %Action{
@@ -82,36 +92,36 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
          load_in_memory_prompt: %Action{
            runnable: :load_in_memory_prompt,
            next_action: %{
-             0 => :build_claude_api_request,
+             0 => :build_api_request,
              :fallback => :exit
            }
          },
-         build_claude_api_request: %Action{
-           runnable: {:build_claude_api_request_from_in_memory_prompt, test_path},
+         build_api_request: %Action{
+           runnable: {:build_ai_api_request_from_in_memory_prompt, test_path},
            next_action: %{
-             0 => :put_calling_claude_msg,
+             0 => :put_calling_ai_msg,
              :fallback => :fallback_placeholder_error
            }
          },
-         put_calling_claude_msg: %Action{
-           runnable: {:puts, :magenta, "Waiting for Claude API call response..."},
-           next_action: :perform_claude_api_request
+         put_calling_ai_msg: %Action{
+           runnable: {:puts, :magenta, "Waiting for AI API call response..."},
+           next_action: :perform_ai_api_request
          },
-         perform_claude_api_request: %Action{
-           runnable: :perform_claude_api_request,
+         perform_ai_api_request: %Action{
+           runnable: :perform_ai_api_request,
            next_action: %{
-             0 => :parse_claude_api_response,
+             0 => :parse_ai_api_response,
              :fallback => :fallback_placeholder_error
            }
          },
-         parse_claude_api_response: %Action{
-           runnable: :parse_claude_api_response,
+         parse_ai_api_response: %Action{
+           runnable: :parse_ai_api_response,
            next_action: %{
-             :fallback => :put_parsed_claude_api_response
+             :fallback => :put_parsed_ai_api_response
            }
          },
-         put_parsed_claude_api_response: %Action{
-           runnable: :put_parsed_claude_api_response,
+         put_parsed_ai_api_response: %Action{
+           runnable: :put_parsed_ai_api_response,
            next_action: %{
              :fallback => :exit
            }
@@ -120,7 +130,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
            runnable:
              {:puts, :red,
               """
-              Claude fallback error
+              AI fallback error
               Oh no!
               """},
            next_action: :put_failure_msg
@@ -142,11 +152,11 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
           :magenta
         )
 
-        {0, put_in(server_state, [:elixir, :claude_prompt], custom_prompt)}
+        {0, put_in(server_state, [:ai_prompt], custom_prompt)}
 
       {:error, :missing_custom_prompt_file} ->
         Puts.on_new_line("No custom prompt file found, using default...", :magenta)
-        {0, put_in(server_state, [:elixir, :claude_prompt], default_prompt())}
+        {0, put_in(server_state, [:ai_prompt], @default_prompt)}
 
       {:error, :no_home_env_var} ->
         Puts.on_new_line(
@@ -156,48 +166,6 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
 
         {1, server_state}
     end
-  end
-
-  def default_prompt do
-    """
-    <buffer>
-      <name>
-        Elixir Code
-      </name>
-      <filePath>
-        $LIB_PATH_PLACEHOLDER
-      </filePath>
-      <content>
-        $LIB_CONTENT_PLACEHOLDER
-      </content>
-    </buffer>
-
-    <buffer>
-      <name>
-        Elixir Test
-      </name>
-      <filePath>
-        $TEST_PATH_PLACEHOLDER
-      </filePath>
-      <content>
-        $TEST_CONTENT_PLACEHOLDER
-      </content>
-    </buffer>
-
-    <buffer>
-      <name>
-        Elixir Mix Test Output
-      </name>
-      <content>
-        $MIX_TEST_OUTPUT_PLACEHOLDER
-      </content>
-    </buffer>
-
-    *****
-
-    Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
-
-    """
   end
 
   defp get_home_env_var(_) do
@@ -227,13 +195,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode do
 
   def build_api_request_from_in_memory_prompt(
         test_path,
-        %{elixir: %{claude_prompt: prompt}} = server_state
+        %{ai_prompt: prompt} = server_state
       ) do
     case Cache.get_files(test_path) do
       {:ok, %{test: test, lib: lib, mix_test_output: mix_test_output}} ->
         messages = [%{role: "user", content: api_content(lib, test, prompt, mix_test_output)}]
 
-        ClaudeAI.build_api_request(server_state, messages)
+        AI.build_api_request(server_state, messages)
 
       _ ->
         {1, server_state}

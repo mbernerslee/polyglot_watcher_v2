@@ -42,8 +42,8 @@ using the switches listed below...
 | Fixed | `ex f [path]` | Runs `mix test [path]` whenever any *.ex* or *.exs* file is saved. <br /> You can specify an exact line number e.g. `polyglot_watcher_v2 ex f test/cool_test.exs:100`, if you want. <br /><br /> OR without specifying `[path]` <br /><br /> Runs `mix test [the most recent failure in memory]` <br/> Initialising without specifying a path obviously doesn't really work because I'll have no memory of any test failures yet. |
 | Fix All | `ex fa` | Runs <br /><br /> 1. `mix test` <br /> 2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done |
 | Fix All For File | `ex faff [path]` | Runs <br /><br /> 1. `mix test [path]` <br /> 2. `mix test [path]:[one test line number only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done <br /><br /> OR without specifying `[path]` <br /><br /> Runs the above but using the most recently failed test file from memory |
-| Claude | `ex cl` | The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test <br /> It auto-generates the prompt with the lib file, test file & mix test output for you, and you can set your own custom prompt. <br /> Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.<br /> See below for more details |
-| Claude Replace | `ex clr` | The same as the above mode, but uses a hard-coded prompt resulting in find/replace suggestion codeblocks to fix the test |
+| AI Default | `ex ai` | The same as default mode, but if the test fails then an automatic API call is made to an AI asking it if it can fix the test <br /> It auto-generates the prompt with the lib file, test file & mix test output for you, and you can set your own custom prompt. <br /> Requires a valid API key environment variable on your system.<br /> See below for more details |
+| AI Replace | `ex air` | The same as the above mode, but uses a hard-coded prompt resulting in find/replace suggestion codeblocks to fix the test |
 
 ### Rust
 
@@ -52,10 +52,13 @@ using the switches listed below...
 | Default | `rs d` | Will always run `cargo build` when any `.rs` file is saved |
 | Test | `rs t` | Will always run `cargo test` when any `.rs` file is saved |
 
-## Elixir Claude Mode
+## Elixir AI Mode
+
+Right now only Claude with anthropic is supported. More to come soon
 
 ### Requirements
 
+For Claude:
 Have a valid `ANTHROPIC_API_KEY` environment variable on your system.
 See [https://docs.anthropic.com/en/docs/welcome](https://docs.anthropic.com/en/docs/welcome)
 
@@ -65,7 +68,7 @@ By default this mode will trigger the following on file save:
 
 - determine the equivalent lib / test file depending on which was saved
 - run `mix test <test_file>`
-- if the test fails, it will make an API call to Anthropic's Claude AI to ask it if it can fix the test
+- if the test fails, it will make an API call an AI to ask it if it can fix the test
 
 The prompt is generated for you, and it splices the lib file, test file and the output of the test run into it.
 

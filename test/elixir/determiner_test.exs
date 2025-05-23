@@ -90,11 +90,11 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    test "returns the Claude AI actions when in that state" do
+    test "returns the AI Default Mode actions when in that state" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai)
-        |> ServerStateBuilder.with_claude_api_key("SECRET")
+        |> ServerStateBuilder.with_elixir_mode(:ai_default)
+        |> ServerStateBuilder.with_anthropic_api_key("SECRET")
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
@@ -103,11 +103,11 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    test "returns the Claude AI Replace Mode actions when in that state" do
+    test "returns the AI Replace Mode actions when in that state" do
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key("SECRET")
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_anthropic_api_key("SECRET")
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
@@ -291,9 +291,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    test "switching to claude mode" do
+    test "switching to ai default mode" do
       server_state = ServerStateBuilder.build()
-      assert {tree, ^server_state} = Determiner.user_input_actions("ex cl", server_state)
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex ai", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -309,13 +309,13 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
 
-      assert %Action{runnable: {:switch_mode, :elixir, :claude_ai}} =
+      assert %Action{runnable: {:switch_mode, :elixir, :ai_default}} =
                tree.actions_tree.switch_mode
     end
 
-    test "switching to claude replace mode" do
+    test "switching to ai replace mode" do
       server_state = ServerStateBuilder.build()
-      assert {tree, ^server_state} = Determiner.user_input_actions("ex clr", server_state)
+      assert {tree, ^server_state} = Determiner.user_input_actions("ex air", server_state)
 
       assert %{entry_point: :clear_screen} = tree
 
@@ -331,7 +331,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
 
-      assert %Action{runnable: {:switch_mode, :elixir, :claude_ai_replace}} =
+      assert %Action{runnable: {:switch_mode, :elixir, :ai_replace}} =
                tree.actions_tree.switch_mode
     end
 
@@ -379,8 +379,8 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(file_patches)
 

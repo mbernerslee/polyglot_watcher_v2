@@ -1,4 +1,4 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
   use ExUnit.Case, async: true
   use Mimic
   require PolyglotWatcherV2.ActionsTreeValidator
@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
   alias PolyglotWatcherV2.{
     Action,
     ActionsTreeValidator,
+    Config,
     FilePatch,
     FilePath,
     Patch,
@@ -13,7 +14,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
   }
 
   alias PolyglotWatcherV2.Elixir.Determiner
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode
 
   @ex Determiner.ex()
   @exs Determiner.exs()
@@ -23,7 +24,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
   @yes "y\n"
 
   describe "user_input_actions/2" do
-    test "when waiting for user input to determine if we should write Claude-proposed file changes, then make them given 'y'" do
+    test "when waiting for user input to determine if we should write AI-proposed file changes, then make them given 'y'" do
       file_patches = [
         {"lib/cool.ex",
          %FilePatch{
@@ -61,14 +62,14 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_ai_phase(:waiting)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_phase(:waiting)
         |> ServerStateBuilder.with_ignore_file_changes(true)
         |> ServerStateBuilder.with_file_patches(file_patches)
 
       assert {tree, new_server_state} = ReplaceMode.user_input_actions(@yes, server_state)
 
-      assert new_server_state == %{server_state | claude_ai: %{}, ignore_file_changes: false}
+      assert new_server_state == %{server_state | ai_state: %{}, ignore_file_changes: false}
 
       assert %{
                actions_tree: %{
@@ -85,7 +86,34 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
   end
 
   describe "switch/1" do
-    test "given a valid server state, switches to ClaudeAI mode" do
+    test "persists the env var given by the AI config" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "YOYO"
+        })
+
+      assert {tree, _server_state} = ReplaceMode.switch(server_state)
+
+      assert %{
+               persist_api_key: %Action{
+                 runnable: {:persist_env_var, "YOYO"},
+                 next_action: %{fallback: :no_api_key_fail_msg}
+               },
+               no_api_key_fail_msg: %PolyglotWatcherV2.Action{
+                 runnable:
+                   {:puts, :red,
+                    "I read the environment variable 'YOYO', but nothing was there, so I'm giving up! Try setting it and running me again..."},
+                 next_action: :exit
+               }
+             } = tree.actions_tree
+
+      assert ActionsTreeValidator.validate(tree)
+    end
+
+    test "given a valid server state, switches to AI replace mode" do
       assert {tree, @server_state_normal_mode} = ReplaceMode.switch(@server_state_normal_mode)
 
       expected_action_tree_keys = [
@@ -112,7 +140,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :put_calling_claude_msg,
+        :put_calling_ai_msg,
         :perform_api_call,
         :put_awaiting_input_msg,
         :put_success_msg
@@ -131,7 +159,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceModeTest do
         :clear_screen,
         :put_intent_msg,
         :mix_test,
-        :put_calling_claude_msg,
+        :put_calling_ai_msg,
         :perform_api_call,
         :put_awaiting_input_msg,
         :put_success_msg

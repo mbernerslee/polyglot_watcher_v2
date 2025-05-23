@@ -1,18 +1,19 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
   use ExUnit.Case, async: true
   use Mimic
+  alias PolyglotWatcherV2.Config
   alias PolyglotWatcherV2.ServerStateBuilder
   alias PolyglotWatcherV2.SystemWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.FilePatch
   alias PolyglotWatcherV2.Patch
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
 
   describe "perform/2" do
-    test "given a test path that's in the cache & an ANTHROPIC_API_KEY in the server_state, we fire the API call with InstructorLite with the expected args" do
+    test "given a test path that's in the cache & the correct api key env var in the server_state, we fire the API call with InstructorLite with the expected args" do
       api_key = "secret API key"
       test_path = "test/a_test.exs"
       test_contents = "test contents OLD TEST"
@@ -25,8 +26,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: FakeAdaperModule,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn this_test_path ->
         assert this_test_path == test_path
@@ -34,7 +40,9 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, opts ->
+        assert FakeAdaperModule == opts[:adapter]
+
         {:ok,
          %CodeFileUpdates{
            updates: [
@@ -87,7 +95,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       Mimic.expect(Puts, :on_new_line, 1, fn
         [
           {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
-          {[:magenta], "████████████████ Claude Response ████████████████\n"},
+          {[:magenta], "██████████████████ AI Response ██████████████████\n"},
           {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
         ] ->
           :ok
@@ -125,7 +133,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
       assert {0, new_server_state} = APICall.perform(test_path, server_state)
 
       assert %{
-               claude_ai: %{
+               ai_state: %{
                  phase: :waiting
                },
                file_patches: file_patches,
@@ -160,13 +168,39 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
              ] == file_patches
     end
 
+    test "when the API key isn't in the env vars, return error" do
+      test_path = "test/non_existent_test.exs"
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
+
+      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+
+      action_error =
+        "I failed I couldn't find the \"API_KEY_NAME\" env var in my memory. This shouldn't happen and is a bug in my code :-("
+
+      assert new_server_state.action_error == action_error
+      assert %{server_state | action_error: action_error} == new_server_state
+    end
+
     test "when reading the cache returns error, return error" do
       test_path = "test/non_existent_test.exs"
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key("dummy_key")
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "API_KEY")
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:error, :not_found}
@@ -193,8 +227,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -225,8 +264,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -280,8 +324,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -313,8 +362,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -345,8 +399,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -387,8 +446,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
@@ -501,8 +565,13 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICallTest do
 
       server_state =
         ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:claude_ai_replace)
-        |> ServerStateBuilder.with_claude_api_key(api_key)
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
+        |> ServerStateBuilder.with_ai_config(%Config.AI{
+          adapter: InstructorLite.Adapters.Anthropic,
+          model: nil,
+          api_key_env_var_name: "API_KEY_NAME"
+        })
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}

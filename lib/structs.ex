@@ -52,20 +52,39 @@ defmodule PolyglotWatcherV2.FilePatch do
         }
 end
 
+defmodule PolyglotWatcherV2.Config do
+  use PolyglotWatcherV2.AccessBehaviour
+
+  defmodule AI do
+    use PolyglotWatcherV2.AccessBehaviour
+    @enforce_keys [:adapter, :model, :api_key_env_var_name]
+    defstruct adapter: nil, model: nil, api_key_env_var_name: nil
+
+    @type t :: %__MODULE__{
+            adapter: module(),
+            model: String.t() | nil,
+            api_key_env_var_name: String.t()
+          }
+  end
+
+  @enforce_keys [:ai]
+  defstruct ai: nil
+
+  @type t() :: %__MODULE__{ai: AI.t()}
+end
+
 defmodule PolyglotWatcherV2.ServerState do
   use PolyglotWatcherV2.AccessBehaviour
   alias PolyglotWatcherV2.FilePatch
+  alias PolyglotWatcherV2.Config
   @type file_info :: %{contents: String.t(), path: String.t()} | nil
 
   @type language_mode :: :default | any()
   @type os_type :: :mac | :linux
 
-  @type elixir_state :: %{
-          mode: language_mode(),
-          claude_prompt: String.t() | nil
-        }
+  @type elixir_state :: %{mode: language_mode()}
 
-  @type claude_ai_state :: %{
+  @type ai_state :: %{
           response: any() | nil,
           request: any() | nil,
           phase: atom() | nil
@@ -82,13 +101,15 @@ defmodule PolyglotWatcherV2.ServerState do
           os: os_type() | nil,
           watcher: module() | nil,
           elixir: elixir_state(),
-          claude_ai: claude_ai_state(),
+          ai_state: ai_state(),
           rust: rust_state(),
           env_vars: %{optional(String.t()) => String.t()},
           files: %{optional(any()) => file_info()},
           stored_actions: any(),
           action_error: any(),
-          file_patches: [file_patch()] | nil
+          file_patches: [file_patch()] | nil,
+          config: Config.t(),
+          ai_prompt: String.t()
         }
 
   @enforce_keys [
@@ -98,13 +119,15 @@ defmodule PolyglotWatcherV2.ServerState do
     :os,
     :watcher,
     :elixir,
-    :claude_ai,
+    :ai_state,
     :rust,
     :env_vars,
     :files,
     :stored_actions,
     :action_error,
-    :file_patches
+    :file_patches,
+    :config,
+    :ai_prompt
   ]
 
   defstruct port: nil,
@@ -113,11 +136,13 @@ defmodule PolyglotWatcherV2.ServerState do
             os: nil,
             watcher: nil,
             elixir: %{mode: :default},
-            claude_ai: %{},
+            ai_state: %{},
             rust: %{mode: :default},
             env_vars: %{},
             files: %{},
             stored_actions: nil,
             action_error: nil,
-            file_patches: nil
+            file_patches: nil,
+            config: nil,
+            ai_prompt: nil
 end

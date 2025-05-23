@@ -1,21 +1,59 @@
 defmodule PolyglotWatcherV2.ServerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+  use Mimic
   import ExUnit.CaptureIO
-  alias PolyglotWatcherV2.{Server, ServerState, ServerStateBuilder}
+  alias PolyglotWatcherV2.{Config, Const, OSWrapper, Server, ServerState, ServerStateBuilder}
+  alias PolyglotWatcherV2.Support.Mocks.ConfigFileMock
+
+  @default_ai_prompt Const.default_prompt()
+
+  setup :set_mimic_global
 
   describe "start_link/2" do
     test "with no command line args given, spawns the server process with default starting state" do
+      Mimic.expect(OSWrapper, :type, fn -> {:unix, :linux} end)
+      ConfigFileMock.read_valid()
+
+      assert {:ok, pid} = Server.start_link([], [])
+      assert is_pid(pid)
+
+      assert %ServerState{
+               port: port,
+               elixir: elixir,
+               rust: rust,
+               files: files,
+               config: %Config{},
+               ai_prompt: @default_ai_prompt
+             } =
+               :sys.get_state(pid)
+
+      assert files == %{}
+      assert is_port(port)
+      assert %{mode: :default} == elixir
+      assert %{mode: :default} == rust
+    end
+
+    test "when the config file reading fails, we stop" do
+      Mimic.expect(OSWrapper, :type, fn -> {:unix, :linux} end)
+      ConfigFileMock.read_failed()
+      Process.flag(:trap_exit, true)
+
       capture_io(fn ->
-        assert {:ok, pid} = Server.start_link([], [])
-        assert is_pid(pid)
+        pid = spawn_link(fn -> Server.start_link([], []) end)
+        assert_receive {:EXIT, ^pid, "Error reading config" <> _}
+      end)
+    end
 
-        assert %ServerState{port: port, elixir: elixir, rust: rust, files: files} =
-                 :sys.get_state(pid)
+    test "when its an os we don't support, we stop" do
+      Mimic.expect(OSWrapper, :type, fn -> :windows_95 end)
 
-        assert files == %{}
-        assert is_port(port)
-        assert %{mode: :default} == elixir
-        assert %{mode: :default} == rust
+      Process.flag(:trap_exit, true)
+
+      capture_io(fn ->
+        pid = spawn_link(fn -> Server.start_link([], []) end)
+
+        assert_receive {:EXIT, ^pid,
+                        "I don't support your operating system ':windows_95', so I'm exiting"}
       end)
     end
   end

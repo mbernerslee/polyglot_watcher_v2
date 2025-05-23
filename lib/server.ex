@@ -4,8 +4,12 @@ defmodule PolyglotWatcherV2.Server do
 
   alias PolyglotWatcherV2.{
     TraverseActionsTree,
+    ConfigFile,
+    Const,
     Determine,
     UserInput,
+    Puts,
+    OSWrapper,
     ServerState,
     StartupMessage
   }
@@ -13,6 +17,7 @@ defmodule PolyglotWatcherV2.Server do
   alias PolyglotWatcherV2.FileSystemWatchers.{Inotifywait, FSWatch}
 
   @process_name :server
+  @default_ai_prompt Const.default_prompt()
 
   @default_options [name: @process_name]
 
@@ -21,13 +26,14 @@ defmodule PolyglotWatcherV2.Server do
     ignore_file_changes: false,
     starting_dir: nil,
     elixir: %{mode: :default},
-    claude_ai: %{},
+    ai_state: %{},
     rust: %{mode: :default},
     env_vars: %{},
     files: %{},
     stored_actions: nil,
     action_error: nil,
-    file_patches: nil
+    file_patches: nil,
+    ai_prompt: @default_ai_prompt
   }
 
   @supported_oss %{
@@ -52,23 +58,31 @@ defmodule PolyglotWatcherV2.Server do
 
   @impl true
   def init(command_line_args) do
-    case determine_os() do
-      {:stop, reason} -> {:stop, reason}
-      os -> init_for_os(os, command_line_args)
+    Logger.debug("#{__MODULE__} starting up")
+
+    with {:ok, os} <- determine_os(),
+         {:ok, config} <- ConfigFile.read() do
+      init_for_os(os, command_line_args, config)
+    else
+      {:error, msg} ->
+        Puts.on_new_line(msg, :red)
+        {:stop, msg}
     end
   end
 
-  defp init_for_os(os, command_line_args) do
+  defp init_for_os(os, command_line_args, config) do
     watcher = Map.fetch!(@os_watchers, os)
 
-    Logger.debug(watcher.startup_message())
+    Logger.debug("#{__MODULE__} #{watcher.startup_message()}")
 
     port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
+
+    Logger.debug("#{__MODULE__} Loaded config file #{inspect(config, pretty: true)}")
 
     server_state =
       Map.merge(
         @initial_state,
-        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher}
+        %{os: os, port: port, starting_dir: File.cwd!(), watcher: watcher, config: config}
       )
 
     server_state = struct!(ServerState, server_state)
@@ -125,11 +139,11 @@ defmodule PolyglotWatcherV2.Server do
   end
 
   defp determine_os do
-    os = :os.type()
+    os = OSWrapper.type()
 
     case Map.get(@supported_oss, os) do
-      nil -> {:stop, "I don't support your operating system '#{inspect(os)}', so I'm exiting"}
-      supported_os -> supported_os
+      nil -> {:error, "I don't support your operating system '#{inspect(os)}', so I'm exiting"}
+      supported_os -> {:ok, supported_os}
     end
   end
 

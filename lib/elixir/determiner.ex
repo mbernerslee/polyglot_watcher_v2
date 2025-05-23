@@ -11,8 +11,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
     RunAllMode
   }
 
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.DefaultMode, as: ClaudeAIDefaultMode
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode, as: ClaudeAIReplaceMode
+  alias PolyglotWatcherV2.Elixir.AI.DefaultMode, as: AIDefaultMode
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode, as: AIReplaceMode
 
   @ex "ex"
   @exs "exs"
@@ -32,7 +32,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
   @impl PolyglotWatcherV2.Mode
   def user_input_actions(user_input, server_state) do
-    [ClaudeAIReplaceMode]
+    [AIReplaceMode]
     |> Enum.reduce_while(server_state, fn mod, server_state ->
       case mod.user_input_actions(user_input, server_state) do
         {false, server_state} ->
@@ -95,18 +95,17 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
        "    (2) 'mix test [path]:10' for each failing line number in turn until it's fixed and then (1) again to check we really are done\n"},
       {:white,
        "  OR without providing [path], does the above but for the most recent known test failure in memory\n"},
-      {:light_magenta, "ex cl\n"},
-      {:white, "  Claude\n"},
+      {:light_magenta, "ex ai\n"},
+      {:white, "  AI Default\n"},
       {:white,
-       "  The same as default mode, but if the test fails then an automatic API call is made to Anthropic's Claude AI asking it if it can fix the test\n You can set you're own custom prompt which automatically gets the lib file, test file & mix test output spliced into it for you. See README for more details"},
+       "  The same as default mode, but if the test fails then an automatic API call is made to an AI asking it if it can fix the test\n You can set you're own custom prompt which automatically gets the lib file, test file & mix test output spliced into it for you. See README for more details"},
       {:white,
        "  It auto-generates the prompt with the lib file, test file & mix test output for you.\n"},
+      {:white, "  Requires a valid API key environment variable to be on your system.\n"},
+      {:light_magenta, "ex air\n"},
+      {:white, "  AI Replace\n"},
       {:white,
-       "  Requires a valid ANTHROPIC_API_KEY environment variable to be on your system.\n"},
-      {:light_magenta, "ex clr\n"},
-      {:white, "  Claude Replace\n"},
-      {:white,
-       "The same as the above mode, but uses a hard-coded prompt resulting in find/replace suggestion codeblocks to fix the test"}
+       "  The same as the above mode, but uses a hard-coded prompt resulting in find/replace suggestion codeblocks to fix the test"}
     ]
   end
 
@@ -119,8 +118,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       ["fa"] -> &FixAllMode.switch(&1)
       ["faff"] -> &FixAllForFileMode.switch(&1)
       ["ra"] -> &RunAllMode.switch(&1)
-      ["cl"] -> &ClaudeAIDefaultMode.switch(&1)
-      ["clr"] -> &ClaudeAIReplaceMode.switch(&1)
+      ["ai"] -> &AIDefaultMode.switch(&1)
+      ["air"] -> &AIReplaceMode.switch(&1)
       _ -> nil
     end
   end
@@ -180,11 +179,11 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
       :run_all ->
         RunAllMode.determine_actions(server_state)
 
-      :claude_ai ->
-        ClaudeAIDefaultMode.determine_actions(file_path, server_state)
+      :ai_default ->
+        AIDefaultMode.determine_actions(file_path, server_state)
 
-      :claude_ai_replace ->
-        ClaudeAIReplaceMode.determine_actions(file_path, server_state)
+      :ai_replace ->
+        AIReplaceMode.determine_actions(file_path, server_state)
     end
   end
 end

@@ -1,20 +1,29 @@
-defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.InstructorLiteSchemas.CodeFileUpdates
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
-  alias PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.FilePatchesBuilder
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilder
 
-  def perform(test_path, %{env_vars: %{"ANTHROPIC_API_KEY" => api_key}} = server_state) do
-    with {:ok, files} <- get_files_from_cache(test_path),
+  def perform(test_path, server_state) do
+    ai_config = server_state.config.ai
+
+    with {:ok, api_key} <- api_key(server_state),
+         {:ok, files} <- get_files_from_cache(test_path),
          prompt <- hydrate_prompt(files),
-         {:ok, instruct_result} <- instruct(prompt, api_key),
+         {:ok, instruct_result} <- instruct(prompt, ai_config, api_key),
          {:ok, file_patches} <- FilePatchesBuilder.build(instruct_result, files),
          {:ok, git_diffs} <- git_diff(file_patches),
          :ok <- put_diffs_with_explanations(git_diffs, file_patches) do
       update_server_state(file_patches, server_state)
     else
+      {:error, {:api_key_env_var_missing, env_var_name}} ->
+        action_error =
+          "I failed I couldn't find the #{inspect(env_var_name)} env var in my memory. This shouldn't happen and is a bug in my code :-("
+
+        {1, %{server_state | action_error: action_error}}
+
       {:error, :cache_miss} ->
         action_error = "I failed because my cache did not contain the file #{test_path} :-("
         {1, %{server_state | action_error: action_error}}
@@ -37,6 +46,16 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     end
   end
 
+  defp api_key(server_state) do
+    %{env_vars: env_vars, config: %{ai: %{api_key_env_var_name: api_key_env_var_name}}} =
+      server_state
+
+    case Map.get(env_vars, api_key_env_var_name) do
+      nil -> {:error, {:api_key_env_var_missing, api_key_env_var_name}}
+      api_key -> {:ok, api_key}
+    end
+  end
+
   defp git_diff(file_patches) do
     file_patches
     |> GitDiff.run()
@@ -49,7 +68,7 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
   defp put_diffs_with_explanations(git_diffs, file_patches) do
     Puts.on_new_line([
       {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
-      {[:magenta], "████████████████ Claude Response ████████████████\n"},
+      {[:magenta], "██████████████████ AI Response ██████████████████\n"},
       {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
     ])
 
@@ -82,17 +101,17 @@ defmodule PolyglotWatcherV2.Elixir.ClaudeAI.ReplaceMode.APICall do
     server_state =
       server_state
       |> put_in([:file_patches], file_patches)
-      |> put_in([:claude_ai, :phase], :waiting)
+      |> put_in([:ai_state, :phase], :waiting)
       |> Map.replace!(:ignore_file_changes, true)
 
     {0, server_state}
   end
 
-  defp instruct(prompt, api_key) do
+  defp instruct(prompt, config, api_key) do
     InstructorLiteWrapper.instruct(
       %{messages: [%{role: "user", content: prompt}]},
       response_model: CodeFileUpdates,
-      adapter: InstructorLite.Adapters.Anthropic,
+      adapter: config.adapter,
       adapter_context: [api_key: api_key]
     )
     |> case do
