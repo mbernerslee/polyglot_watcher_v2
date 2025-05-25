@@ -2,10 +2,8 @@ defmodule PolyglotWatcherV2.ServerTest do
   use ExUnit.Case, async: false
   use Mimic
   import ExUnit.CaptureIO
-  alias PolyglotWatcherV2.{Config, Const, OSWrapper, Server, ServerState, ServerStateBuilder}
+  alias PolyglotWatcherV2.{Config, OSWrapper, Server, ServerState, ServerStateBuilder}
   alias PolyglotWatcherV2.Support.Mocks.ConfigFileMock
-
-  @default_ai_prompt Const.default_prompt()
 
   setup :set_mimic_global
 
@@ -23,7 +21,7 @@ defmodule PolyglotWatcherV2.ServerTest do
                rust: rust,
                files: files,
                config: %Config{},
-               ai_prompt: @default_ai_prompt
+               ai_prompts: %{}
              } =
                :sys.get_state(pid)
 

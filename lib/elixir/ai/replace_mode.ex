@@ -85,18 +85,23 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
          },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
-           next_action: %{0 => :put_success_msg, :fallback => :put_calling_ai_msg}
+           next_action: %{0 => :put_success_msg, :fallback => :reload_ai_prompt}
          },
-         put_calling_ai_msg: %Action{
-           runnable: {:puts, :magenta, "Waiting for AI API call response..."},
-           next_action: :perform_api_call
+         reload_ai_prompt: %Action{
+           runnable: {:reload_ai_prompt, :replace},
+           next_action: %{0 => :build_ai_api_request, :fallback => :exit}
          },
-         perform_api_call: %Action{
-           runnable: {:perform_ai_replace_api_call, test_path},
-           next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
+         build_ai_api_request: %Action{
+           runnable: {:build_ai_api_request, :replace, test_path},
+           next_action: %{0 => :perform_ai_api_request, :fallback => :exit}
          },
-         put_awaiting_input_msg: %Action{
-           runnable: {:puts, :magenta, UserInputActions.prompt()},
+         # TODO should put "Waiting for AI API call response...", but tell you which vendor / model
+         perform_ai_api_request: %Action{
+           runnable: {:perform_ai_api_request, :replace},
+           next_action: :action_ai_api_response
+         },
+         action_ai_api_response: %Action{
+           runnable: {:action_ai_api_response, :replace, test_path},
            next_action: :exit
          },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}

@@ -1,20 +1,17 @@
-defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponseTest do
   use ExUnit.Case, async: true
   use Mimic
-  alias PolyglotWatcherV2.Config
   alias PolyglotWatcherV2.ServerStateBuilder
   alias PolyglotWatcherV2.SystemWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.FilePatch
   alias PolyglotWatcherV2.Patch
-  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall
-  alias PolyglotWatcherV2.InstructorLiteWrapper
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponse
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
 
-  describe "perform/2" do
-    test "given a test path that's in the cache & the correct api key env var in the server_state, we fire the API call with InstructorLite with the expected args" do
-      api_key = "secret API key"
+  describe "action/1" do
+    test "given a successful API response, we run git diff, generate file patches and update the server_state with them" do
       test_path = "test/a_test.exs"
       test_contents = "test contents OLD TEST"
       lib_path = "lib/a.ex"
@@ -24,25 +21,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
       test_file = %{path: test_path, contents: test_contents}
       lib_file = %{path: lib_path, contents: lib_contents}
 
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: FakeAdaperModule,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      Mimic.expect(Cache, :get_files, fn this_test_path ->
-        assert this_test_path == test_path
-
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, opts ->
-        assert FakeAdaperModule == opts[:adapter]
-
+      response =
         {:ok,
          %CodeFileUpdates{
            updates: [
@@ -60,6 +39,16 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              }
            ]
          }}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
+
+      Mimic.expect(Cache, :get_files, fn this_test_path ->
+        assert this_test_path == test_path
+
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
       Mimic.expect(SystemWrapper, :cmd, 1, fn "git", _ ->
@@ -130,7 +119,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
           :ok
       end)
 
-      assert {0, new_server_state} = APICall.perform(test_path, server_state)
+      assert {0, new_server_state} = APIResponse.action(test_path, server_state)
 
       assert %{
                ai_state: %{
@@ -168,45 +157,39 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              ] == file_patches
     end
 
-    test "when the API key isn't in the env vars, return error" do
-      test_path = "test/non_existent_test.exs"
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
-
-      action_error =
-        "I failed I couldn't find the \"API_KEY_NAME\" env var in my memory. This shouldn't happen and is a bug in my code :-("
-
-      assert new_server_state.action_error == action_error
-      assert %{server_state | action_error: action_error} == new_server_state
-    end
-
     test "when reading the cache returns error, return error" do
+      lib_path = "lib/whataver.ex"
       test_path = "test/non_existent_test.exs"
+
+      response =
+        {:ok,
+         %CodeFileUpdates{
+           updates: [
+             %CodeFileUpdate{
+               file_path: lib_path,
+               explanation: "some lib code was awful",
+               search: "OLD LIB",
+               replace: "NEW LIB"
+             },
+             %CodeFileUpdate{
+               file_path: test_path,
+               explanation: "some test code was awful",
+               search: "OLD TEST",
+               replace: "NEW TEST"
+             }
+           ]
+         }}
 
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", "API_KEY")
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:error, :not_found}
       end)
 
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+      assert {1, new_server_state} = APIResponse.action(test_path, server_state)
 
       action_error = "I failed because my cache did not contain the file #{test_path} :-("
 
@@ -215,35 +198,14 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
     end
 
     test "when instructor returns an error, put descriptive action_error" do
-      api_key = "secret API key"
       test_path = "test/a_test.exs"
-      test_contents = "test contents"
-      lib_path = "lib/a.ex"
-      lib_contents = "lib contents"
-      mix_test_output = "mix test output"
-
-      test_file = %{path: test_path, contents: test_contents}
-      lib_file = %{path: lib_path, contents: lib_contents}
 
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
+        |> ServerStateBuilder.with_ai_state_response(:replace, {:error, :some_error})
 
-      Mimic.expect(Cache, :get_files, fn ^test_path ->
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
-        {:error, :some_error}
-      end)
-
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+      assert {1, new_server_state} = APIResponse.action(test_path, server_state)
 
       expected_error = "Error from InstructorLite: :some_error"
 
@@ -252,31 +214,9 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
     end
 
     test "when the instructor returns an \"unexpected response\", handle it" do
-      api_key = "secret API key"
       test_path = "test/a_test.exs"
-      test_contents = "test contents"
-      lib_path = "lib/a.ex"
-      lib_contents = "lib contents"
-      mix_test_output = "mix test output"
 
-      test_file = %{path: test_path, contents: test_contents}
-      lib_file = %{path: lib_path, contents: lib_contents}
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      Mimic.expect(Cache, :get_files, fn ^test_path ->
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+      response =
         {:error, :unexpected_response,
          %{
            "content" => [
@@ -300,9 +240,13 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              "output_tokens" => 1024
            }
          }}
-      end)
 
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
+
+      assert {1, new_server_state} = APIResponse.action(test_path, server_state)
 
       expected_error =
         "Error from InstructorLite: {:unexpected_response, %{\"content\" => [%{\"id\" => \"toolu_01Xr1pWys26BrBjNhJdTiRX6\", \"input\" => %{}, \"name\" => \"Schema\", \"type\" => \"tool_use\"}], \"id\" => \"msg_011WzhD5hWiCXaz7GFzdFc4Y\", \"model\" => \"claude-3-5-sonnet-20240620\", \"role\" => \"assistant\", \"stop_reason\" => \"max_tokens\", \"stop_sequence\" => nil, \"type\" => \"message\", \"usage\" => %{\"cache_creation_input_tokens\" => 0, \"cache_read_input_tokens\" => 0, \"input_tokens\" => 2193, \"output_tokens\" => 1024}}}"
@@ -311,46 +255,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
       assert %{server_state | action_error: expected_error} == new_server_state
     end
 
-    test "when the instructor returns any arbitrary 3 element error tuple, handle it" do
-      api_key = "secret API key"
-      test_path = "test/a_test.exs"
-      test_contents = "test contents"
-      lib_path = "lib/a.ex"
-      lib_contents = "lib contents"
-      mix_test_output = "mix test output"
-
-      test_file = %{path: test_path, contents: test_contents}
-      lib_file = %{path: lib_path, contents: lib_contents}
-
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      Mimic.expect(Cache, :get_files, fn ^test_path ->
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
-        {:error, :any_arbitrary_atom, %{"arbitrary" => "contents"}}
-      end)
-
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
-
-      expected_error =
-        "Error from InstructorLite: {:any_arbitrary_atom, %{\"arbitrary\" => \"contents\"}}"
-
-      assert new_server_state.action_error == expected_error
-      assert %{server_state | action_error: expected_error} == new_server_state
-    end
-
     test "when InstructorLite suggests we update neither the lib nor test file return an error" do
-      api_key = "secret API key"
       test_path = "test/a_test.exs"
       test_contents = "test contents"
       lib_path = "lib/a.ex"
@@ -360,25 +265,18 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
       test_file = %{path: test_path, contents: test_contents}
       lib_file = %{path: lib_path, contents: lib_contents}
 
+      response = {:ok, %CodeFileUpdates{updates: []}}
+
       server_state =
         ServerStateBuilder.build()
         |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
 
       Mimic.expect(Cache, :get_files, fn ^test_path ->
         {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
-        {:ok, %CodeFileUpdates{updates: []}}
-      end)
-
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+      assert {1, new_server_state} = APIResponse.action(test_path, server_state)
 
       expected_error = "InstructorLite: suggested no changes"
       assert new_server_state.action_error == expected_error
@@ -386,7 +284,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
     end
 
     test "when InstructorLite suggests we update a file which is neither the lib nor test file, return an error" do
-      api_key = "secret API key"
       test_path = "test/a_test.exs"
       test_contents = "test contents"
       lib_path = "lib/a.ex"
@@ -397,21 +294,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
       test_file = %{path: test_path, contents: test_contents}
       lib_file = %{path: lib_path, contents: lib_contents}
 
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      Mimic.expect(Cache, :get_files, fn ^test_path ->
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+      response =
         {:ok,
          %CodeFileUpdates{
            updates: [
@@ -423,9 +306,17 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              }
            ]
          }}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+      assert {1, new_server_state} = APIResponse.action(test_path, server_state)
 
       expected_error = "InstructorLite: suggested we update some other file"
 
@@ -434,7 +325,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
     end
 
     test "when multiple updates are suggested for the same file, we return them ordered properly" do
-      api_key = "secret API key"
       test_path = "test/a_test.exs"
       test_contents = "test contents"
       lib_path = "lib/a.ex"
@@ -444,21 +334,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
       test_file = %{path: test_path, contents: test_contents}
       lib_file = %{path: lib_path, contents: lib_contents}
 
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      Mimic.expect(Cache, :get_files, fn ^test_path ->
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+      response =
         {:ok,
          %CodeFileUpdates{
            updates: [
@@ -476,6 +352,14 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              }
            ]
          }}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
       Mimic.expect(SystemWrapper, :cmd, 2, fn
@@ -524,7 +408,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
 
       Mimic.expect(Puts, :on_new_line, 4, fn _ -> :ok end)
 
-      assert {0, new_server_state} = APICall.perform(test_path, server_state)
+      assert {0, new_server_state} = APIResponse.action(test_path, server_state)
 
       assert %{file_patches: file_patches} = new_server_state
 
@@ -552,8 +436,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              ] == file_patches
     end
 
-    test "when returns something we can't parse errors, we put an action_error" do
-      api_key = "secret API key"
+    test "when git returns something we can't parse errors, we put an action_error" do
       test_path = "test/a_test.exs"
       test_contents = "test contents"
       lib_path = "lib/a.ex"
@@ -563,21 +446,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
       test_file = %{path: test_path, contents: test_contents}
       lib_file = %{path: lib_path, contents: lib_contents}
 
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
-        |> ServerStateBuilder.with_env_var("API_KEY_NAME", api_key)
-        |> ServerStateBuilder.with_ai_config(%Config.AI{
-          adapter: InstructorLite.Adapters.Anthropic,
-          model: nil,
-          api_key_env_var_name: "API_KEY_NAME"
-        })
-
-      Mimic.expect(Cache, :get_files, fn ^test_path ->
-        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
-      end)
-
-      Mimic.expect(InstructorLiteWrapper, :instruct, fn _params, _opts ->
+      response =
         {:ok,
          %CodeFileUpdates{
            updates: [
@@ -589,13 +458,21 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICallTest do
              }
            ]
          }}
+
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_elixir_mode(:ai_replace)
+        |> ServerStateBuilder.with_ai_state_response(:replace, response)
+
+      Mimic.expect(Cache, :get_files, fn ^test_path ->
+        {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
       end)
 
       Mimic.expect(SystemWrapper, :cmd, fn "git", _ ->
         {"im blowing up", 1}
       end)
 
-      assert {1, new_server_state} = APICall.perform(test_path, server_state)
+      assert {1, new_server_state} = APIResponse.action(test_path, server_state)
 
       expected_error = "Git Diff error: :git_diff_parsing_error"
       assert new_server_state.action_error == expected_error

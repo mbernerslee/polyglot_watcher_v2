@@ -1,5 +1,39 @@
 defmodule PolyglotWatcherV2.ActionsExecutor do
-  def execute(runnable, server_state), do: module().execute(runnable, server_state)
+  @doc """
+  Manually keep this up to date with the real execute function heads lower down in the file
+  """
+  def execute(runnable, server_state) do
+    case runnable do
+      :clear_screen -> do_execute(runnable, server_state)
+      :noop -> do_execute(runnable, server_state)
+      {:file_exists, _} -> do_execute(runnable, server_state)
+      :put_sarcastic_success -> do_execute(runnable, server_state)
+      :put_insult -> do_execute(runnable, server_state)
+      :cargo_test -> do_execute(runnable, server_state)
+      :cargo_build -> do_execute(runnable, server_state)
+      {:reload_prompt, _name} -> do_execute(runnable, server_state)
+      {:patch_files, _selector} -> do_execute(runnable, server_state)
+      {:reload_ai_prompt, _name} -> do_execute(runnable, server_state)
+      {:build_ai_api_request, _name, _test_path} -> do_execute(runnable, server_state)
+      {:perform_ai_api_request, _name} -> do_execute(runnable, server_state)
+      {:action_ai_api_response, _name, _test_path} -> do_execute(runnable, server_state)
+      {:persist_file, _path, _key} -> do_execute(runnable, server_state)
+      {:persist_env_var, _key} -> do_execute(runnable, server_state)
+      {:mix_test_latest_line, _test_path} -> do_execute(runnable, server_state)
+      :mix_test_latest_line -> do_execute(runnable, server_state)
+      :mix_test_latest_max_failures_1 -> do_execute(runnable, server_state)
+      {:mix_test, _mix_test_args} -> do_execute(runnable, server_state)
+      :mix_test -> do_execute(runnable, server_state)
+      {:switch_mode, _language, _mode} -> do_execute(runnable, server_state)
+      {:puts, _colour, _message} -> do_execute(runnable, server_state)
+      {:puts, _messages} -> do_execute(runnable, server_state)
+      {:update_server_state, _} -> do_execute(runnable, server_state)
+      {:run_sys_cmd, _cmd, _args} -> do_execute(runnable, server_state)
+      unknown -> raise "unknown action runnable #{inspect(unknown)}"
+    end
+  end
+
+  defp do_execute(runnable, server_state), do: module().execute(runnable, server_state)
 
   defp module, do: Application.get_env(:polyglot_watcher_v2, :actions_executor_module)
 end
@@ -21,7 +55,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   }
 
   alias PolyglotWatcherV2.Elixir.{MixTest, MixTestArgs, MixTestLatest}
-  alias PolyglotWatcherV2.Elixir.AI.DefaultMode, as: AIDefaultMode
   alias PolyglotWatcherV2.Elixir.AI.ReplaceMode, as: AIReplaceMode
 
   def execute(command, server_state) do
@@ -90,28 +123,20 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
     FilePatches.patch(selector, server_state)
   end
 
-  defp do_execute(:load_in_memory_prompt, server_state) do
-    AIDefaultMode.load_in_memory_prompt(server_state)
+  defp do_execute({:reload_ai_prompt, name}, server_state) do
+    AI.reload_prompt(name, server_state)
   end
 
-  defp do_execute({:build_ai_api_request_from_in_memory_prompt, test_path}, server_state) do
-    AIDefaultMode.build_api_request_from_in_memory_prompt(test_path, server_state)
+  defp do_execute({:build_ai_api_request, name, test_path}, server_state) do
+    AI.build_api_request(name, test_path, server_state)
   end
 
-  defp do_execute(:perform_ai_api_request, server_state) do
-    AI.perform_api_call(server_state)
+  defp do_execute({:perform_ai_api_request, name}, server_state) do
+    AI.perform_api_request(name, server_state)
   end
 
-  defp do_execute({:perform_ai_replace_api_call, test_path}, server_state) do
-    AIReplaceMode.APICall.perform(test_path, server_state)
-  end
-
-  defp do_execute(:parse_ai_api_response, server_state) do
-    AI.parse_ai_api_response(server_state)
-  end
-
-  defp do_execute(:put_parsed_ai_api_response, server_state) do
-    AI.put_parsed_response(server_state)
+  defp do_execute({:action_ai_api_response, :replace, test_path}, server_state) do
+    AIReplaceMode.APIResponse.action(test_path, server_state)
   end
 
   defp do_execute(:cargo_build, server_state) do
@@ -142,15 +167,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:noop, server_state) do
     {0, server_state}
-  end
-
-  defp do_execute(unknown, server_state) do
-    Puts.on_new_line(
-      "Unknown runnable action given to ActionsExecutor. It was #{inspect(unknown)}, can't do it",
-      :red
-    )
-
-    {1, server_state}
   end
 
   defp insulting_failure_messages do

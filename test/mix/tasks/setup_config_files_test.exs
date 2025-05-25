@@ -7,11 +7,15 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
   alias Mix.Tasks.PolyglotWatcherV2.SetupConfigFiles
 
   @default_config_contents Const.default_config_contents()
-  @default_prompt Const.default_prompt()
+  @default_replace_prompt Const.default_replace_prompt()
 
   describe "run/1" do
     test "puts the expected files" do
       Mimic.expect(FileWrapper, :mkdir_p, fn "~/.config/polyglot_watcher_v2" ->
+        :ok
+      end)
+
+      Mimic.expect(FileWrapper, :mkdir_p, fn "~/.config/polyglot_watcher_v2/prompts" ->
         :ok
       end)
 
@@ -21,9 +25,9 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
 
       Mimic.expect(FileWrapper, :write, 4, fn
         "~/.config/polyglot_watcher_v2/config.yml", @default_config_contents -> :ok
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents -> :ok
-        "~/.config/polyglot_watcher_v2/prompt", @default_prompt -> :ok
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt -> :ok
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents -> :ok
+        "~/.config/polyglot_watcher_v2/prompts/replace", @default_replace_prompt -> :ok
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt -> :ok
       end)
 
       Mimic.expect(Puts, :on_new_line, 4, fn
@@ -40,7 +44,7 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
 
       Mimic.expect(Puts, :on_new_line, 1, fn msg, :red ->
         assert msg ==
-                 "Failed to create PolyglotWatcherV2 config directory ~/.config/polyglot_watcher_v2. The error was :some_error"
+                 "Failed to create directory ~/.config/polyglot_watcher_v2. The error was :some_error"
 
         :ok
       end)
@@ -61,13 +65,13 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
         "~/.config/polyglot_watcher_v2/config.yml", @default_config_contents ->
           {:error, :some_error}
 
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents ->
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/prompt", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace", @default_replace_prompt ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt ->
           :ok
       end)
 
@@ -94,13 +98,13 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
         "~/.config/polyglot_watcher_v2/config.yml", @default_config_contents ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents ->
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents ->
           {:error, :some_error}
 
-        "~/.config/polyglot_watcher_v2/prompt", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace", @default_replace_prompt ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt ->
           :ok
       end)
 
@@ -110,7 +114,7 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
 
         msg, :red ->
           assert msg ==
-                   "Failed to write PolyglotWatcherV2 backup config file to ~/.config/polyglot_watcher_v2/config.yml.backup. The error was :some_error"
+                   "Failed to write PolyglotWatcherV2 backup config file to ~/.config/polyglot_watcher_v2/config_backup.yml. The error was :some_error"
 
           :ok
       end)
@@ -131,13 +135,13 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
         "~/.config/polyglot_watcher_v2/config.yml", @default_config_contents ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents ->
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/prompt", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace", @default_replace_prompt ->
           {:error, :some_error}
 
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt ->
           :ok
       end)
 
@@ -147,7 +151,7 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
 
         msg, :red ->
           assert msg ==
-                   "Failed to write PolyglotWatcherV2 prompt file to ~/.config/polyglot_watcher_v2/prompt. The error was :some_error"
+                   "Failed to write PolyglotWatcherV2 prompt file to ~/.config/polyglot_watcher_v2/prompts/replace. The error was :some_error"
 
           :ok
       end)
@@ -168,13 +172,13 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
         "~/.config/polyglot_watcher_v2/config.yml", @default_config_contents ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents ->
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/prompt", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace", @default_replace_prompt ->
           :ok
 
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt ->
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt ->
           {:error, :some_error}
       end)
 
@@ -184,7 +188,7 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
 
         msg, :red ->
           assert msg ==
-                   "Failed to write PolyglotWatcherV2 backup prompt file to ~/.config/polyglot_watcher_v2/prompt.backup. The error was :some_error"
+                   "Failed to write PolyglotWatcherV2 backup prompt file to ~/.config/polyglot_watcher_v2/prompts/replace_backup. The error was :some_error"
 
           :ok
       end)
@@ -201,14 +205,14 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
         true
       end)
 
-      Mimic.expect(FileWrapper, :exists?, fn "~/.config/polyglot_watcher_v2/prompt" ->
+      Mimic.expect(FileWrapper, :exists?, fn "~/.config/polyglot_watcher_v2/prompts/replace" ->
         false
       end)
 
       Mimic.expect(FileWrapper, :write, 3, fn
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents -> :ok
-        "~/.config/polyglot_watcher_v2/prompt", @default_prompt -> :ok
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt -> :ok
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents -> :ok
+        "~/.config/polyglot_watcher_v2/prompts/replace", @default_replace_prompt -> :ok
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt -> :ok
       end)
 
       Mimic.expect(Puts, :on_new_line, 4, fn
@@ -227,14 +231,14 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFilesTest do
         false
       end)
 
-      Mimic.expect(FileWrapper, :exists?, fn "~/.config/polyglot_watcher_v2/prompt" ->
+      Mimic.expect(FileWrapper, :exists?, fn "~/.config/polyglot_watcher_v2/prompts/replace" ->
         true
       end)
 
       Mimic.expect(FileWrapper, :write, 3, fn
         "~/.config/polyglot_watcher_v2/config.yml", @default_config_contents -> :ok
-        "~/.config/polyglot_watcher_v2/config.yml.backup", @default_config_contents -> :ok
-        "~/.config/polyglot_watcher_v2/prompt.backup", @default_prompt -> :ok
+        "~/.config/polyglot_watcher_v2/config_backup.yml", @default_config_contents -> :ok
+        "~/.config/polyglot_watcher_v2/prompts/replace_backup", @default_replace_prompt -> :ok
       end)
 
       Mimic.expect(Puts, :on_new_line, 4, fn

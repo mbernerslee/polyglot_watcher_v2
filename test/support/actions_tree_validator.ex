@@ -3,6 +3,8 @@ defmodule PolyglotWatcherV2.InvalidActionsTreeError do
 end
 
 defmodule PolyglotWatcherV2.ActionsTreeValidator do
+  alias PolyglotWatcherV2.ServerStateBuilder
+  alias PolyglotWatcherV2.ActionsExecutor
   alias PolyglotWatcherV2.{Action, InvalidActionsTreeError}
 
   def validate(%{entry_point: entry_point, actions_tree: actions_tree}) do
@@ -10,6 +12,7 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
     check_all_actions_are_structs(actions_tree)
     has_at_least_one_exit_point(actions_tree)
     check_all_next_actions_exist(entry_point, actions_tree)
+    validate_all_runnables_exist(actions_tree)
     true
   end
 
@@ -97,5 +100,15 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
       raise InvalidActionsTreeError,
             "I require at least one exit point from the actions tree, but found none in #{inspect(actions_tree)}"
     end
+  end
+
+  defp validate_all_runnables_exist(actions_tree) do
+    actions_tree
+    |> Enum.map(fn {_, %{runnable: runnable}} -> runnable end)
+    |> Enum.each(fn runnable ->
+      # raises if the runnable does not exist.
+      # execute/2 doesn't actually cause side effects when MIX_ENV = test
+      {_, _} = ActionsExecutor.execute(runnable, ServerStateBuilder.build())
+    end)
   end
 end

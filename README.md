@@ -43,7 +43,7 @@ using the switches listed below...
 | Fix All | `ex fa` | Runs <br /><br /> 1. `mix test` <br /> 2. `mix test [single test only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done |
 | Fix All For File | `ex faff [path]` | Runs <br /><br /> 1. `mix test [path]` <br /> 2. `mix test [path]:[one test line number only]` for each failing test in turn, until they're all fixed. Then we run 1. again to check we really are done <br /><br /> OR without specifying `[path]` <br /><br /> Runs the above but using the most recently failed test file from memory |
 | AI Default | `ex ai` | The same as default mode, but if the test fails then an automatic API call is made to an AI asking it if it can fix the test <br /> It auto-generates the prompt with the lib file, test file & mix test output for you, and you can set your own custom prompt. <br /> Requires a valid API key environment variable on your system.<br /> See below for more details |
-| AI Replace | `ex air` | The same as the above mode, but uses a hard-coded prompt resulting in find/replace suggestion codeblocks to fix the test |
+| AI Replace | `ex air` | The same as elixir default mode, but uses automatically fires an API call to an AI asing for find/replace suggestion codeblocks to fix the test. Read more below for details |
 
 ### Rust
 
@@ -52,13 +52,14 @@ using the switches listed below...
 | Default | `rs d` | Will always run `cargo build` when any `.rs` file is saved |
 | Test | `rs t` | Will always run `cargo test` when any `.rs` file is saved |
 
-## Elixir AI Mode
+## Elixir AI Replace Mode
 
-Right now only Claude with anthropic is supported. More to come soon
+Right now the only supported model is Claude (Anthropic). More to come soon
 
 ### Requirements
 
-For Claude:
+- `git` installed
+- For Claude:
 Have a valid `ANTHROPIC_API_KEY` environment variable on your system.
 See [https://docs.anthropic.com/en/docs/welcome](https://docs.anthropic.com/en/docs/welcome)
 
@@ -72,10 +73,12 @@ By default this mode will trigger the following on file save:
 
 The prompt is generated for you, and it splices the lib file, test file and the output of the test run into it.
 
+The response is requested as find/replace/explanation blocks, which are displayed in a `git diff` format, and may be accepted (written to file) or rejected.
+
 ### Custom prompt
 
-You can override the default prompt by placing a file at
-`~/.config/polyglot_watcher_v2/prompt`
+The prompt comes from a file located at:
+`~/.config/polyglot_watcher_v2/prompts/replace`
 
 The following placeholders will get be replaced with the real thing at runtime:
 - `$LIB_PATH_PLACEHOLDER`
@@ -84,7 +87,7 @@ The following placeholders will get be replaced with the real thing at runtime:
 - `$TEST_CONTENT_PLACEHOLDER`
 - `$MIX_TEST_OUTPUT_PLACEHOLDER`
 
-Meaning that you can have a prompt like this at `~/.config/polyglot_watcher_v2/prompt`:
+Meaning that if you edit the prompt like this:
 
 ```
 Given the lib file at $LIB_PATH_PLACEHOLDER with the contents:
@@ -103,3 +106,7 @@ Also while you're at it, can you please sound like a drunken pirate?
 Then it will be used.
 If you change the prompt whilst the watcher is running, it will be respected because I reload it before each API call. No need to restart the watcher.
 
+*But be warned!*
+- We do some magic with the prompt to coax the response into find/replace/explanation blocks, so if you go too wild with your prompt edits, we could end up sending an ineffective, or even self-contradictory prompt.
+- There is a backup of the default prompt in the same directory called `replace_backup` which you can reinstate if your edits go too far and you want to reset back to the default. If the backup is missing, rerun the `./install` script and the backup will be regenerated
+- The prompt response parsing code is strictly limited to accepting *only* edits to the specific lib and/or test files that triggered that particular run. If the AI suggests edits to any other files then this is treated as an error (for now).

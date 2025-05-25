@@ -1,19 +1,13 @@
-defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall do
+defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponse do
   alias PolyglotWatcherV2.Elixir.Cache
-  alias PolyglotWatcherV2.InstructorLiteSchemas.CodeFileUpdates
-  alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
   alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilder
 
-  def perform(test_path, server_state) do
-    ai_config = server_state.config.ai
-
-    with {:ok, api_key} <- api_key(server_state),
+  def action(test_path, server_state) do
+    with {:ok, code_file_updates} <- get_api_response(server_state),
          {:ok, files} <- get_files_from_cache(test_path),
-         prompt <- hydrate_prompt(files),
-         {:ok, instruct_result} <- instruct(prompt, ai_config, api_key),
-         {:ok, file_patches} <- FilePatchesBuilder.build(instruct_result, files),
+         {:ok, file_patches} <- FilePatchesBuilder.build(code_file_updates, files),
          {:ok, git_diffs} <- git_diff(file_patches),
          :ok <- put_diffs_with_explanations(git_diffs, file_patches) do
       update_server_state(file_patches, server_state)
@@ -46,13 +40,11 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall do
     end
   end
 
-  defp api_key(server_state) do
-    %{env_vars: env_vars, config: %{ai: %{api_key_env_var_name: api_key_env_var_name}}} =
-      server_state
-
-    case Map.get(env_vars, api_key_env_var_name) do
-      nil -> {:error, {:api_key_env_var_missing, api_key_env_var_name}}
-      api_key -> {:ok, api_key}
+  defp get_api_response(server_state) do
+    case server_state.ai_state[:replace] do
+      %{response: {:ok, code_file_updates}} -> {:ok, code_file_updates}
+      %{response: {:error, error}} -> {:error, {:instructor_lite, error}}
+      %{response: {:error, error, details}} -> {:error, {:instructor_lite, {error, details}}}
     end
   end
 
@@ -107,75 +99,10 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APICall do
     {0, server_state}
   end
 
-  defp instruct(prompt, config, api_key) do
-    InstructorLiteWrapper.instruct(
-      %{messages: [%{role: "user", content: prompt}]},
-      response_model: CodeFileUpdates,
-      adapter: config.adapter,
-      adapter_context: [api_key: api_key]
-    )
-    |> case do
-      {:ok, result} -> {:ok, result}
-      {:error, error} -> {:error, {:instructor_lite, error}}
-      {:error, kind, details} -> {:error, {:instructor_lite, {kind, details}}}
-    end
-  end
-
-  defp hydrate_prompt(%{test: test, lib: lib, mix_test_output: mix_test_output}) do
-    prompt()
-    |> String.replace("$LIB_PATH_PLACEHOLDER", lib.path)
-    |> String.replace("$LIB_CONTENT_PLACEHOLDER", lib.contents)
-    |> String.replace("$TEST_PATH_PLACEHOLDER", test.path)
-    |> String.replace("$TEST_CONTENT_PLACEHOLDER", test.contents)
-    |> String.replace("$MIX_TEST_OUTPUT_PLACEHOLDER", mix_test_output)
-  end
-
   defp get_files_from_cache(test_path) do
     case Cache.get_files(test_path) do
       {:ok, files} -> {:ok, files}
       _error -> {:error, :cache_miss}
     end
-  end
-
-  defp prompt do
-    """
-    Given the following -
-
-    <buffer>
-      <name>
-        Elixir Code
-      </name>
-      <filePath>
-        $LIB_PATH_PLACEHOLDER
-      </filePath>
-      <content>
-        $LIB_CONTENT_PLACEHOLDER
-      </content>
-    </buffer>
-
-    <buffer>
-      <name>
-        Elixir Test
-      </name>
-      <filePath>
-        $TEST_PATH_PLACEHOLDER
-      </filePath>
-      <content>
-        $TEST_CONTENT_PLACEHOLDER
-      </content>
-    </buffer>
-
-    <buffer>
-      <name>
-        Elixir Mix Test Output
-      </name>
-      <content>
-        $MIX_TEST_OUTPUT_PLACEHOLDER
-      </content>
-    </buffer>
-
-    Can you please provide a list of updates to fix the issues?
-    Don't add comments to the code please, leave commentary only in the explanation.
-    """
   end
 end

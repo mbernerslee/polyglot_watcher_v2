@@ -5,7 +5,6 @@ defmodule PolyglotWatcherV2.Server do
   alias PolyglotWatcherV2.{
     TraverseActionsTree,
     ConfigFile,
-    Const,
     Determine,
     UserInput,
     Puts,
@@ -17,7 +16,6 @@ defmodule PolyglotWatcherV2.Server do
   alias PolyglotWatcherV2.FileSystemWatchers.{Inotifywait, FSWatch}
 
   @process_name :server
-  @default_ai_prompt Const.default_prompt()
 
   @default_options [name: @process_name]
 
@@ -33,7 +31,7 @@ defmodule PolyglotWatcherV2.Server do
     stored_actions: nil,
     action_error: nil,
     file_patches: nil,
-    ai_prompt: @default_ai_prompt
+    ai_prompts: %{}
   }
 
   @supported_oss %{
@@ -45,10 +43,14 @@ defmodule PolyglotWatcherV2.Server do
 
   @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
 
+  # TODO test ex air mode
+  # TODO split it up better? ... make AI more "pure" such that we're not passing the test_path around?
+  # TODO audit actions in actions_exec. delete dead unused actions
+
+  # TODO better help around which vendors & models are available
   # TODO stop ignoring config.ai.model, use it
   # TODO consider how to check ai config args are compatible?
-  # TODO split up replace_mode/api_call into different steps, much like how ai default works
-  # TODO fix ai default mode to return raw text only. or remove it?
+
   # TODO remove httpoison?
 
   def child_spec(command_line_args \\ []) do

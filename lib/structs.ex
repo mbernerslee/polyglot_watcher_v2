@@ -109,7 +109,7 @@ defmodule PolyglotWatcherV2.ServerState do
           action_error: any(),
           file_patches: [file_patch()] | nil,
           config: Config.t(),
-          ai_prompt: String.t()
+          ai_prompts: map()
         }
 
   @enforce_keys [
@@ -127,7 +127,7 @@ defmodule PolyglotWatcherV2.ServerState do
     :action_error,
     :file_patches,
     :config,
-    :ai_prompt
+    :ai_prompts
   ]
 
   defstruct port: nil,
@@ -144,5 +144,5 @@ defmodule PolyglotWatcherV2.ServerState do
             action_error: nil,
             file_patches: nil,
             config: nil,
-            ai_prompt: nil
+            ai_prompts: nil
 end

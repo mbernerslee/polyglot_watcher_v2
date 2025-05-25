@@ -1,16 +1,19 @@
 defmodule PolyglotWatcherV2.Const do
   def config_dir_path, do: "~/.config/polyglot_watcher_v2"
+  def prompts_dir_path, do: config_dir_path() <> "/prompts"
 
   def config_file_name, do: "config.yml"
-  def backup_config_file_name, do: "config.yml.backup"
+  def backup_config_file_name, do: "config_backup.yml"
 
-  def prompt_file_name, do: "prompt"
-  def backup_prompt_file_name, do: "prompt.backup"
+  def replace_prompt_file_name, do: "replace"
+  def backup_replace_prompt_file_name, do: "replace_backup"
 
   def config_file_path, do: "#{config_dir_path()}/#{config_file_name()}"
   def config_backup_file_path, do: "#{config_dir_path()}/#{backup_config_file_name()}"
-  def prompt_file_path, do: "#{config_dir_path()}/#{prompt_file_name()}"
-  def prompt_backup_file_path, do: "#{config_dir_path()}/#{backup_prompt_file_name()}"
+  def replace_prompt_file_path, do: "#{prompts_dir_path()}/#{replace_prompt_file_name()}"
+
+  def replace_prompt_backup_file_path,
+    do: "#{prompts_dir_path()}/#{backup_replace_prompt_file_name()}"
 
   def claude_3_5_sonnet_20240620, do: "claude-3-5-sonnet-20240620"
   def anthropic_api_key_env_var_name, do: "ANTHROPIC_API_KEY"
@@ -23,8 +26,10 @@ defmodule PolyglotWatcherV2.Const do
     """
   end
 
-  def default_prompt do
+  def default_replace_prompt do
     """
+    Given the following -
+
     <buffer>
       <name>
         Elixir Code
@@ -58,10 +63,8 @@ defmodule PolyglotWatcherV2.Const do
       </content>
     </buffer>
 
-    *****
-
-    Given the above Elixir Code, Elixir Test, and Elixir Mix Test Output, can you please provide a diff, which when applied to the file containing the Elixir Code, will fix the test?
-
+    Can you please provide a list of updates to fix the issues?
+    Don't add comments to the code please, leave commentary only in the explanation.
     """
   end
 end

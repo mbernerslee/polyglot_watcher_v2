@@ -8,6 +8,7 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
   alias PolyglotWatcherV2.ConfigFile
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
+  # TODO remove expanded paths from test assertions. Use Path.expand mock in FileWrapper instead
   @path "/home/berners/.config/polyglot_watcher_v2/config.yml"
   @config_with_model """
     AI:
@@ -162,5 +163,41 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
               "Error decoding config file at ~/.config/polyglot_watcher_v2/config.yml. Invalid vendor given. Vendors I accept are [\"Anthropic\"]"} ==
                ConfigFile.read()
     end
+  end
+
+  test "x" do
+    # what MV seeds does, then finds A.B.* modules
+    # {:ok, modules} = :application.get_key(:polyglot_watcher_v2, :modules)
+    # slow thing that force loads all modules in the app. they're loaded lazily otherwise
+
+    # :polyglot_watcher_v2
+    # |> Application.spec()
+    # |> Keyword.fetch!(:modules)
+    # |> Enum.each(fn module -> Code.ensure_loaded(module) end)
+
+    # :instructor_lite
+    # |> Application.spec()
+    # |> Keyword.fetch!(:modules)
+    # |> Enum.each(fn module -> Code.ensure_loaded(module) end)
+
+    # Application.ensure_loaded(:polyglot_watcher_v2)
+    # Application.ensure_loaded(:instructor_lite)
+
+    # :code.all_loaded()
+    # |> Enum.map(&elem(&1, 0))
+    # |> Enum.map(fn mod -> {mod, mod.module_info(:attributes)[:behaviour] || []} end)
+    # |> Enum.filter(fn {_, b} -> InstructorLite.Adapter in b end)
+    # |> Enum.sort()
+    # |> IO.inspect(limit: :infinity)
+
+    {:ok, il_modules} = :application.get_key(:instructor_lite, :modules)
+    {:ok, pw_modules} = :application.get_key(:polyglot_watcher_v2, :modules)
+
+    (il_modules ++ pw_modules)
+    |> Enum.filter(fn mod ->
+      String.contains?(to_string(mod), "InstructorLite.Adapters.")
+    end)
+
+    # |> IO.inspect()
   end
 end
