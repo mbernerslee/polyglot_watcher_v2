@@ -2,6 +2,7 @@ defmodule PolyglotWatcherV2.ActionsExecutor do
   @doc """
   Manually keep this up to date with the real execute function heads lower down in the file
   """
+
   def execute(runnable, server_state) do
     case runnable do
       :clear_screen -> do_execute(runnable, server_state)
@@ -11,13 +12,11 @@ defmodule PolyglotWatcherV2.ActionsExecutor do
       :put_insult -> do_execute(runnable, server_state)
       :cargo_test -> do_execute(runnable, server_state)
       :cargo_build -> do_execute(runnable, server_state)
-      {:reload_prompt, _name} -> do_execute(runnable, server_state)
       {:patch_files, _selector} -> do_execute(runnable, server_state)
       {:reload_ai_prompt, _name} -> do_execute(runnable, server_state)
       {:build_ai_api_request, _name, _test_path} -> do_execute(runnable, server_state)
       {:perform_ai_api_request, _name} -> do_execute(runnable, server_state)
       {:action_ai_api_response, _name, _test_path} -> do_execute(runnable, server_state)
-      {:persist_file, _path, _key} -> do_execute(runnable, server_state)
       {:persist_env_var, _key} -> do_execute(runnable, server_state)
       {:mix_test_latest_line, _test_path} -> do_execute(runnable, server_state)
       :mix_test_latest_line -> do_execute(runnable, server_state)
@@ -28,7 +27,6 @@ defmodule PolyglotWatcherV2.ActionsExecutor do
       {:puts, _colour, _message} -> do_execute(runnable, server_state)
       {:puts, _messages} -> do_execute(runnable, server_state)
       {:update_server_state, _} -> do_execute(runnable, server_state)
-      {:run_sys_cmd, _cmd, _args} -> do_execute(runnable, server_state)
       unknown -> raise "unknown action runnable #{inspect(unknown)}"
     end
   end
@@ -48,7 +46,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.{
     AI,
     EnvironmentVariables,
-    FileSystem,
     FilePatches,
     Puts,
     ShellCommandRunner
@@ -64,15 +61,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute(:clear_screen, server_state) do
     if actually_clear_screen?() do
-      do_execute({:run_sys_cmd, "tput", ["reset"]}, server_state)
+      {_std_out, exit_code} = System.cmd("tput", ["reset"], into: IO.stream(:stdio, :line))
+      {exit_code, server_state}
     else
       {0, server_state}
     end
-  end
-
-  defp do_execute({:run_sys_cmd, cmd, args}, server_state) do
-    {_std_out, exit_code} = System.cmd(cmd, args, into: IO.stream(:stdio, :line))
-    {exit_code, server_state}
   end
 
   defp do_execute({:update_server_state, fun}, server_state) do
@@ -113,10 +106,6 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
 
   defp do_execute({:persist_env_var, key}, server_state) do
     EnvironmentVariables.read_and_persist(key, server_state)
-  end
-
-  defp do_execute({:persist_file, path, key}, server_state) do
-    FileSystem.read_and_persist(path, key, server_state)
   end
 
   defp do_execute({:patch_files, selector}, server_state) do

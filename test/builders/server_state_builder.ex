@@ -18,7 +18,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
       os: :linux,
       watcher: Inotifywait,
       starting_dir: "./",
-      files: %{},
       env_vars: %{},
       stored_actions: nil,
       action_error: nil,
@@ -94,18 +93,6 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
 
   def with_anthropic_api_key(server_state, api_key) do
     with_env_var(server_state, @anthropic_api_key_env_var_name, api_key)
-  end
-
-  def with_file(server_state, key, %{contents: contents, path: path}) do
-    Map.update!(server_state, :files, fn files ->
-      Map.put(files, key, %{contents: contents, path: path})
-    end)
-  end
-
-  def with_file(server_state, key, nil) do
-    Map.update!(server_state, :files, fn files ->
-      Map.put(files, key, nil)
-    end)
   end
 
   def with_file_patches(server_state, file_patches) do

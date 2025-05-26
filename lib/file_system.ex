@@ -40,29 +40,12 @@ defmodule PolyglotWatcherV2.FileSystem do
   alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.FilePath
 
-  def read_and_persist(path, key, server_state) do
-    case FileWrapper.read(path) do
-      {:ok, contents} ->
-        {0, persist_file(server_state, key, contents, path)}
-
-      error ->
-        {error, server_state}
-    end
-  end
-
   def read(%FilePath{} = file_path), do: file_path |> FilePath.stringify() |> read()
   def read(path), do: FileWrapper.read(path)
-
-  def mkdir_p(path), do: FileWrapper.mkdir_p(path)
-
   def write(path, content), do: FileWrapper.write(path, content)
   def rm_rf(path), do: FileWrapper.rm_rf(path)
+  def cwd!, do: FileWrapper.cwd!()
+  def mkdir_p(path), do: FileWrapper.mkdir_p(path)
   def exists?(path), do: FileWrapper.exists?(path)
   def expand_path(path), do: FileWrapper.expand_path(path)
-
-  defp persist_file(server_state, key, contents, path) do
-    Map.update!(server_state, :files, fn files ->
-      Map.put(files, key, %{contents: contents, path: path})
-    end)
-  end
 end

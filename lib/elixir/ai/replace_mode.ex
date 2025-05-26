@@ -95,7 +95,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
            runnable: {:build_ai_api_request, :replace, test_path},
            next_action: %{0 => :perform_ai_api_request, :fallback => :exit}
          },
-         # TODO should put "Waiting for AI API call response...", but tell you which vendor / model
          perform_ai_api_request: %Action{
            runnable: {:perform_ai_api_request, :replace},
            next_action: :action_ai_api_response

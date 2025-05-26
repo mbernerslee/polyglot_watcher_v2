@@ -19,13 +19,11 @@ defmodule PolyglotWatcherV2.ServerTest do
                port: port,
                elixir: elixir,
                rust: rust,
-               files: files,
                config: %Config{},
                ai_prompts: %{}
              } =
                :sys.get_state(pid)
 
-      assert files == %{}
       assert is_port(port)
       assert %{mode: :default} == elixir
       assert %{mode: :default} == rust

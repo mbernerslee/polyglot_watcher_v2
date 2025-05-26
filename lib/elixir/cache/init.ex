@@ -9,9 +9,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   Into memory
   """
 
-  alias PolyglotWatcherV2.{ExUnitFailuresManifest, SystemWrapper}
+  alias PolyglotWatcherV2.{ExUnitFailuresManifest, FileSystem, SystemWrapper}
   alias PolyglotWatcherV2.Elixir.EquivalentPath
-  alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
   alias PolyglotWatcherV2.Elixir.Cache.TestFileASTParser
 
@@ -37,7 +36,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   end
 
   defp group_manifest_by_relative_test_path(manifest) do
-    cwd = FileWrapper.cwd!()
+    cwd = FileSystem.cwd!()
 
     Enum.reduce(manifest, %{}, fn {{_module, test}, test_path}, acc ->
       Map.update(acc, Path.relative_to(test_path, cwd), [test], fn tests -> [test | tests] end)
@@ -82,7 +81,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.Init do
   end
 
   defp read_test_file(path) do
-    case FileWrapper.read(path) do
+    case FileSystem.read(path) do
       {:ok, contents} -> {:ok, contents}
       {:error, _error} -> {:error, :no_test_file}
     end

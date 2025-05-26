@@ -27,7 +27,6 @@ defmodule PolyglotWatcherV2.Server do
     ai_state: %{},
     rust: %{mode: :default},
     env_vars: %{},
-    files: %{},
     stored_actions: nil,
     action_error: nil,
     file_patches: nil,
@@ -43,15 +42,13 @@ defmodule PolyglotWatcherV2.Server do
 
   @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
 
-  # TODO test ex air mode
-  # TODO split it up better? ... make AI more "pure" such that we're not passing the test_path around?
-  # TODO audit actions in actions_exec. delete dead unused actions
-
+  ############################################
+  # Once have internet connection that works
+  ############################################
+  # TODO test ex air mode manually
   # TODO better help around which vendors & models are available
   # TODO stop ignoring config.ai.model, use it
   # TODO consider how to check ai config args are compatible?
-
-  # TODO remove httpoison?
 
   def child_spec(command_line_args \\ []) do
     %{
