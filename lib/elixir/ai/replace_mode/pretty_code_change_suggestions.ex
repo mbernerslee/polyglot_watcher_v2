@@ -1,8 +1,7 @@
 defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestions do
   @magenta IO.ANSI.magenta()
   @reset IO.ANSI.reset()
-  @yellow IO.ANSI.yellow()
-  @light_blue IO.ANSI.light_blue()
+  @gray "\e[90m"
   @line "────────────────────────────────────────────────────────────"
 
   def generate(suggestions) do
@@ -14,7 +13,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestions do
   end
 
   defp suggestions(suggestions) do
-    Enum.map_join(suggestions, "\n#{@magenta}#{@line}#{@reset}\n\n", &suggestion/1)
+    Enum.map_join(suggestions, "\n#{@gray}#{@line}#{@reset}\n\n", &suggestion/1)
   end
 
   defp suggestion(suggestion) do
@@ -26,11 +25,11 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestions do
     } = suggestion
 
     """
-    #{@yellow}#{index}) 📁 #{path}#{@reset}
+    #{@gray}#{index}) 📁 #{path}#{@reset}
 
     #{git_diffs(git_diffs)}
 
-    #{@light_blue}🔎 #{explanation}#{@reset}
+    #{@gray}🔎 #{explanation}#{@reset}
     """
   end
 
@@ -42,7 +41,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestions do
 
   defp git_diff(%{start_line: start_line, end_line: end_line, diff: diff}) do
     String.trim_trailing("""
-    #{@light_blue}Lines #{start_line} - #{end_line}#{@reset}
+    #{@gray}Lines #{start_line} - #{end_line}#{@reset}
     #{diff}
     """)
   end
@@ -56,13 +55,13 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestions do
   end
 
   defp footer do
-    """
+    String.trim_trailing("""
     #{@magenta}#{@line}
     🎯 Choose your action:
        y          Apply all suggestions
        n          Skip all suggestions
        1,2,3      Apply specific suggestions (comma-separated)
     #{@line}#{@reset}
-    """
+    """)
   end
 end

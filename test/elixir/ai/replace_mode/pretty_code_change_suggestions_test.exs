@@ -126,7 +126,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestionsTes
            n          Skip all suggestions
            1,2,3      Apply specific suggestions (comma-separated)
         ────────────────────────────────────────────────────────────
-
         """
 
       assert output ==

@@ -15,19 +15,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.UserInputActions do
     {false, server_state}
   end
 
-  def prompt do
-    """
-    Accept suggestions?
-
-    y - yes, write all suggestions
-    n - no, write no suggestions
-    1 - suggestion number to take
-    1,2 - comma separated list of suggestion numbers to take
-
-    You can give one number at a time, or all at once. We'll go again if you select one at a time.
-    """
-  end
-
   defp do_determine(@yes, server_state) do
     {%{
        entry_point: :patch_files,

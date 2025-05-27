@@ -101,10 +101,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
          },
          action_ai_api_response: %Action{
            runnable: {:action_ai_api_response, :replace, test_path},
-           next_action: %{0 => :put_awaiting_input_msg, :fallback => :exit}
-         },
-         put_awaiting_input_msg: %Action{
-           runnable: {:puts, :magenta, UserInputActions.prompt()},
            next_action: :exit
          },
          put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}

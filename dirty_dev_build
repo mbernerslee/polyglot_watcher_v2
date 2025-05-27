@@ -1,0 +1,3 @@
+#!/bin/bash
+
+MIX_ENV=dev mix escript.build
