@@ -13,7 +13,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.PrettyCodeChangeSuggestions do
   end
 
   defp suggestions(suggestions) do
-    Enum.map_join(suggestions, "\n#{@gray}#{@line}#{@reset}\n\n", &suggestion/1)
+    Enum.map_join(suggestions, "\n#{@magenta}#{@line}#{@reset}\n\n", &suggestion/1)
   end
 
   defp suggestion(suggestion) do
