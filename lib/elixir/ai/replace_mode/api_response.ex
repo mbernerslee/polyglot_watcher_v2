@@ -2,7 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponse do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Puts
   alias PolyglotWatcherV2.GitDiff
-  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.FilePatchesBuilder
+  alias PolyglotWatcherV2.Elixir.AI.ReplaceMode.{FilePatchesBuilder, PrettyCodeChangeSuggestions}
 
   def action(test_path, server_state) do
     with {:ok, code_file_updates} <- get_api_response(server_state),
@@ -58,12 +58,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponse do
   end
 
   defp put_diffs_with_explanations(git_diffs, file_patches) do
-    Puts.on_new_line([
-      {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
-      {[:magenta], "██████████████████ AI Response ██████████████████\n"},
-      {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
-    ])
-
     Enum.reduce(file_patches, [], fn {path, %{patches: patches}}, acc ->
       Enum.reduce(patches, acc, fn %{index: index, explanation: explanation}, inner ->
         git_diff =
@@ -75,18 +69,8 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponse do
       end)
     end)
     |> Enum.sort(&(&1.index <= &2.index))
-    |> Enum.each(fn %{path: path, git_diff: git_diff, explanation: explanation} ->
-      Puts.on_new_line([
-        {[], path <> "\n"},
-        {[], git_diff},
-        {[], explanation},
-        {[], "\n────────────────────────\n"}
-      ])
-    end)
-
-    Puts.on_new_line([
-      {[:magenta], "█████████████████████████████████████████████████\n"}
-    ])
+    |> PrettyCodeChangeSuggestions.generate()
+    |> Puts.on_new_line()
   end
 
   defp update_server_state(file_patches, server_state) do

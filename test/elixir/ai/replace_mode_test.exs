@@ -144,7 +144,8 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
         :reload_ai_prompt,
         :build_ai_api_request,
         :perform_ai_api_request,
-        :action_ai_api_response
+        :action_ai_api_response,
+        :put_awaiting_input_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -164,7 +165,8 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
         :reload_ai_prompt,
         :build_ai_api_request,
         :perform_ai_api_request,
-        :action_ai_api_response
+        :action_ai_api_response,
+        :put_awaiting_input_msg
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)

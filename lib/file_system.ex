@@ -15,7 +15,7 @@ defmodule PolyglotWatcherV2.FileSystem.FileWrapper.Fake do
   def cwd!, do: "/home/mocked/fake/response"
   def mkdir_p(_path), do: :ok
   def exists?(_path), do: true
-  def expand_path(path), do: "/home/el_dude/" <> path
+  def expand_path(path), do: String.replace(path, "~", "/home/default_mocked_expand_path")
 end
 
 defmodule PolyglotWatcherV2.FileSystem.FileWrapper do

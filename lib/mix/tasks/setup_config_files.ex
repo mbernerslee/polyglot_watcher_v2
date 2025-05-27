@@ -49,16 +49,22 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFiles do
     end
   end
 
-  defp write_file(path, contents, description, _overwrite = false) do
+  defp write_file(path, contents, description, overwrite) do
+    path
+    |> FileSystem.expand_path()
+    |> do_write_file(contents, description, overwrite)
+  end
+
+  defp do_write_file(path, contents, description, _overwrite = false) do
     if FileSystem.exists?(path) do
       Puts.on_new_line("Already exists #{path} OK", :green)
       :ok
     else
-      write_file(path, contents, description, _overwrite = true)
+      do_write_file(path, contents, description, _overwrite = true)
     end
   end
 
-  defp write_file(path, contents, description, _overwrite = true) do
+  defp do_write_file(path, contents, description, _overwrite = true) do
     case FileSystem.write(path, contents) do
       :ok ->
         Puts.on_new_line("Written #{path} OK", :green)
@@ -71,7 +77,10 @@ defmodule Mix.Tasks.PolyglotWatcherV2.SetupConfigFiles do
   end
 
   defp create_dir(dir) do
-    case FileSystem.mkdir_p(dir) do
+    dir
+    |> FileSystem.expand_path()
+    |> FileSystem.mkdir_p()
+    |> case do
       :ok ->
         :ok
 

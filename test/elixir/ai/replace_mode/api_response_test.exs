@@ -81,43 +81,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponseTest do
         {std_out, 1}
       end)
 
-      Mimic.expect(Puts, :on_new_line, 1, fn
-        [
-          {[:magenta], "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n"},
-          {[:magenta], "██████████████████ AI Response ██████████████████\n"},
-          {[:magenta], "▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"}
-        ] ->
-          :ok
-      end)
-
-      Mimic.expect(Puts, :on_new_line, 1, fn
-        [
-          {[], "lib/a.ex\n"},
-          {[],
-           "────────────────────────\n1) Line: 1\n────────────────────────\n-test contents OLD TEST\n+test contents NEW TEST\n────────────────────────\n"},
-          {[], "some lib code was awful"},
-          {[], "\n────────────────────────\n"}
-        ] ->
-          :ok
-      end)
-
-      Mimic.expect(Puts, :on_new_line, 1, fn
-        [
-          {[], "test/a_test.exs\n"},
-          {[],
-           "────────────────────────\n2) Line: 1\n────────────────────────\n-lib contents OLD LIB\n+lib contents NEW LIB\n────────────────────────\n"},
-          {[], "some test code was awful"},
-          {[], "\n────────────────────────\n"}
-        ] ->
-          :ok
-      end)
-
-      Mimic.expect(Puts, :on_new_line, 1, fn
-        [
-          {[:magenta], "█████████████████████████████████████████████████\n"}
-        ] ->
-          :ok
-      end)
+      Mimic.expect(Puts, :on_new_line, 1, fn _ -> :ok end)
 
       assert {0, new_server_state} = APIResponse.action(test_path, server_state)
 
@@ -406,7 +370,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode.APIResponseTest do
           {std_out, 1}
       end)
 
-      Mimic.expect(Puts, :on_new_line, 4, fn _ -> :ok end)
+      Mimic.expect(Puts, :on_new_line, 1, fn _ -> :ok end)
 
       assert {0, new_server_state} = APIResponse.action(test_path, server_state)
 
