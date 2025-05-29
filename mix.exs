@@ -42,11 +42,9 @@ defmodule PolyglotWatcherV2.MixProject do
 
   defp deps do
     [
-      {:httpoison, "~> 2.0"},
       {:jason, "~> 1.4"},
       {:mimic, "~> 1.7", only: :test},
       {:instructor_lite, "~> 0.3.0"},
-      # yes, having 2 HTTP libraries is bad, but the docs for instructor_lite suggesting using req, so adding this for ease
       {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.11.0"}
     ]

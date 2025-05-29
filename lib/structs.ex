@@ -104,12 +104,11 @@ defmodule PolyglotWatcherV2.ServerState do
           ai_state: ai_state(),
           rust: rust_state(),
           env_vars: %{optional(String.t()) => String.t()},
-          files: %{optional(any()) => file_info()},
           stored_actions: any(),
           action_error: any(),
           file_patches: [file_patch()] | nil,
           config: Config.t(),
-          ai_prompt: String.t()
+          ai_prompts: map()
         }
 
   @enforce_keys [
@@ -122,12 +121,11 @@ defmodule PolyglotWatcherV2.ServerState do
     :ai_state,
     :rust,
     :env_vars,
-    :files,
     :stored_actions,
     :action_error,
     :file_patches,
     :config,
-    :ai_prompt
+    :ai_prompts
   ]
 
   defstruct port: nil,
@@ -139,10 +137,9 @@ defmodule PolyglotWatcherV2.ServerState do
             ai_state: %{},
             rust: %{mode: :default},
             env_vars: %{},
-            files: %{},
             stored_actions: nil,
             action_error: nil,
             file_patches: nil,
             config: nil,
-            ai_prompt: nil
+            ai_prompts: nil
 end

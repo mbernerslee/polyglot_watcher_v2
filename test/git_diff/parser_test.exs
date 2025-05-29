@@ -20,21 +20,18 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
            end
         """
 
-      expected =
+      expected_diff =
         """
-        ────────────────────────
-        1) Lines: 1 - 5
-        ────────────────────────
            defmodule Cool do
              def cool(text) do
         -      text
         +      "cool " <> text
              end
            end
-        ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw, 1)
+      assert {:ok, [%{start_line: 1, end_line: 5, diff: expected_diff}]} ==
+               Parser.parse(raw, 1)
     end
 
     test "when the last line is not a newline its ok" do
@@ -54,21 +51,18 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         """
         |> String.trim_trailing()
 
-      expected =
+      expected_diff =
         """
-        ────────────────────────
-        3) Lines: 1 - 5
-        ────────────────────────
            defmodule Cool do
              def cool(text) do
         -      text
         +      "cool " <> text
              end
            end
-        ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw, 3)
+      assert {:ok, [%{start_line: 1, end_line: 5, diff: expected_diff}]} ==
+               Parser.parse(raw, 3)
     end
 
     # apparently this is possible. see link
@@ -85,17 +79,14 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
         +      "cool " <> text
         """
 
-      expected =
+      expected_diff =
         """
-        ────────────────────────
-        2) Line: 1
-        ────────────────────────
         -      text
         +      "cool " <> text
-        ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw, 2)
+      assert {:ok, [%{start_line: 1, end_line: 1, diff: expected_diff}]} ==
+               Parser.parse(raw, 2)
     end
 
     test "can handle diffs that aren't at the top of the file" do
@@ -116,11 +107,8 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
            end
         """
 
-      expected =
+      expected_diff =
         """
-        ────────────────────────
-        4) Lines: 11 - 17
-        ────────────────────────
                                                                       {:none, server_state} ->
                case language_module.determine_actions(file_path, server_state) do
                  {:none, server_state} -> {:cont, {:none, server_state}}
@@ -129,10 +117,25 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
                end
              end)
            end
-        ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw, 4)
+      assert {:ok, [%{start_line: 11, end_line: 17, diff: expected_diff}]} ==
+               Parser.parse(raw, 4)
+
+      expected_diff =
+        """
+                                                                      {:none, server_state} ->
+               case language_module.determine_actions(file_path, server_state) do
+                 {:none, server_state} -> {:cont, {:none, server_state}}
+        -        {actions, server_state} -> cool replacement
+        +        {actions, server_state} -> {:halt, {actions, server_state}}
+               end
+             end)
+           end
+        """
+
+      assert {:ok, [%{start_line: 11, end_line: 17, diff: expected_diff}]} ==
+               Parser.parse(raw, 4)
     end
 
     test "can parse multiple hunks" do
@@ -162,11 +165,8 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
              end\e[m
         """
 
-      expected =
+      expected_diff_1 =
         """
-        ────────────────────────
-        5) Lines: 18 - 24
-        ────────────────────────
                lib_contents = \"lib contents OLD LIB\"\e[m
                mix_test_output = \"mix test output\"\e[m
          \e[m
@@ -175,9 +175,10 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
          \e[m
                test_file = %{path: test_path, contents: test_contents}\e[m
                lib_file = %{path: lib_path, contents: lib_contents}\e[m
-        ────────────────────────
-        5) Lines: 370 - 376
-        ────────────────────────
+        """
+
+      expected_diff_2 =
+        """
          \e[m
                assert {1, new_server_state} = APICall.perform(test_path, server_state)\e[m
          \e[m
@@ -186,10 +187,13 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
                assert new_server_state.action_error == expected_error\e[m
                assert %{server_state | action_error: expected_error} == new_server_state\e[m
              end\e[m
-        ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw, 5)
+      assert {:ok,
+              [
+                %{start_line: 18, end_line: 24, diff: expected_diff_1},
+                %{start_line: 370, end_line: 376, diff: expected_diff_2}
+              ]} == Parser.parse(raw, 5)
     end
 
     test "when no hunk start is found, return error" do
@@ -223,19 +227,16 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
 
       expected =
         """
-        ────────────────────────
-        7) Lines: 1 - 5
-        ────────────────────────
            defmodule Cool do
              def cool(text) do
         -      text
         +      "@@ -10,13 +10,13 @@"
              end
            end
-        ────────────────────────
         """
 
-      assert {:ok, expected} == Parser.parse(raw, 7)
+      assert {:ok, [%{start_line: 1, end_line: 5, diff: expected}]} ==
+               Parser.parse(raw, 7)
     end
   end
 end

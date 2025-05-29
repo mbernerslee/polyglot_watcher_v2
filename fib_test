@@ -1,0 +1,13 @@
+#!/bin/bash
+
+function sleep_and_touch() {
+  sleep 3
+  echo "hi"
+  touch lib/fib.ex
+}
+
+MIX_ENV=dev mix escript.build
+
+cd ../fib
+sleep_and_touch &
+../polyglot_watcher_v2/polyglot_watcher_v2_dev ex air

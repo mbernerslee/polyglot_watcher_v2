@@ -5,7 +5,6 @@ defmodule PolyglotWatcherV2.Server do
   alias PolyglotWatcherV2.{
     TraverseActionsTree,
     ConfigFile,
-    Const,
     Determine,
     UserInput,
     Puts,
@@ -17,7 +16,6 @@ defmodule PolyglotWatcherV2.Server do
   alias PolyglotWatcherV2.FileSystemWatchers.{Inotifywait, FSWatch}
 
   @process_name :server
-  @default_ai_prompt Const.default_prompt()
 
   @default_options [name: @process_name]
 
@@ -29,11 +27,10 @@ defmodule PolyglotWatcherV2.Server do
     ai_state: %{},
     rust: %{mode: :default},
     env_vars: %{},
-    files: %{},
     stored_actions: nil,
     action_error: nil,
     file_patches: nil,
-    ai_prompt: @default_ai_prompt
+    ai_prompts: %{}
   }
 
   @supported_oss %{

@@ -3,8 +3,6 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
   @line_count_regex ~r|^#{@ansi_sequence}*@@ \-(?<line_number>[0-9]+),(?<line_count>[0-9]+)\s\+[0-9]+,[0-9]+ @@|
   @one_line_regex ~r|^#{@ansi_sequence}*@@ \-(?<line_number>[0-9]+)\s\+[0-9]+ @@|
 
-  @bar_line "────────────────────────"
-
   def parse(git_diff_output, index) do
     git_diff_output
     |> String.split("\n")
@@ -23,28 +21,43 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
   end
 
   defp do_parse([""], true, acc, _index) do
-    result = ["", @bar_line | acc] |> Enum.reverse() |> Enum.join("\n")
+    result =
+      acc
+      |> Enum.map(fn hunk ->
+        %{hunk | diff: ["" | hunk.diff] |> Enum.reverse() |> Enum.join("\n")}
+      end)
+      |> Enum.reverse()
+
     {:ok, result}
   end
 
   defp do_parse([], true, acc, _index) do
-    result = ["", @bar_line | acc] |> Enum.reverse() |> Enum.join("\n")
+    result =
+      acc
+      |> Enum.map(fn hunk ->
+        %{hunk | diff: ["" | hunk.diff] |> Enum.reverse() |> Enum.join("\n")}
+      end)
+      |> Enum.reverse()
+
     {:ok, result}
   end
 
   defp do_parse([line | rest], found?, acc, index) do
     case {capture_hunk_line(line), found?} do
-      {{:ok, line_number, line_count}, _} ->
-        last_line = String.to_integer(line_number) + String.to_integer(line_count) - 1
-        lines_line = "#{index}) Lines: #{line_number} - #{last_line}"
-        do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc], index)
+      {{:ok, start_line, line_count}, _} ->
+        last_line = start_line + line_count - 1
+        hunk = %{start_line: start_line, end_line: last_line, diff: []}
+        do_parse(rest, true, [hunk | acc], index)
 
-      {{:ok, line_number}, _} ->
-        lines_line = "#{index}) Line: #{line_number}"
-        do_parse(rest, true, [@bar_line, lines_line, @bar_line | acc], index)
+      {{:ok, start_line}, _} ->
+        hunk = %{start_line: start_line, end_line: start_line, diff: []}
+        do_parse(rest, true, [hunk | acc], index)
 
       {:error, true} ->
-        do_parse(rest, true, [String.trim_trailing(line) | acc], index)
+        [%{diff: diff} = hunk | acc_rest] = acc
+        hunk = %{hunk | diff: [String.trim_trailing(line) | diff]}
+        acc = [hunk | acc_rest]
+        do_parse(rest, true, acc, index)
 
       {:error, false} ->
         do_parse(rest, false, acc, index)
@@ -55,10 +68,10 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
     Enum.reduce_while([@line_count_regex, @one_line_regex], :error, fn regex, _ ->
       case Regex.named_captures(regex, line, capture: :all_but_first) do
         %{"line_number" => line_number, "line_count" => line_count} ->
-          {:halt, {:ok, line_number, line_count}}
+          {:halt, {:ok, String.to_integer(line_number), String.to_integer(line_count)}}
 
         %{"line_number" => line_number} ->
-          {:halt, {:ok, line_number}}
+          {:halt, {:ok, String.to_integer(line_number)}}
 
         _ ->
           {:cont, :error}

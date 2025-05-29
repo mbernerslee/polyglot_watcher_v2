@@ -90,19 +90,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       ActionsTreeValidator.validate(tree)
     end
 
-    test "returns the AI Default Mode actions when in that state" do
-      server_state =
-        ServerStateBuilder.build()
-        |> ServerStateBuilder.with_elixir_mode(:ai_default)
-        |> ServerStateBuilder.with_anthropic_api_key("SECRET")
-
-      assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
-
-      assert %{entry_point: :clear_screen} = tree
-
-      ActionsTreeValidator.validate(tree)
-    end
-
     test "returns the AI Replace Mode actions when in that state" do
       server_state =
         ServerStateBuilder.build()
@@ -289,28 +276,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       )
 
       ActionsTreeValidator.validate(tree)
-    end
-
-    test "switching to ai default mode" do
-      server_state = ServerStateBuilder.build()
-      assert {tree, ^server_state} = Determiner.user_input_actions("ex ai", server_state)
-
-      assert %{entry_point: :clear_screen} = tree
-
-      expected_action_tree_keys = [
-        :clear_screen,
-        :put_switch_mode_msg,
-        :switch_mode,
-        :persist_api_key,
-        :no_api_key_fail_msg,
-        :put_awaiting_file_save_msg
-      ]
-
-      ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
-      ActionsTreeValidator.validate(tree)
-
-      assert %Action{runnable: {:switch_mode, :elixir, :ai_default}} =
-               tree.actions_tree.switch_mode
     end
 
     test "switching to ai replace mode" do
