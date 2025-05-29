@@ -50,7 +50,7 @@ install_inotify_tools() {
     echo "inotify-tools is already installed OK"
   else
     echo "About to install inotify-tools..."
-    sudo apt install inotify-tools
+    sudo apt install inotify-tools -y
     install_inotify_tools_result=$?
 
     if [[ $install_inotify_tools_result -eq 0 ]]; then
@@ -104,7 +104,7 @@ create_symlink_for_mac() {
 }
 
 create_config_files() {
-  mix polyglot_watcher_v2.setup_config_files
+  MIX_ENV=prod mix polyglot_watcher_v2.setup_config_files
   if [[ $? -eq 0 ]]; then
     echo "created polyglot_watcher_v2 config files OK"
   else
