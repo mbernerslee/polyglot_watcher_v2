@@ -8,8 +8,8 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
   alias PolyglotWatcherV2.ConfigFile
   alias PolyglotWatcherV2.FileSystem.FileWrapper
 
-  # TODO remove expanded paths from test assertions. Use Path.expand mock in FileWrapper instead
-  @path "/home/berners/.config/polyglot_watcher_v2/config.yml"
+  @unexpanded_path "~/.config/polyglot_watcher_v2/config.yml"
+  @expanded_path "/home/cool_dude/.config/polyglot_watcher_v2/config.yml"
   @config_with_model """
     AI:
       vendor: Anthropic
@@ -24,9 +24,17 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
   @default_config_contents Const.default_config_contents()
   @anthropic_api_key_env_var_name Const.anthropic_api_key_env_var_name()
 
+  setup do
+    Mimic.expect(FileWrapper, :expand_path, 1, fn
+      @unexpanded_path -> @expanded_path
+    end)
+
+    :ok
+  end
+
   test "default_config_contents returns a valid config" do
     Mimic.expect(FileWrapper, :read, 1, fn
-      @path -> {:ok, @default_config_contents}
+      @expanded_path -> {:ok, @default_config_contents}
     end)
 
     assert {:ok,
@@ -42,7 +50,7 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
   describe "read/1" do
     test "when a valid file exists, it is read" do
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:ok, @config_with_model}
+        @expanded_path -> {:ok, @config_with_model}
       end)
 
       assert {:ok,
@@ -57,7 +65,7 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
 
     test "when no model is specified, thats ok and we put model = nil" do
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:ok, @config_without_model}
+        @expanded_path -> {:ok, @config_without_model}
       end)
 
       assert {:ok,
@@ -72,13 +80,13 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
 
     test "when the config file does not exist, return error" do
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:error, :enoent}
+        @expanded_path -> {:error, :enoent}
       end)
 
       assert {:error,
               """
-              Error reading config file at #{@path}, because it does not exist.
-              You should have a backup at #{@path}.backup, but failing that you can use the default of:
+              Error reading config file at #{@expanded_path}, because it does not exist.
+              You should have a backup at #{@expanded_path}.backup, but failing that you can use the default of:
 
               ```
                 AI:
@@ -91,10 +99,10 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
 
     test "when there's an error opening the config file, return error" do
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:error, :eacces}
+        @expanded_path -> {:error, :eacces}
       end)
 
-      assert {:error, "Error reading config file at #{@path}. The error was :eacces"} ==
+      assert {:error, "Error reading config file at #{@expanded_path}. The error was :eacces"} ==
                ConfigFile.read()
     end
 
@@ -107,7 +115,7 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
       """
 
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:ok, invalid_yaml_contents}
+        @expanded_path -> {:ok, invalid_yaml_contents}
       end)
 
       assert {:error,
@@ -122,7 +130,7 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
       """
 
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:ok, missing_fields_contents}
+        @expanded_path -> {:ok, missing_fields_contents}
       end)
 
       assert {:error,
@@ -156,48 +164,12 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
       """
 
       Mimic.expect(FileWrapper, :read, 1, fn
-        @path -> {:ok, invalid_vendor_contents}
+        @expanded_path -> {:ok, invalid_vendor_contents}
       end)
 
       assert {:error,
               "Error decoding config file at ~/.config/polyglot_watcher_v2/config.yml. Invalid vendor given. Vendors I accept are [\"Anthropic\"]"} ==
                ConfigFile.read()
     end
-  end
-
-  test "x" do
-    # what MV seeds does, then finds A.B.* modules
-    # {:ok, modules} = :application.get_key(:polyglot_watcher_v2, :modules)
-    # slow thing that force loads all modules in the app. they're loaded lazily otherwise
-
-    # :polyglot_watcher_v2
-    # |> Application.spec()
-    # |> Keyword.fetch!(:modules)
-    # |> Enum.each(fn module -> Code.ensure_loaded(module) end)
-
-    # :instructor_lite
-    # |> Application.spec()
-    # |> Keyword.fetch!(:modules)
-    # |> Enum.each(fn module -> Code.ensure_loaded(module) end)
-
-    # Application.ensure_loaded(:polyglot_watcher_v2)
-    # Application.ensure_loaded(:instructor_lite)
-
-    # :code.all_loaded()
-    # |> Enum.map(&elem(&1, 0))
-    # |> Enum.map(fn mod -> {mod, mod.module_info(:attributes)[:behaviour] || []} end)
-    # |> Enum.filter(fn {_, b} -> InstructorLite.Adapter in b end)
-    # |> Enum.sort()
-    # |> IO.inspect(limit: :infinity)
-
-    {:ok, il_modules} = :application.get_key(:instructor_lite, :modules)
-    {:ok, pw_modules} = :application.get_key(:polyglot_watcher_v2, :modules)
-
-    (il_modules ++ pw_modules)
-    |> Enum.filter(fn mod ->
-      String.contains?(to_string(mod), "InstructorLite.Adapters.")
-    end)
-
-    # |> IO.inspect()
   end
 end

@@ -65,8 +65,8 @@ defmodule PolyglotWatcherV2.GitDiff.ParserTest do
                Parser.parse(raw, 3)
     end
 
-    # # apparently this is possible. see link
-    # # https://stackoverflow.com/questions/2529441/how-to-read-the-output-from-git-diff
+    # apparently this is possible. see link
+    # https://stackoverflow.com/questions/2529441/how-to-read-the-output-from-git-diff
     test "when there's no number of lines, it means there's only 1" do
       raw =
         """

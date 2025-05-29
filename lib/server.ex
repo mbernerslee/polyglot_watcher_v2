@@ -42,14 +42,6 @@ defmodule PolyglotWatcherV2.Server do
 
   @zombie_killer "#{:code.priv_dir(:polyglot_watcher_v2)}/zombie_killer"
 
-  ############################################
-  # Once have internet connection that works
-  ############################################
-  # TODO test ex air mode manually
-  # TODO better help around which vendors & models are available
-  # TODO stop ignoring config.ai.model, use it
-  # TODO consider how to check ai config args are compatible?
-
   def child_spec(command_line_args \\ []) do
     %{
       id: __MODULE__,

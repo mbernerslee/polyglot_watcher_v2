@@ -106,8 +106,6 @@ defmodule PolyglotWatcherV2.ActionsTreeValidator do
     actions_tree
     |> Enum.map(fn {_, %{runnable: runnable}} -> runnable end)
     |> Enum.each(fn runnable ->
-      # raises if the runnable does not exist.
-      # execute/2 doesn't actually cause side effects when MIX_ENV = test
       {_, _} = ActionsExecutor.execute(runnable, ServerStateBuilder.build())
     end)
   end

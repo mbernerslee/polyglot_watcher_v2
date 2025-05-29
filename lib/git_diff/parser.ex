@@ -3,8 +3,6 @@ defmodule PolyglotWatcherV2.GitDiff.Parser do
   @line_count_regex ~r|^#{@ansi_sequence}*@@ \-(?<line_number>[0-9]+),(?<line_count>[0-9]+)\s\+[0-9]+,[0-9]+ @@|
   @one_line_regex ~r|^#{@ansi_sequence}*@@ \-(?<line_number>[0-9]+)\s\+[0-9]+ @@|
 
-  # @bar_line "────────────────────────"
-
   def parse(git_diff_output, index) do
     git_diff_output
     |> String.split("\n")

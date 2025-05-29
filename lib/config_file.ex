@@ -22,7 +22,7 @@ defmodule PolyglotWatcherV2.ConfigFile do
   end
 
   defp read_file do
-    path = Path.expand(@path)
+    path = FileSystem.expand_path(@path)
 
     case FileSystem.read(path) do
       {:ok, contents} ->
