@@ -2,7 +2,7 @@
 
 Mix.install([{:req, "~> 0.5.0"}, {:instructor_lite, "~> 0.3.0"}, {:instructor, "~> 0.1.0"}])
 
-defmodule Lite.LLMExplainer do
+defmodule InstructorLite.ResponseModels.LLMExplainer do
   use Ecto.Schema
   use InstructorLite.Instruction
 
@@ -13,17 +13,7 @@ defmodule Lite.LLMExplainer do
   end
 end
 
-# config = [
-#  adapter: Instructor.Adapters.Gemini,
-#  api_key: System.fetch_env!("GEMINI_API_KEY")
-# ]
-
-config = [
-  adapter: Instructor.Adapters.Anthropic,
-  api_key: System.fetch_env!("ANTHROPIC_API_KEY")
-]
-
-defmodule President do
+defmodule Instructor.ResponseModels.President do
   use Ecto.Schema
   use Instructor
 
@@ -32,36 +22,38 @@ defmodule President do
     hi
   """
   embedded_schema do
-    field(:first_name, :string)
-    field(:last_name, :string)
-    field(:entered_office_date, :date)
+    field :first_name, :string
+    field :last_name, :string
+    field :entered_office_date, :date
   end
 end
 
-# Instructor.chat_completion(
-#  [
-#    model: "gemini-2.0-flash",
-#    mode: :json_schema,
-#    response_model: President,
-#    messages: [
-#      %{role: "user", content: "Who was the first president of the United States?"}
-#    ]
-#  ],
-#  config
-# )
-# |> IO.inspect()
-
 Instructor.chat_completion(
   [
-    model: "claude-3-5-haiku-20241022",
-    # mode: :tools,
-    max_tokens: 1000,
-    response_model: President,
+    model: "gemini-2.0-flash",
+    mode: :json_schema,
+    response_model: Instructor.ResponseModels.President,
     messages: [
       %{role: "user", content: "Who was the first president of the United States?"}
     ]
   ],
-  config
+  adapter: Instructor.Adapters.Gemini,
+  api_key: System.fetch_env!("GEMINI_API_KEY")
+)
+|> IO.inspect()
+
+Instructor.chat_completion(
+  [
+    model: "claude-3-5-haiku-20241022",
+    mode: :tools,
+    max_tokens: 1000,
+    response_model: Instructor.ResponseModels.President,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  adapter: Instructor.Adapters.Anthropic,
+  api_key: System.fetch_env!("ANTHROPIC_API_KEY")
 )
 |> IO.inspect()
 
