@@ -44,7 +44,9 @@ defmodule PolyglotWatcherV2.MixProject do
     [
       {:jason, "~> 1.4"},
       {:mimic, "~> 1.7", only: :test},
+      # TODO remove lite
       {:instructor_lite, "~> 0.3.0"},
+      {:instructor, "~> 0.1.0"},
       {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.11.0"}
     ]

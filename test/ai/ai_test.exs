@@ -10,10 +10,71 @@ defmodule PolyglotWatcherV2.AITest do
     ServerStateBuilder
   }
 
+  alias PolyglotWatcherV2.Config
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.FileSystem.FileWrapper
   alias PolyglotWatcherV2.InstructorLiteWrapper
   alias PolyglotWatcherV2.InstructorLiteSchemas.{CodeFileUpdate, CodeFileUpdates}
+
+  # TODO add a version of this test that just checks all API calls can be built. run that test as part of the regular test run (in other words test vendor model validation returns OK for all combos in the hard coded list)
+  # TODO continue here. finish making switch to Instructor from InstructorLite
+  @doc """
+  Excluded by default when running `mix test`
+
+  Is run via `mix test --only makes_real_ai_api_call`, which is wrapped in:
+  `scripts/e2e_test`
+  """
+  @tag :makes_real_ai_api_call
+  test "all vendors models can make AI API calls that work" do
+    Application.put_env(:polyglot_watcher_v2, :use_real_instructor_lite, true)
+
+    Enum.each(AI.vendors(), fn {_vendor_name, vendor_config} ->
+      %{
+        instructor_adapter: adapter,
+        api_key_env_var_name: api_key_env_var_name,
+        models: models
+      } = vendor_config
+
+      api_key = System.fetch_env!(api_key_env_var_name)
+
+      Enum.each(models, fn model ->
+        config = %Config{
+          ai: %Config.AI{
+            adapter: adapter,
+            model: model,
+            api_key_env_var_name: api_key_env_var_name
+          }
+        }
+
+        server_state =
+          ServerStateBuilder.build()
+          |> ServerStateBuilder.with_config(config)
+          |> ServerStateBuilder.with_env_var(api_key_env_var_name, api_key)
+          |> ServerStateBuilder.with_ai_prompt(:replace, "replace prompt")
+
+        test_path = "test/a_test.exs"
+        test_contents = "test contents OLD TEST"
+        lib_path = "lib/a.ex"
+        lib_contents = "lib contents OLD LIB"
+        mix_test_output = "mix test output"
+
+        test_file = %{path: test_path, contents: test_contents}
+        lib_file = %{path: lib_path, contents: lib_contents}
+
+        Mimic.expect(Cache, :get_files, fn this_test_path ->
+          assert this_test_path == test_path
+
+          {:ok, %{test: test_file, lib: lib_file, mix_test_output: mix_test_output}}
+        end)
+
+        assert {0, server_state} = AI.build_api_request(:replace, test_path, server_state)
+
+        assert {0, server_state} = AI.perform_api_request(:replace, server_state)
+
+        IO.inspect(server_state.ai_state.response)
+      end)
+    end)
+  end
 
   describe "reload_prompt/2" do
     test "given a prompt name & server_state, reloads the prompt from file" do

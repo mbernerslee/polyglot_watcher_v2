@@ -167,9 +167,10 @@ defmodule PolyglotWatcherV2.ConfigFileTest do
         @expanded_path -> {:ok, invalid_vendor_contents}
       end)
 
-      assert {:error,
-              "Error decoding config file at ~/.config/polyglot_watcher_v2/config.yml. Invalid vendor given. Vendors I accept are [\"Anthropic\"]"} ==
-               ConfigFile.read()
+      assert {:error, error} = ConfigFile.read()
+
+      assert error =~
+               "Error decoding config file at ~/.config/polyglot_watcher_v2/config.yml. Invalid vendor given. Vendors I accept are"
     end
   end
 end

@@ -79,6 +79,10 @@ defmodule PolyglotWatcherV2.ServerStateBuilder do
     put_in(server_state, [:action_error], action_error)
   end
 
+  def with_config(server_state, config) do
+    put_in(server_state, [:config], config)
+  end
+
   def with_ai_config(server_state, ai_config) do
     put_in(server_state, [:config, :ai], ai_config)
   end

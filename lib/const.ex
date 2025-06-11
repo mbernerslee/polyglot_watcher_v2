@@ -17,6 +17,7 @@ defmodule PolyglotWatcherV2.Const do
 
   def claude_3_5_sonnet_20240620, do: "claude-3-5-sonnet-20240620"
   def anthropic_api_key_env_var_name, do: "ANTHROPIC_API_KEY"
+  def gemini_api_key_env_var_name, do: "GEMINI_API_KEY"
 
   def default_config_contents do
     """

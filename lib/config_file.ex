@@ -1,17 +1,11 @@
 defmodule PolyglotWatcherV2.ConfigFile do
+  alias PolyglotWatcherV2.AI
   alias PolyglotWatcherV2.Const
   alias PolyglotWatcherV2.Config
-  alias PolyglotWatcherV2.Config.AI
   alias PolyglotWatcherV2.FileSystem
 
   @path Const.config_file_path()
   @default_config_contents Const.default_config_contents()
-  @ai_vendors %{
-    "Anthropic" => %{
-      adapter: InstructorLite.Adapters.Anthropic,
-      api_key_env_var_name: Const.anthropic_api_key_env_var_name()
-    }
-  }
 
   def read do
     with {:ok, contents} <- read_file(),
@@ -56,15 +50,15 @@ defmodule PolyglotWatcherV2.ConfigFile do
   end
 
   defp build([%{"AI" => %{"vendor" => vendor} = ai}]) do
-    case Map.get(@ai_vendors, vendor) do
+    case Map.get(AI.vendors(), vendor) do
       nil ->
         {:error,
-         "Error decoding config file at ~/.config/polyglot_watcher_v2/config.yml. Invalid vendor given. Vendors I accept are #{inspect(Map.keys(@ai_vendors))}"}
+         "Error decoding config file at ~/.config/polyglot_watcher_v2/config.yml. Invalid vendor given. Vendors I accept are #{inspect(Map.keys(AI.vendors()))}"}
 
       %{adapter: adapter, api_key_env_var_name: api_key_env_var_name} ->
         {:ok,
          %Config{
-           ai: %AI{
+           ai: %Config.AI{
              adapter: adapter,
              model: ai["model"],
              api_key_env_var_name: api_key_env_var_name

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+#TODO consider how / when to run this. As a standalone script it should remain probably
+
+mix test --only makes_real_ai_api_call

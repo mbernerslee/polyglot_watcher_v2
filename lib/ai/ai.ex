@@ -31,6 +31,23 @@ defmodule PolyglotWatcherV2.AI do
 
   @response_models %{replace: CodeFileUpdates}
 
+  def vendors do
+    %{
+      "Anthropic" => %{
+        adapter: InstructorLite.Adapters.Anthropic,
+        instructor_adapter: Instructor.Adapters.Anthropic,
+        api_key_env_var_name: "ANTHROPIC_API_KEY",
+        models: ["claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022"]
+      },
+      "Gemini" => %{
+        adapter: InstructorLite.Adapters.Gemini,
+        instructor_adapter: Instructor.Adapters.Gemini,
+        api_key_env_var_name: "GEMINI_API_KEY",
+        models: ["gemini-2.0-flash"]
+      }
+    }
+  end
+
   def reload_prompt(name, server_state) do
     unexpanded_path = Path.join(Const.prompts_dir_path(), to_string(name))
 
