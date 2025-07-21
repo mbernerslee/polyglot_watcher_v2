@@ -1,6 +1,63 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+BRIGHT_GREEN="\033[1;32m"
+RESET="\033[0m"
+
+# Standard green (not bold)
+GREEN="\033[32m"
+
+# Bold green (most common for success)
+BOLD_GREEN="\033[1;32m"
+
+# Bright green (brighter than bold)
+BRIGHT_GREEN="\033[92m"
+
+# Soft teal/cyan - very readable, calm
+SOFT_GREEN="\033[38;2;166;227;161m"    # Catppuccin Green
+TEAL="\033[38;2;148;226;213m"          # Catppuccin Teal
+SOFT_BLUE="\033[38;2;137;180;250m"     # Catppuccin Blue
+
+# Warm options
+PEACH="\033[38;2;250;179;135m"         # Catppuccin Peach
+YELLOW="\033[38;2;249;226;175m"        # Catppuccin Yellow
+
+# Cool purple/lavender
+MAUVE="\033[38;2;203;166;247m"         # Catppuccin Mauve
+LAVENDER="\033[38;2;180;190;254m"      # Catppuccin Lavender
+
+MOCHA_RED="\033[38;2;243;139;168m"
+
+INFO_COLOUR=$TEAL
+SUCCESS_COLOUR=$SOFT_GREEN
+FAILURE_COLOUR=$MOCHA_RED
+
+echo_success() {
+  echo -e "${SUCCESS_COLOUR}$@${RESET}"
+}
+
+echo_info() {
+  echo -e "${INFO_COLOUR}$@${RESET}"
+}
+
+echo_failure() {
+  echo -e "${FAILURE_COLOUR}$@${RESET}"
+}
+
+run_and_log() {
+  echo_info "─────────────────────────────────────────────────"
+  echo_info "$@"
+  echo_info "─────────────────────────────────────────────────"
+  eval "$@"
+  result=$?
+  if [[ $? -eq 0 ]]; then
+    echo_success "✓ ok"
+  else
+    echo_failure "✗ Failed"
+  fi
+  return $result
+}
 
 check_brew_is_installed() {
   command -v brew >/dev/null
@@ -83,12 +140,11 @@ build() {
   fi
 }
 
-create_symlink_for_debian() {
-  ln -sf $DIR/polyglot_watcher_v2 ~/.local/bin/polyglot_watcher_v2
-  if [[ $? -eq 0 ]]; then
-    echo "created polyglot_watcher_v2 symlink to ~/.local/bin OK"
-  else
-    echo "created to create polyglot_watcher_v2 symlink :-("
+create_symlink_to_local_bin() {
+  run_and_log "rm -f ~/.local/bin/polyglot_watcher_v2"
+  run_and_log "mkdir -p ~/.local/bin"
+  run_and_log "ln -sf $DIR/polyglot_watcher_v2 ~/.local/bin/polyglot_watcher_v2"
+  if [[ $? -ne 0 ]]; then
     exit 1
   fi
 }
@@ -130,15 +186,40 @@ install_for_debian() {
   check_elixir_installed
   build
   create_config_files
-  create_symlink_for_debian
+  create_symlink_to_local_bin
   echo "Everything installed OK"
   echo "You should now simply be able to run 'polyglot_watcher_v2' now!"
 }
 
+install_for_nixos() {
+  create_config_files
+  create_symlink_to_local_bin
+  echo_success "✓ Installation successful!"
+}
+
 if [[ $OSTYPE == darwin* ]]; then
-  install_for_mac
+  echo "mac"
+  #install_for_mac
 elif [[ $OSTYPE == linux-gnu ]]; then
-  install_for_debian
+  # Get the distro ID
+  if [ -f /etc/os-release ]; then
+    DISTRO=$(awk -F'=' '/^ID=/ {print $2}' /etc/os-release)
+    case $DISTRO in
+      nixos)
+        echo_info "NixOS detected, installing for nixos..."
+        install_for_nixos
+        ;;
+      ubuntu|debian)
+        install_for_debian
+        ;;
+      *)
+        install_for_debian
+        ;;
+    esac
+  else
+    echo "linux-gnu (unknown distro)"
+    # install_for_debian
+  fi
 else
   echo "Installing on your OS $OSTYPE is not yet supported :-("
   exit 1

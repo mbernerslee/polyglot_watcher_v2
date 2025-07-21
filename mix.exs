@@ -11,9 +11,11 @@ defmodule PolyglotWatcherV2.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [
-        main_module: PolyglotWatcherV2,
-        name: escript_name(Mix.env())
+      releases: [
+        polyglot_watcher_v2: [
+          include_executables_for: [:unix],
+          applications: [runtime_tools: :permanent]
+        ]
       ]
     ]
   end
@@ -22,14 +24,6 @@ defmodule PolyglotWatcherV2.MixProject do
     [
       extra_applications: [:ex_unit, :logger]
     ]
-  end
-
-  defp escript_name(:prod) do
-    @app_name
-  end
-
-  defp escript_name(env) do
-    :"#{@app_name}_#{to_string(env)}"
   end
 
   defp elixirc_paths(:test) do

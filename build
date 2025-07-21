@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 find_todos() {
   find_result=$(git grep TODO -- './*' ':!build' ':!test/elm_examples')
@@ -17,4 +17,4 @@ run_action "mix loadconfig config/prod.exs"
 run_action "MIX_ENV=test mix compile --warnings-as-errors --force"
 run_action "mix test"
 run_action "MIX_ENV=prod mix compile"
-run_action "MIX_ENV=prod mix escript.build"
+run_action "MIX_ENV=prod mix release"
