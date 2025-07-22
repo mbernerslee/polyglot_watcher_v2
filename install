@@ -2,31 +2,11 @@
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-BRIGHT_GREEN="\033[1;32m"
 RESET="\033[0m"
-
-# Standard green (not bold)
-GREEN="\033[32m"
-
-# Bold green (most common for success)
-BOLD_GREEN="\033[1;32m"
-
-# Bright green (brighter than bold)
-BRIGHT_GREEN="\033[92m"
 
 # Soft teal/cyan - very readable, calm
 SOFT_GREEN="\033[38;2;166;227;161m"    # Catppuccin Green
 TEAL="\033[38;2;148;226;213m"          # Catppuccin Teal
-SOFT_BLUE="\033[38;2;137;180;250m"     # Catppuccin Blue
-
-# Warm options
-PEACH="\033[38;2;250;179;135m"         # Catppuccin Peach
-YELLOW="\033[38;2;249;226;175m"        # Catppuccin Yellow
-
-# Cool purple/lavender
-MAUVE="\033[38;2;203;166;247m"         # Catppuccin Mauve
-LAVENDER="\033[38;2;180;190;254m"      # Catppuccin Lavender
-
 MOCHA_RED="\033[38;2;243;139;168m"
 
 INFO_COLOUR=$TEAL
@@ -45,17 +25,48 @@ echo_failure() {
   echo -e "${FAILURE_COLOUR}$@${RESET}"
 }
 
+calculate_duration() {
+  local start_time="$1"
+  local end_time="$2"
+
+  duration=$(echo "$end_time - $start_time" | bc)
+
+  # Pretty format the duration
+  if (( $(echo "$duration >= 60" | bc -l) )); then
+    # More than 1 minute
+    minutes=$(echo "$duration / 60" | bc)
+    seconds=$(echo "$duration % 60" | bc)
+    duration_str="${minutes}m${seconds}s"
+  elif (( $(echo "$duration >= 1" | bc -l) )); then
+    # More than 1 second
+    duration_str=$(printf "%.1fs" "$duration")
+  else
+    # Less than 1 second
+    milliseconds=$(echo "$duration * 1000" | bc)
+    duration_str=$(printf "%.0fms" "$milliseconds")
+  fi
+
+  echo "$duration_str"
+}
+
 run_and_log() {
-  echo_info "─────────────────────────────────────────────────"
+  echo_info "$(printf '%.0s─' {1..60})"
   echo_info "$@"
-  echo_info "─────────────────────────────────────────────────"
+  echo_info "$(printf '%.0s─' {1..60})"
+
+  start_time=$(date +%s.%N)
   eval "$@"
   result=$?
-  if [[ $? -eq 0 ]]; then
-    echo_success "✓ ok"
+  end_time=$(date +%s.%N)
+
+  duration_str=$(calculate_duration "$start_time" "$end_time")
+
+  if [[ $result -eq 0 ]]; then
+    echo_success "✓ completed in ${duration_str}"
   else
-    echo_failure "✗ Failed"
+    echo_failure "✗ failed after ${duration_str}"
   fi
+
   return $result
 }
 
@@ -160,11 +171,8 @@ create_symlink_for_mac() {
 }
 
 create_config_files() {
-  MIX_ENV=prod mix polyglot_watcher_v2.setup_config_files
-  if [[ $? -eq 0 ]]; then
-    echo "created polyglot_watcher_v2 config files OK"
-  else
-    echo "failed to create polyglot_watcher_v2 config files :-("
+  run_and_log "MIX_ENV=prod mix polyglot_watcher_v2.setup_config_files"
+  if [[ $? -ne 0 ]]; then
     exit 1
   fi
 }
@@ -197,30 +205,10 @@ install_for_nixos() {
   echo_success "✓ Installation successful!"
 }
 
-if [[ $OSTYPE == darwin* ]]; then
-  echo "mac"
-  #install_for_mac
-elif [[ $OSTYPE == linux-gnu ]]; then
-  # Get the distro ID
-  if [ -f /etc/os-release ]; then
-    DISTRO=$(awk -F'=' '/^ID=/ {print $2}' /etc/os-release)
-    case $DISTRO in
-      nixos)
-        echo_info "NixOS detected, installing for nixos..."
-        install_for_nixos
-        ;;
-      ubuntu|debian)
-        install_for_debian
-        ;;
-      *)
-        install_for_debian
-        ;;
-    esac
-  else
-    echo "linux-gnu (unknown distro)"
-    # install_for_debian
-  fi
-else
-  echo "Installing on your OS $OSTYPE is not yet supported :-("
-  exit 1
-fi
+system_kind=$OSTYPE:$(awk -F'=' '/^ID=/ {print $2}' /etc/os-release)
+case "$system_kind" in
+  darwin*:*)           install_for_mac ;;
+  linux-gnu*:nixos)    install_for_nixos ;;
+  linux-gnu*:debian)   install_for_debian ;;
+  *)                   echo "This script doesn't explicitly supported your deleted OS $system_kind. It probably will work if you adapt this script!" && exit 1 ;;
+esac
