@@ -4,8 +4,6 @@ REAL_SCRIPT="$(readlink -f "$0")"
 PROJECT_DIR="$(dirname "$REAL_SCRIPT")"
 RELEASE_BIN="$PROJECT_DIR/_build/prod/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2"
 
-echo $RELEASE_BIN
-
 ARGS="["
 for arg in "$@"; do
     escaped_arg=$(printf '%s' "$arg" | sed 's/"/\\"/g')
