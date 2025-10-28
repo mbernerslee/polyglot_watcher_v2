@@ -57,7 +57,14 @@ defmodule PolyglotWatcherV2.Server do
   def init(command_line_args) do
     Logger.debug("#{__MODULE__} starting up")
 
-    with {:ok, os} <- determine_os(),
+    System.get_env("POLYGLOT_WATCHER_V2_CLI_ARGS")
+    |> IO.inspect()
+
+    path = System.get_env("POLYGLOT_WATCHER_V2_PATH", "")
+
+    System.put_env("PATH", path)
+
+    with {:ok, os} <- determine_os() |> IO.inspect(),
          {:ok, config} <- ConfigFile.read() do
       init_for_os(os, command_line_args, config)
     else
