@@ -4,4 +4,7 @@ defmodule PolyglotWatcherV2.SystemWrapper do
   end
 
   def get_env(key), do: System.get_env(key)
+  def get_env(key, default), do: System.get_env(key, default)
+
+  def put_env(key, value), do: System.put_env(key, value)
 end
