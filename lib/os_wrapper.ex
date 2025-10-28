@@ -3,10 +3,7 @@ defmodule PolyglotWatcherV2.OSWrapper.Fake do
 end
 
 defmodule PolyglotWatcherV2.OSWrapper.Real do
-  def type,
-    do:
-      :os.type()
-      |> IO.inspect()
+  def type, do: :os.type()
 end
 
 defmodule PolyglotWatcherV2.OSWrapper do

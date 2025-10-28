@@ -1,0 +1,6 @@
+#!/bin/bash
+
+MIX_ENV=prod mix compile
+MIX_ENV=prod mix release --overwrite
+
+./polyglot_watcher_v2 $@

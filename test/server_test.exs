@@ -2,7 +2,16 @@ defmodule PolyglotWatcherV2.ServerTest do
   use ExUnit.Case, async: false
   use Mimic
   import ExUnit.CaptureIO
-  alias PolyglotWatcherV2.{Config, OSWrapper, Server, ServerState, ServerStateBuilder}
+
+  alias PolyglotWatcherV2.{
+    Config,
+    OSWrapper,
+    Server,
+    ServerState,
+    ServerStateBuilder,
+    SystemWrapper
+  }
+
   alias PolyglotWatcherV2.Support.Mocks.ConfigFileMock
 
   setup :set_mimic_global
@@ -51,6 +60,18 @@ defmodule PolyglotWatcherV2.ServerTest do
         assert_receive {:EXIT, ^pid,
                         "I don't support your operating system ':windows_95', so I'm exiting"}
       end)
+    end
+
+    test "overwrites $PATH with the contents of $POLYGLOT_WATCHER_V2_PATH" do
+      expected_path = "COOL_PATH"
+
+      ConfigFileMock.read_valid()
+
+      Mimic.expect(SystemWrapper, :get_env, fn "POLYGLOT_WATCHER_V2_PATH", "" -> expected_path end)
+
+      Mimic.expect(SystemWrapper, :put_env, fn "PATH", ^expected_path -> :ok end)
+
+      Server.start_link([], [])
     end
   end
 

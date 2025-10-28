@@ -10,6 +10,7 @@ defmodule PolyglotWatcherV2.Server do
     Puts,
     OSWrapper,
     ServerState,
+    SystemWrapper,
     StartupMessage
   }
 
@@ -57,14 +58,14 @@ defmodule PolyglotWatcherV2.Server do
   def init(command_line_args) do
     Logger.debug("#{__MODULE__} starting up")
 
-    System.get_env("POLYGLOT_WATCHER_V2_CLI_ARGS")
-    |> IO.inspect()
+    # see rel/env.sh.eex for why we do this.
+    # it's to stop erlang's PATH setting from messing us up when we try to spawn new `mix` instances
 
-    path = System.get_env("POLYGLOT_WATCHER_V2_PATH", "")
+    path = SystemWrapper.get_env("POLYGLOT_WATCHER_V2_PATH", "")
 
-    System.put_env("PATH", path)
+    SystemWrapper.put_env("PATH", path)
 
-    with {:ok, os} <- determine_os() |> IO.inspect(),
+    with {:ok, os} <- determine_os(),
          {:ok, config} <- ConfigFile.read() do
       init_for_os(os, command_line_args, config)
     else
