@@ -2,6 +2,8 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.Inotifywait do
   @behaviour PolyglotWatcherV2.FileSystemWatchers.Behaviour
   alias PolyglotWatcherV2.FilePath
 
+  @source_extensions ["ex", "exs", "rs"]
+
   @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def startup_command, do: ["inotifywait", ".", "-rmqe", "close_write"]
 
@@ -12,18 +14,19 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.Inotifywait do
   def parse_std_out(std_out, _working_dir) do
     std_out
     |> String.split("\n")
-    |> find_file_path()
-  end
+    |> Enum.reduce({:ignore, :ignore}, fn line, {source_file, fallback_file} ->
+      case attempt_to_build_file_path(line) do
+        {:ok, parsed} when parsed.extension in @source_extensions ->
+          {source_file_or(source_file, parsed), fallback_file}
 
-  defp find_file_path([]) do
-    :ignore
-  end
+        {:ok, parsed} ->
+          {source_file, fallback_file_or(fallback_file, parsed)}
 
-  defp find_file_path([line | lines]) do
-    case attempt_to_build_file_path(line) do
-      {:ok, file_path} -> {:ok, file_path}
-      :ignore -> find_file_path(lines)
-    end
+        :ignore ->
+          {source_file, fallback_file}
+      end
+    end)
+    |> pick_best_file()
   end
 
   defp attempt_to_build_file_path(line) do
@@ -36,4 +39,13 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.Inotifywait do
         :ignore
     end
   end
+
+  defp source_file_or(:ignore, parsed), do: {:ok, parsed}
+  defp source_file_or(existing, _parsed), do: existing
+
+  defp fallback_file_or(:ignore, parsed), do: {:ok, parsed}
+  defp fallback_file_or(existing, _parsed), do: existing
+
+  defp pick_best_file({{:ok, _} = source, _fallback}), do: source
+  defp pick_best_file({:ignore, fallback}), do: fallback
 end
