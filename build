@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 find_todos() {
-  find_result=$(git grep TODO -- './*' ':!build' ':!test/elm_examples')
+  find_result=$(git grep TODO -- './*' ':!build' ':!test/elm_examples' ':!CLAUDE.md')
   result=$?
   if [ $result -eq 0 ]; then
     echo "TODO found in:"
