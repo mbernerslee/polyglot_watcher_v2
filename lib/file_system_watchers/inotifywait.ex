@@ -1,8 +1,8 @@
 defmodule PolyglotWatcherV2.FileSystemWatchers.Inotifywait do
   @behaviour PolyglotWatcherV2.FileSystemWatchers.Behaviour
-  alias PolyglotWatcherV2.FilePath
+  alias PolyglotWatcherV2.{FileExtensions, FilePath}
 
-  @source_extensions ["ex", "exs", "rs"]
+  @source_extensions FileExtensions.all()
 
   @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def startup_command, do: ["inotifywait", ".", "-rmqe", "close_write"]

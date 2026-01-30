@@ -19,6 +19,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
   def ex, do: @ex
   def exs, do: @exs
+  def extensions, do: @extensions
 
   @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{} = file_path, server_state) do

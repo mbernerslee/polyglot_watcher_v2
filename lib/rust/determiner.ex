@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Rust.Determiner do
   @extensions [@rs]
 
   def rs, do: @rs
+  def extensions, do: @extensions
 
   @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{} = file_path, server_state) do
