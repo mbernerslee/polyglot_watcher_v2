@@ -152,6 +152,14 @@ build() {
 }
 
 create_symlink_to_local_bin() {
+  case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *)
+      echo_failure "~/.local/bin is not in your \$PATH"
+      echo_failure "Add it to your PATH and try again"
+      exit 1
+      ;;
+  esac
   run_and_log "rm -f ~/.local/bin/polyglot_watcher_v2"
   run_and_log "mkdir -p ~/.local/bin"
   run_and_log "ln -sf $DIR/polyglot_watcher_v2 ~/.local/bin/polyglot_watcher_v2"
