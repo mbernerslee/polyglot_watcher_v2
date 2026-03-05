@@ -2,6 +2,9 @@ defmodule PolyglotWatcherV2 do
   alias PolyglotWatcherV2.Server
   alias PolyglotWatcherV2.Elixir.Cache, as: ElixirCache
 
+  # TODO see claude plan /home/berners/.claude/plans/twinkly-tickling-music.md
+  # TODO claude --resume 9fe67a1b-9c29-4faa-83ba-c5d4ee23c5d4
+
   def main(command_line_args \\ []) do
     run(command_line_args)
     :timer.sleep(:infinity)
