@@ -31,22 +31,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                       {[:magenta], "mode...\n"},
                       {[:magenta], "using the provided test path..."}
                     ]},
-                 next_action: :put_mix_test_msg
-               },
-               put_mix_test_msg: %PolyglotWatcherV2.Action{
-                 runnable: {:puts, :magenta, "Running mix test test/cool_test.exs:42 --color"},
                  next_action: :mix_test
                },
                mix_test: %PolyglotWatcherV2.Action{
                  runnable: {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 42}}},
-                 next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
-               },
-               put_success_msg: %PolyglotWatcherV2.Action{
-                 runnable: :put_sarcastic_success,
-                 next_action: :exit
-               },
-               put_failure_msg: %PolyglotWatcherV2.Action{
-                 runnable: :put_insult,
                  next_action: :exit
                }
              } == actions_tree
@@ -84,22 +72,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                       {[:magenta], "mode...\n"},
                       {[:magenta], "using the latest failing test in memory..."}
                     ]},
-                 next_action: :put_mix_test_msg
-               },
-               put_mix_test_msg: %PolyglotWatcherV2.Action{
-                 runnable: {:puts, :magenta, "Running mix test test/cool_test.exs:10 --color"},
                  next_action: :mix_test
                },
                mix_test: %PolyglotWatcherV2.Action{
                  runnable: {:mix_test, %MixTestArgs{path: {"test/cool_test.exs", 10}}},
-                 next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
-               },
-               put_success_msg: %PolyglotWatcherV2.Action{
-                 runnable: :put_sarcastic_success,
-                 next_action: :exit
-               },
-               put_failure_msg: %PolyglotWatcherV2.Action{
-                 runnable: :put_insult,
                  next_action: :exit
                }
              } == actions_tree
@@ -155,10 +131,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
         :clear_screen,
         :switch_mode,
         :put_switch_mode_msg,
-        :put_mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :mix_test
       ]
 
       assert %Action{runnable: {:switch_mode, :elixir, {:fixed_file, {"test/x_test.exs", 100}}}} =
@@ -197,22 +170,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                actions_tree: %{
                  clear_screen: %PolyglotWatcherV2.Action{
                    runnable: :clear_screen,
-                   next_action: :put_mix_test_msg
-                 },
-                 put_mix_test_msg: %PolyglotWatcherV2.Action{
-                   runnable: {:puts, :magenta, "Running mix test test/cool_test.exs --color"},
                    next_action: :mix_test
                  },
                  mix_test: %PolyglotWatcherV2.Action{
                    runnable: {:mix_test, %MixTestArgs{path: "test/cool_test.exs"}},
-                   next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
-                 },
-                 put_success_msg: %PolyglotWatcherV2.Action{
-                   runnable: :put_sarcastic_success,
-                   next_action: :exit
-                 },
-                 put_failure_msg: %PolyglotWatcherV2.Action{
-                   runnable: :put_insult,
                    next_action: :exit
                  }
                },
@@ -233,22 +194,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
                actions_tree: %{
                  clear_screen: %PolyglotWatcherV2.Action{
                    runnable: :clear_screen,
-                   next_action: :put_mix_test_msg
-                 },
-                 put_mix_test_msg: %PolyglotWatcherV2.Action{
-                   runnable: {:puts, :magenta, "Running mix test test/x_test.exs:123 --color"},
                    next_action: :mix_test
                  },
                  mix_test: %PolyglotWatcherV2.Action{
                    runnable: {:mix_test, %MixTestArgs{path: {"test/x_test.exs", 123}}},
-                   next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
-                 },
-                 put_success_msg: %PolyglotWatcherV2.Action{
-                   runnable: :put_sarcastic_success,
-                   next_action: :exit
-                 },
-                 put_failure_msg: %PolyglotWatcherV2.Action{
-                   runnable: :put_insult,
                    next_action: :exit
                  }
                },

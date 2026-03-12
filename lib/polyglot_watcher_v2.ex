@@ -6,8 +6,7 @@ defmodule PolyglotWatcherV2 do
 
   @mcp_default_port 4848
 
-  # TODO check CLAUDE.md addition doesn't wreck claude when PolyglotWatcherV2 MCP server is not connected. it should fall back to regular `mix test` commands
-  # TODO bundle the common mix test actions run by ActionExecutor into one thing, so that they can be run with similar output wrapping regardless of if it happened from a file change or direct claude instruction. magenta text and sarcastic message and so on...
+  # TODO multiple claude instances AND / OR multuple instances of the watcher? how to deal ?
   # TODO do a strict analysis of lib files changed and ensure sufficient test coverage to be confident it worked
   # TODO update README with setup instructions
   # TODO [future] let the watcher tell claude what tests have run & passed

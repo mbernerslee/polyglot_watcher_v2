@@ -1,27 +1,28 @@
 defmodule PolyglotWatcherV2.Elixir.MixTest do
+  alias PolyglotWatcherV2.ActionsExecutor
   alias PolyglotWatcherV2.ShellCommandRunner
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   def run(%MixTestArgs{} = mix_test_args) do
-    case Cache.await_or_run(mix_test_args) do
-      {:ok, result} ->
-        result
+    put_running_message(mix_test_args)
 
-      :not_running ->
-        execute(mix_test_args)
-    end
+    {output, exit_code} =
+      case Cache.await_or_run(mix_test_args) do
+        {:ok, result} ->
+          result
+
+        :not_running ->
+          execute(mix_test_args)
+      end
+
+    put_result_message(exit_code)
+    {output, exit_code}
   end
 
   def run(%MixTestArgs{} = mix_test_args, server_state) do
-    case Cache.await_or_run(mix_test_args) do
-      {:ok, {_output, exit_code}} ->
-        {exit_code, server_state}
-
-      :not_running ->
-        {_output, exit_code} = execute(mix_test_args)
-        {exit_code, server_state}
-    end
+    {_output, exit_code} = run(mix_test_args)
+    {exit_code, server_state}
   end
 
   defp execute(mix_test_args) do
@@ -36,4 +37,11 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
 
     {mix_test_output, exit_code}
   end
+
+  defp put_running_message(mix_test_args) do
+    ActionsExecutor.execute({:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_args)}"})
+  end
+
+  defp put_result_message(0), do: ActionsExecutor.execute(:put_sarcastic_success)
+  defp put_result_message(_), do: ActionsExecutor.execute(:put_insult)
 end

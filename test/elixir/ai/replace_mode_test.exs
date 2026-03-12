@@ -138,9 +138,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :put_intent_msg,
         :mix_test,
-        :put_success_msg,
         :reload_ai_prompt,
         :build_ai_api_request,
         :perform_ai_api_request,
@@ -158,9 +156,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :put_intent_msg,
         :mix_test,
-        :put_success_msg,
         :reload_ai_prompt,
         :build_ai_api_request,
         :perform_ai_api_request,

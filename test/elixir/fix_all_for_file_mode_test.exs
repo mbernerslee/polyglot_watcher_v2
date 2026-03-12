@@ -48,13 +48,9 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
           :switch_mode,
           :put_mode_switch_msg,
           :mix_test_latest_line,
-          :put_mix_test_max_failures_1_msg,
           :mix_test_max_failures_1,
-          :put_mix_test_all_for_file_msg,
           :mix_test_all_for_file,
-          :put_mix_test_error,
-          :put_sarcastic_success,
-          :put_insult
+          :put_mix_test_error
         ]
       )
 
@@ -131,13 +127,9 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
           :switch_mode,
           :put_mode_switch_msg,
           :mix_test_latest_line,
-          :put_mix_test_max_failures_1_msg,
           :mix_test_max_failures_1,
-          :put_mix_test_all_for_file_msg,
           :mix_test_all_for_file,
-          :put_mix_test_error,
-          :put_sarcastic_success,
-          :put_insult
+          :put_mix_test_error
         ]
       )
 
@@ -161,7 +153,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                  },
                  mix_test_all_for_file: %Action{
                    next_action: %{
-                     0 => :put_sarcastic_success,
+                     0 => :exit,
                      1 => :put_mix_test_error,
                      2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
@@ -171,20 +163,12 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                  mix_test_latest_line: %Action{
                    next_action: %{
                      :fallback => :put_mix_test_error,
-                     {:cache, :miss} => :put_mix_test_all_for_file_msg,
+                     {:cache, :miss} => :mix_test_all_for_file,
                      {:mix_test, :error} => :put_mix_test_error,
                      {:mix_test, :failed} => :exit,
-                     {:mix_test, :passed} => :put_mix_test_max_failures_1_msg
+                     {:mix_test, :passed} => :mix_test_max_failures_1
                    },
                    runnable: {:mix_test_latest_line, "test/x_test.exs"}
-                 },
-                 put_mix_test_all_for_file_msg: %Action{
-                   next_action: :mix_test_all_for_file,
-                   runnable: {
-                     :puts,
-                     :magenta,
-                     "Running mix test test/x_test.exs --color"
-                   }
                  },
                  put_mix_test_error: %Action{
                    next_action: :exit,
@@ -194,25 +178,14 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                      "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
                    }
                  },
-                 put_sarcastic_success: %Action{
-                   next_action: :exit,
-                   runnable: :put_sarcastic_success
-                 },
                  mix_test_max_failures_1: %Action{
                    runnable: {:mix_test, %MixTestArgs{path: "test/x_test.exs", max_failures: 1}},
                    next_action: %{
-                     0 => :put_sarcastic_success,
+                     0 => :exit,
                      1 => :put_mix_test_error,
-                     2 => :put_insult,
+                     2 => :exit,
                      :fallback => :put_mix_test_error
                    }
-                 },
-                 put_insult: %Action{runnable: :put_insult, next_action: :exit},
-                 put_mix_test_max_failures_1_msg: %Action{
-                   runnable:
-                     {:puts, :magenta,
-                      "Running mix test test/x_test.exs --max-failures 1 --color"},
-                   next_action: :mix_test_max_failures_1
                  }
                },
                entry_point: :clear_screen

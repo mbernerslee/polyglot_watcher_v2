@@ -3,6 +3,7 @@
 # Start the program in the background
 exec "$@" 2>/dev/null &
 pid1=$!
+disown $pid1
 
 # Silence warnings from here on
 #exec >/dev/null 2>&1

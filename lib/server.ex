@@ -117,10 +117,6 @@ defmodule PolyglotWatcherV2.Server do
 
     set_ignore_file_changes(state.ignore_file_changes)
 
-    if state.ignore_file_changes == true do
-      Logger.debug("#{__MODULE__} Setting ignore_file_changes: true")
-    end
-
     {:noreply, state}
   end
 
@@ -151,6 +147,7 @@ defmodule PolyglotWatcherV2.Server do
 
   @impl true
   def handle_cast({:ignore_file_changes, ignore_file_changes?}, state) do
+    Logger.debug("#{__MODULE__} setting ignore_file_changes? = #{ignore_file_changes?}")
     {:noreply, %{state | ignore_file_changes: ignore_file_changes?}}
   end
 

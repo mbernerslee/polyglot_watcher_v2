@@ -54,18 +54,11 @@ defmodule PolyglotWatcherV2.Elixir.MixTestLatest do
   end
 
   defp run_mix_test({:ok, {mix_test_args, server_state}}) do
-    ActionsExecutor.execute(
-      {:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_args)}"},
-      server_state
-    )
-
     case ActionsExecutor.execute({:mix_test, mix_test_args}, server_state) do
       {0, server_state} ->
-        ActionsExecutor.execute(:put_sarcastic_success, server_state)
         {{:mix_test, :passed}, server_state}
 
       {2, server_state} ->
-        ActionsExecutor.execute(:put_insult, server_state)
         {{:mix_test, :failed}, server_state}
 
       {_, server_state} ->

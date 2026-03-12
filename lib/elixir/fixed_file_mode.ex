@@ -29,7 +29,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
                    {[:magenta], "mode...\n"},
                    {[:magenta], "using the latest failing test in memory..."}
                  ]},
-              next_action: :put_mix_test_msg
+              next_action: :mix_test
             }
           })
 
@@ -86,7 +86,7 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
                {[:magenta], "mode...\n"},
                {[:magenta], "using the provided test path..."}
              ]},
-          next_action: :put_mix_test_msg
+          next_action: :mix_test
         }
       })
 
@@ -98,30 +98,17 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
     actions_tree =
       test_path
       |> common_actions_tree()
-      |> Map.put(:clear_screen, %Action{runnable: :clear_screen, next_action: :put_mix_test_msg})
+      |> Map.put(:clear_screen, %Action{runnable: :clear_screen, next_action: :mix_test})
 
     {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
   end
 
   defp common_actions_tree(test_path) do
     mix_test_args = %MixTestArgs{path: test_path}
-    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
 
     %{
-      put_mix_test_msg: %PolyglotWatcherV2.Action{
-        runnable: {:puts, :magenta, mix_test_msg},
-        next_action: :mix_test
-      },
       mix_test: %PolyglotWatcherV2.Action{
         runnable: {:mix_test, mix_test_args},
-        next_action: %{0 => :put_success_msg, :fallback => :put_failure_msg}
-      },
-      put_success_msg: %PolyglotWatcherV2.Action{
-        runnable: :put_sarcastic_success,
-        next_action: :exit
-      },
-      put_failure_msg: %PolyglotWatcherV2.Action{
-        runnable: :put_insult,
         next_action: :exit
       }
     }

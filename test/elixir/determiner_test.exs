@@ -23,10 +23,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       expected_action_tree_keys = [
         :clear_screen,
         :check_file_exists,
-        :put_intent_msg,
         :mix_test,
-        :put_success_msg,
-        :put_failure_msg,
         :no_test_msg
       ]
 
@@ -45,10 +42,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :put_mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :mix_test
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -77,13 +71,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       expected_action_tree_keys = [
         :clear_screen,
         :mix_test_latest_line,
-        :put_sarcastic_success,
         :put_mix_test_error,
-        :put_insult,
-        :put_mix_test_all_for_file_msg,
         :mix_test_all_for_file,
-        :mix_test_max_failures_1,
-        :put_mix_test_max_failures_1_msg
+        :mix_test_max_failures_1
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -184,10 +174,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         :clear_screen,
         :switch_mode,
         :put_switch_mode_msg,
-        :put_mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :mix_test
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -220,15 +207,11 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         [
           :clear_screen,
           :mix_test_latest_line,
-          :put_sarcastic_success,
           :put_mix_test_error,
-          :put_insult,
           :switch_mode,
           :put_mode_switch_msg,
-          :put_mix_test_all_for_file_msg,
           :mix_test_all_for_file,
-          :mix_test_max_failures_1,
-          :put_mix_test_max_failures_1_msg
+          :mix_test_max_failures_1
         ]
       )
 
@@ -263,13 +246,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
         [
           :clear_screen,
           :mix_test_latest_line,
-          :put_sarcastic_success,
           :put_mix_test_error,
-          :put_insult,
-          :put_mix_test_all_for_file_msg,
           :mix_test_all_for_file,
           :mix_test_max_failures_1,
-          :put_mix_test_max_failures_1_msg,
           :switch_mode,
           :put_mode_switch_msg
         ]

@@ -3,6 +3,17 @@ defmodule PolyglotWatcherV2.ActionsExecutor do
   Manually keep this up to date with the real execute function heads lower down in the file
   """
 
+  def execute(runnable) do
+    case runnable do
+      :clear_screen -> do_execute(runnable)
+      :put_sarcastic_success -> do_execute(runnable)
+      :put_insult -> do_execute(runnable)
+      {:puts, _colour, _message} -> do_execute(runnable)
+      {:puts, _messages} -> do_execute(runnable)
+      unknown -> raise "unknown stateless action runnable #{inspect(unknown)}"
+    end
+  end
+
   def execute(runnable, server_state) do
     case runnable do
       :clear_screen -> do_execute(runnable, server_state)
@@ -31,12 +42,14 @@ defmodule PolyglotWatcherV2.ActionsExecutor do
     end
   end
 
+  defp do_execute(runnable), do: module().execute(runnable)
   defp do_execute(runnable, server_state), do: module().execute(runnable, server_state)
 
   defp module, do: Application.get_env(:polyglot_watcher_v2, :actions_executor_module)
 end
 
 defmodule PolyglotWatcherV2.ActionsExecutorFake do
+  def execute(_runnable), do: :ok
   def execute(_runnable, server_state), do: {0, server_state}
 end
 
@@ -54,30 +67,56 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   alias PolyglotWatcherV2.Elixir.{MixTest, MixTestArgs, MixTestLatest}
   alias PolyglotWatcherV2.Elixir.AI.ReplaceMode, as: AIReplaceMode
 
+  def execute(command) do
+    Logger.debug("#{__MODULE__} running: #{inspect(command)}")
+    do_execute(command)
+  end
+
   def execute(command, server_state) do
     Logger.debug("#{__MODULE__} running: #{inspect(command)}")
     do_execute(command, server_state)
   end
 
-  defp do_execute(:clear_screen, server_state) do
+  defp do_execute({:puts, messages}) do
+    Puts.on_new_line(messages)
+  end
+
+  defp do_execute({:puts, colour, message}) do
+    Puts.on_new_line(message, colour)
+  end
+
+  defp do_execute(:put_insult) do
+    insult = Enum.random(insulting_failure_messages())
+    Puts.on_new_line(insult, :red)
+  end
+
+  defp do_execute(:put_sarcastic_success) do
+    insult = Enum.random(sarcastic_sucesses())
+    Puts.on_new_line(insult, :green)
+  end
+
+  defp do_execute(:clear_screen) do
     if actually_clear_screen?() do
-      {_std_out, exit_code} = System.cmd("tput", ["reset"], into: IO.stream(:stdio, :line))
-      {exit_code, server_state}
-    else
-      {0, server_state}
+      {_std_out, _exit_code} = System.cmd("tput", ["reset"], into: IO.stream(:stdio, :line))
     end
+
+    :ok
+  end
+
+  defp do_execute(:clear_screen, server_state) do
+    {do_execute(:clear_screen), server_state}
   end
 
   defp do_execute({:update_server_state, fun}, server_state) do
     {0, fun.(server_state)}
   end
 
-  defp do_execute({:puts, messages}, server_state) do
-    {Puts.on_new_line(messages), server_state}
+  defp do_execute({:puts, _messages} = runnable, server_state) do
+    {do_execute(runnable), server_state}
   end
 
-  defp do_execute({:puts, colour, message}, server_state) do
-    {Puts.on_new_line(message, colour), server_state}
+  defp do_execute({:puts, _colour, _message} = runnable, server_state) do
+    {do_execute(runnable), server_state}
   end
 
   defp do_execute({:switch_mode, language, mode}, server_state) do
@@ -141,13 +180,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp do_execute(:put_insult, server_state) do
-    insult = Enum.random(insulting_failure_messages())
-    {Puts.on_new_line(insult, :red), server_state}
+    {do_execute(:put_insult), server_state}
   end
 
   defp do_execute(:put_sarcastic_success, server_state) do
-    insult = Enum.random(sarcastic_sucesses())
-    {Puts.on_new_line(insult, :green), server_state}
+    {do_execute(:put_sarcastic_success), server_state}
   end
 
   defp do_execute({:file_exists, file_path}, server_state) do

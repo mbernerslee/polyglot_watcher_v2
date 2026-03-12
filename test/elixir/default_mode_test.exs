@@ -22,10 +22,7 @@ defmodule PolyglotWatcherV2.Elixir.DefaultModeTest do
       expected_action_tree_keys = [
         :clear_screen,
         :check_file_exists,
-        :put_intent_msg,
         :mix_test,
-        :put_success_msg,
-        :put_failure_msg,
         :no_test_msg
       ]
 
@@ -59,10 +56,7 @@ defmodule PolyglotWatcherV2.Elixir.DefaultModeTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :put_intent_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :mix_test
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)

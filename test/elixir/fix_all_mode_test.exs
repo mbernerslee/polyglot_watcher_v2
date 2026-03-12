@@ -27,7 +27,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      {:mix_test, :passed} => :mix_test_latest_max_failures_1,
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :error} => :put_mix_test_error,
-                     {:cache, :miss} => :put_mix_test_all_msg,
+                     {:cache, :miss} => :mix_test_all,
                      :fallback => :put_mix_test_error
                    },
                    runnable: :mix_test_latest_line
@@ -38,17 +38,13 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      {:mix_test, :passed} => :mix_test_latest_line,
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :error} => :put_mix_test_error,
-                     {:cache, :miss} => :put_mix_test_all_msg,
+                     {:cache, :miss} => :mix_test_all,
                      :fallback => :put_mix_test_error
                    }
                  },
-                 put_mix_test_all_msg: %Action{
-                   next_action: :mix_test_all,
-                   runnable: {:puts, :magenta, "Running mix test --color"}
-                 },
                  mix_test_all: %Action{
                    next_action: %{
-                     0 => :put_sarcastic_success,
+                     0 => :exit,
                      1 => :put_mix_test_error,
                      2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
@@ -62,10 +58,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      :red,
                      "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
                    }
-                 },
-                 put_sarcastic_success: %Action{
-                   next_action: :exit,
-                   runnable: :put_sarcastic_success
                  }
                },
                entry_point: :clear_screen
@@ -108,7 +100,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      {:mix_test, :passed} => :mix_test_latest_max_failures_1,
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :error} => :put_mix_test_error,
-                     {:cache, :miss} => :put_mix_test_all_msg,
+                     {:cache, :miss} => :mix_test_all,
                      :fallback => :put_mix_test_error
                    },
                    runnable: :mix_test_latest_line
@@ -119,17 +111,13 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      {:mix_test, :passed} => :mix_test_latest_line,
                      {:mix_test, :failed} => :exit,
                      {:mix_test, :error} => :put_mix_test_error,
-                     {:cache, :miss} => :put_mix_test_all_msg,
+                     {:cache, :miss} => :mix_test_all,
                      :fallback => :put_mix_test_error
                    }
                  },
-                 put_mix_test_all_msg: %Action{
-                   next_action: :mix_test_all,
-                   runnable: {:puts, :magenta, "Running mix test --color"}
-                 },
                  mix_test_all: %Action{
                    next_action: %{
-                     0 => :put_sarcastic_success,
+                     0 => :exit,
                      1 => :put_mix_test_error,
                      2 => :mix_test_latest_line,
                      :fallback => :put_mix_test_error
@@ -143,10 +131,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                      :red,
                      "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
                    }
-                 },
-                 put_sarcastic_success: %Action{
-                   next_action: :exit,
-                   runnable: :put_sarcastic_success
                  }
                },
                entry_point: :clear_screen

@@ -18,10 +18,7 @@ defmodule PolyglotWatcherV2.Elixir.RunAllModeTest do
         :clear_screen,
         :switch_mode,
         :put_switch_mode_msg,
-        :put_mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :mix_test
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
@@ -41,10 +38,7 @@ defmodule PolyglotWatcherV2.Elixir.RunAllModeTest do
 
       expected_action_tree_keys = [
         :clear_screen,
-        :put_mix_test_msg,
-        :mix_test,
-        :put_success_msg,
-        :put_failure_msg
+        :mix_test
       ]
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)

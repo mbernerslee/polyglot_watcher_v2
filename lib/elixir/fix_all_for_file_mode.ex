@@ -126,36 +126,26 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
       :mix_test_latest_line => %Action{
         runnable: {:mix_test_latest_line, test_path},
         next_action: %{
-          {:cache, :miss} => :put_mix_test_all_for_file_msg,
-          {:mix_test, :passed} => :put_mix_test_max_failures_1_msg,
+          {:cache, :miss} => :mix_test_all_for_file,
+          {:mix_test, :passed} => :mix_test_max_failures_1,
           {:mix_test, :error} => :put_mix_test_error,
           {:mix_test, :failed} => :exit,
           :fallback => :put_mix_test_error
         }
       },
-      :put_mix_test_max_failures_1_msg => %Action{
-        runnable:
-          {:puts, :magenta,
-           "Running #{MixTestArgs.to_shell_command(mix_test_max_failures_1_args)}"},
-        next_action: :mix_test_max_failures_1
-      },
       :mix_test_max_failures_1 => %Action{
         runnable: {:mix_test, mix_test_max_failures_1_args},
         next_action: %{
-          0 => :put_sarcastic_success,
+          0 => :exit,
           1 => :put_mix_test_error,
-          2 => :put_insult,
+          2 => :exit,
           :fallback => :put_mix_test_error
         }
-      },
-      :put_mix_test_all_for_file_msg => %Action{
-        runnable: {:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_all_args)}"},
-        next_action: :mix_test_all_for_file
       },
       :mix_test_all_for_file => %Action{
         runnable: {:mix_test, mix_test_all_args},
         next_action: %{
-          0 => :put_sarcastic_success,
+          0 => :exit,
           1 => :put_mix_test_error,
           2 => :mix_test_latest_line,
           :fallback => :put_mix_test_error
@@ -166,12 +156,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
         runnable:
           {:puts, :red,
            "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"}
-      },
-      :put_sarcastic_success => %Action{
-        next_action: :exit,
-        runnable: :put_sarcastic_success
-      },
-      put_insult: %Action{runnable: :put_insult, next_action: :exit}
+      }
     }
   end
 end

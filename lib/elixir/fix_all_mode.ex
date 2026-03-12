@@ -45,7 +45,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
 
   defp fix_all_actions_loop do
     mix_test_args = %MixTestArgs{path: :all}
-    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
 
     %{
       mix_test_latest_line: %Action{
@@ -53,7 +52,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
           {:mix_test, :passed} => :mix_test_latest_max_failures_1,
           {:mix_test, :failed} => :exit,
           {:mix_test, :error} => :put_mix_test_error,
-          {:cache, :miss} => :put_mix_test_all_msg,
+          {:cache, :miss} => :mix_test_all,
           :fallback => :put_mix_test_error
         },
         runnable: :mix_test_latest_line
@@ -64,17 +63,13 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
           {:mix_test, :passed} => :mix_test_latest_line,
           {:mix_test, :failed} => :exit,
           {:mix_test, :error} => :put_mix_test_error,
-          {:cache, :miss} => :put_mix_test_all_msg,
+          {:cache, :miss} => :mix_test_all,
           :fallback => :put_mix_test_error
         }
       },
-      put_mix_test_all_msg: %Action{
-        next_action: :mix_test_all,
-        runnable: {:puts, :magenta, mix_test_msg}
-      },
       mix_test_all: %Action{
         next_action: %{
-          0 => :put_sarcastic_success,
+          0 => :exit,
           1 => :put_mix_test_error,
           2 => :mix_test_latest_line,
           :fallback => :put_mix_test_error
@@ -88,10 +83,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
           :red,
           "Something went wrong running `mix test`. It errored (as opposed to running successfully with tests failing)"
         }
-      },
-      put_sarcastic_success: %Action{
-        next_action: :exit,
-        runnable: :put_sarcastic_success
       }
     }
   end

@@ -2,9 +2,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
   use ExUnit.Case, async: true
   use Mimic
 
-  alias PolyglotWatcherV2.Elixir.Cache
-  alias PolyglotWatcherV2.Elixir.MixTest
-  alias PolyglotWatcherV2.Elixir.MixTestArgs
+  alias PolyglotWatcherV2.Elixir.{Cache, MixTest, MixTestArgs}
   alias PolyglotWatcherV2.{ShellCommandRunner, ServerStateBuilder}
 
   describe "run/1" do

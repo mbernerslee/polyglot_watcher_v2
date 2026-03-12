@@ -70,22 +70,17 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
 
   defp do_determine_actions(test_path, server_state) do
     mix_test_args = %MixTestArgs{path: test_path}
-    mix_test_msg = "Running #{MixTestArgs.to_shell_command(mix_test_args)}"
 
     {%{
        entry_point: :clear_screen,
        actions_tree: %{
          clear_screen: %Action{
            runnable: :clear_screen,
-           next_action: :put_intent_msg
-         },
-         put_intent_msg: %Action{
-           runnable: {:puts, :magenta, mix_test_msg},
            next_action: :mix_test
          },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
-           next_action: %{0 => :put_success_msg, :fallback => :reload_ai_prompt}
+           next_action: %{0 => :exit, :fallback => :reload_ai_prompt}
          },
          reload_ai_prompt: %Action{
            runnable: {:reload_ai_prompt, :replace},
@@ -102,8 +97,7 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceMode do
          action_ai_api_response: %Action{
            runnable: {:action_ai_api_response, :replace, test_path},
            next_action: :exit
-         },
-         put_success_msg: %Action{runnable: :put_sarcastic_success, next_action: :exit}
+         }
        }
      }, server_state}
   end
