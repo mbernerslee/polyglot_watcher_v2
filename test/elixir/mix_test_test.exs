@@ -7,12 +7,46 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
   alias PolyglotWatcherV2.Elixir.MixTestArgs
   alias PolyglotWatcherV2.{ShellCommandRunner, ServerStateBuilder}
 
+  describe "run/1" do
+    test "when not running, executes and returns {output, exit_code}" do
+      test_path = "test/path/to/file_test.exs"
+      mix_test_args = %MixTestArgs{path: test_path, max_failures: nil}
+      mock_output = mock_mix_test_output()
+
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
+      Mimic.expect(Cache, :mark_running, fn ^mix_test_args -> :ok end)
+
+      Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
+        assert shell_command == "mix test #{test_path} --color"
+        {mock_output, 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_output, 0 -> :ok end)
+
+      assert {mock_output, 0} == MixTest.run(mix_test_args)
+    end
+
+    test "when already running, returns awaited result" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+      awaited_output = "1 test, 0 failures"
+
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args ->
+        {:ok, {awaited_output, 0}}
+      end)
+
+      assert {awaited_output, 0} == MixTest.run(mix_test_args)
+    end
+  end
+
   describe "run/2" do
     test "given a test path & server state, runs the mix test command with the test path" do
       test_path = "test/path/to/file_test.exs"
       mix_test_args = %MixTestArgs{path: test_path, max_failures: nil}
       mock_mix_test_output = mock_mix_test_output()
       exit_code = 0
+
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
+      Mimic.expect(Cache, :mark_running, fn ^mix_test_args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test #{test_path} --color"
@@ -33,6 +67,9 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       mock_mix_test_output = mock_mix_test_output()
       exit_code = 0
 
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
+      Mimic.expect(Cache, :mark_running, fn ^mix_test_args -> :ok end)
+
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test --color"
         {mock_mix_test_output, exit_code}
@@ -45,6 +82,18 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       server_state = ServerStateBuilder.build()
 
       assert {0, server_state} == MixTest.run(mix_test_args, server_state)
+    end
+
+    test "when already running, returns exit_code from awaited result" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args ->
+        {:ok, {"1 test, 1 failure", 2}}
+      end)
+
+      server_state = ServerStateBuilder.build()
+
+      assert {2, server_state} == MixTest.run(mix_test_args, server_state)
     end
   end
 

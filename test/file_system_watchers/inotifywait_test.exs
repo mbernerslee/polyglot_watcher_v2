@@ -4,7 +4,37 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.InotifywaitTest do
   alias PolyglotWatcherV2.FilePath
   alias PolyglotWatcherV2.FileSystemWatchers.Inotifywait
 
+  describe "startup_command/0" do
+    test "watches for both close_write and moved_to events" do
+      command = Inotifywait.startup_command()
+
+      event_flags = Enum.find(command, &String.contains?(&1, "close_write"))
+      assert event_flags != nil
+      assert String.contains?(event_flags, "moved_to")
+    end
+  end
+
   describe "parse_std_out/1" do
+    test "parses MOVED_TO event from Neovim atomic save" do
+      # Neovim writes to a temp file then renames - only the MOVED_TO has the real filename
+      std_out =
+        "./test/elixir/ CLOSE_WRITE,CLOSE cache_test.exs.tmp.2189284.1773352389795\n./test/elixir/ MOVED_TO cache_test.exs\n"
+
+      working_dir = "/home/berners/src/polyglot_watcher_v2"
+
+      assert {:ok, %FilePath{path: "test/elixir/cache_test", extension: "exs"}} ==
+               Inotifywait.parse_std_out(std_out, working_dir)
+    end
+
+    test "parses MOVED_TO when it is the only event with a recognised extension" do
+      # Only the MOVED_TO line has the .exs file - CLOSE_WRITE has the temp file
+      std_out = "./lib/ MOVED_TO server.ex\n"
+
+      working_dir = "/home/berners/src/polyglot_watcher_v2"
+
+      assert {:ok, %FilePath{path: "lib/server", extension: "ex"}} ==
+               Inotifywait.parse_std_out(std_out, working_dir)
+    end
     test "can return a file path" do
       std_out = "./lib/ CLOSE_WRITE,CLOSE server.ex\n"
 

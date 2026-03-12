@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # https://docs.anthropic.com/en/api/messages-examples
 

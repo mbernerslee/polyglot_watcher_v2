@@ -266,10 +266,137 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
+  describe "mark_running/1" do
+    test "marks a test as running in state" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      assert :ok == Cache.mark_running(pid, args)
+
+      state = :sys.get_state(pid)
+      assert %{"test/cool_test.exs" => %{waiters: []}} == state.running
+    end
+
+    test "normalizes tuple path to just the file" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
+      assert :ok == Cache.mark_running(pid, args)
+
+      state = :sys.get_state(pid)
+      assert %{"test/cool_test.exs" => %{waiters: []}} == state.running
+    end
+  end
+
+  describe "await_or_run/1" do
+    test "returns :not_running when nothing is running" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      assert :not_running == Cache.await_or_run(pid, args)
+    end
+
+    test "blocks when test is running, unblocks when update is called" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      GenServer.call(pid, {:mark_running, args})
+
+      test_pid = self()
+
+      spawn_link(fn ->
+        result = GenServer.call(pid, {:await_or_run, args}, :infinity)
+        send(test_pid, {:result, result})
+      end)
+
+      wait_for_waiters(pid, "test/cool_test.exs", 1)
+
+      mix_test_output = "1 test, 0 failures"
+      GenServer.call(pid, {:update, args, mix_test_output, 0})
+
+      assert_receive {:result, {:ok, {^mix_test_output, 0}}}
+    end
+
+    test "multiple waiters all get notified" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      GenServer.call(pid, {:mark_running, args})
+
+      test_pid = self()
+
+      for _i <- 1..3 do
+        spawn_link(fn ->
+          result = GenServer.call(pid, {:await_or_run, args}, :infinity)
+          send(test_pid, {:result, result})
+        end)
+      end
+
+      wait_for_waiters(pid, "test/cool_test.exs", 3)
+
+      mix_test_output = "1 test, 1 failure"
+      GenServer.call(pid, {:update, args, mix_test_output, 2})
+
+      for _i <- 1..3 do
+        assert_receive {:result, {:ok, {^mix_test_output, 2}}}
+      end
+    end
+
+    test "waits for matching key even with different line number" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args_with_line = %MixTestArgs{path: {"test/cool_test.exs", 42}}
+      GenServer.call(pid, {:mark_running, args_with_line})
+
+      test_pid = self()
+
+      spawn_link(fn ->
+        result =
+          GenServer.call(pid, {:await_or_run, %MixTestArgs{path: "test/cool_test.exs"}}, :infinity)
+
+        send(test_pid, {:result, result})
+      end)
+
+      wait_for_waiters(pid, "test/cool_test.exs", 1)
+
+      mix_test_output = "1 test, 0 failures"
+      GenServer.call(pid, {:update, args_with_line, mix_test_output, 0})
+
+      assert_receive {:result, {:ok, {^mix_test_output, 0}}}
+    end
+  end
+
+  describe "update/4 - running state" do
+    test "clears running state after update" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      Cache.mark_running(pid, args)
+
+      assert %{"test/cool_test.exs" => _} = :sys.get_state(pid).running
+
+      Cache.update(pid, args, "output", 0)
+
+      assert %{} == :sys.get_state(pid).running
+    end
+  end
+
   describe "child_spec/0" do
     test "returns the default genserver options" do
       assert %{id: Cache, start: {Cache, :start_link, [[name: :elixir_cache]]}} ==
                Cache.child_spec()
+    end
+  end
+
+  defp wait_for_waiters(pid, key, expected_count) do
+    state = :sys.get_state(pid)
+
+    case get_in(state, [:running, key, :waiters]) do
+      waiters when is_list(waiters) and length(waiters) == expected_count ->
+        :ok
+
+      _ ->
+        wait_for_waiters(pid, key, expected_count)
     end
   end
 end

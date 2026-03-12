@@ -1,10 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-MIX_ENV=dev mix escript.build
+MIX_ENV=dev mix compile && MIX_ENV=dev mix release --overwrite || exit 1
 
-if [[ $? -eq 0 ]]; then
-  ./polyglot_watcher_v2_dev "$@"
-else
-  echo "mix escript.build failed!!!"
-  exit 1
-fi
+REAL_SCRIPT="$(readlink -f "$0")"
+PROJECT_DIR="$(dirname "$REAL_SCRIPT")"
+RELEASE_BIN="$PROJECT_DIR/_build/dev/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2"
+
+ARGS="["
+for arg in "$@"; do
+    escaped_arg=$(printf '%s' "$arg" | sed 's/"/\\"/g')
+    ARGS="${ARGS}\"${escaped_arg}\", "
+done
+ARGS="${ARGS%%, }]"
+
+exec "$RELEASE_BIN" eval "PolyglotWatcherV2.main($ARGS)"

@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MCP_PORT=4848
+WATCHER_BIN="$SCRIPT_DIR/polyglot_watcher_v2"
+WATCHER_PID=""
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+pass() { echo -e "${GREEN}PASS${NC}: $1"; }
+fail() { echo -e "${RED}FAIL${NC}: $1"; cleanup; exit 1; }
+info() { echo -e "${YELLOW}INFO${NC}: $1"; }
+
+cleanup() {
+  if [[ -n "$WATCHER_PID" ]]; then
+    info "Stopping watcher (pid $WATCHER_PID)"
+    kill "$WATCHER_PID" 2>/dev/null || true
+    wait "$WATCHER_PID" 2>/dev/null || true
+  fi
+}
+
+trap cleanup EXIT
+
+# --- Start the watcher in the background ---
+info "Starting watcher..."
+"$WATCHER_BIN" &
+WATCHER_PID=$!
+
+# Wait for MCP port to be ready
+info "Waiting for MCP server on port $MCP_PORT..."
+for i in $(seq 1 30); do
+  if curl -s -o /dev/null -w '' "http://localhost:$MCP_PORT/mcp" --max-time 1 -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null; then
+    break
+  fi
+  if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
+    fail "Watcher process died during startup"
+  fi
+  sleep 0.5
+done
+
+if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
+  fail "Watcher process is not running"
+fi
+
+# --- Test 1: MCP Initialize handshake ---
+info "Test 1: MCP initialize handshake"
+INIT_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2025-03-26",
+      "capabilities": {},
+      "clientInfo": {"name": "e2e-test", "version": "1.0.0"}
+    }
+  }')
+
+echo "$INIT_RESPONSE" | grep -q '"protocolVersion":"2025-03-26"' && pass "Initialize returned correct protocol version" || fail "Initialize response unexpected: $INIT_RESPONSE"
+echo "$INIT_RESPONSE" | grep -q '"polyglot-watcher"' && pass "Initialize returned server name" || fail "Initialize response missing server name: $INIT_RESPONSE"
+
+# --- Test 2: notifications/initialized (should return 202) ---
+info "Test 2: notifications/initialized"
+INIT_NOTIFY_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc": "2.0", "method": "notifications/initialized"}')
+
+[[ "$INIT_NOTIFY_STATUS" == "202" ]] && pass "notifications/initialized returned 202" || fail "notifications/initialized returned $INIT_NOTIFY_STATUS (expected 202)"
+
+# --- Test 3: Ping ---
+info "Test 3: MCP ping"
+PING_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"jsonrpc": "2.0", "id": 2, "method": "ping"}')
+
+echo "$PING_RESPONSE" | grep -q '"id":2' && pass "Ping returned correct id" || fail "Ping response unexpected: $PING_RESPONSE"
+echo "$PING_RESPONSE" | grep -q '"result":{}' && pass "Ping returned empty result" || fail "Ping result unexpected: $PING_RESPONSE"
+
+# --- Test 4: tools/list ---
+info "Test 4: tools/list"
+TOOLS_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/list"}')
+
+echo "$TOOLS_RESPONSE" | grep -q '"get_test_results"' && pass "tools/list includes get_test_results" || fail "tools/list response unexpected: $TOOLS_RESPONSE"
+
+# --- Test 5: tools/call get_test_results ---
+info "Test 5: tools/call get_test_results"
+CALL_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {"name": "get_test_results", "arguments": {}}
+  }')
+
+echo "$CALL_RESPONSE" | grep -q 'total_failures' && pass "get_test_results returned failures summary" || fail "get_test_results response unexpected: $CALL_RESPONSE"
+
+# --- Test 6: 405 on GET ---
+info "Test 6: GET returns 405"
+GET_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$MCP_PORT/mcp")
+
+[[ "$GET_STATUS" == "405" ]] && pass "GET /mcp returned 405" || fail "GET /mcp returned $GET_STATUS (expected 405)"
+
+# --- Test 7: Unknown method ---
+info "Test 7: Unknown method returns error"
+UNKNOWN_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"jsonrpc": "2.0", "id": 5, "method": "bogus/method"}')
+
+echo "$UNKNOWN_RESPONSE" | grep -q '"Method not found"' && pass "Unknown method returned error" || fail "Unknown method response unexpected: $UNKNOWN_RESPONSE"
+
+echo ""
+echo -e "${GREEN}All MCP e2e tests passed!${NC}"

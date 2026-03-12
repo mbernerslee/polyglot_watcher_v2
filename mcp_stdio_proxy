@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+# Thin stdio-to-HTTP proxy for MCP.
+# Claude Code spawns this, sends JSON-RPC on stdin, gets responses on stdout.
+# Forwards everything to the running watcher's MCP HTTP endpoint.
+
+MCP_URL="${MCP_URL:-http://localhost:4848/mcp}"
+LOG="/tmp/mcp_stdio_proxy.log"
+
+echo "--- proxy started at $(date) ---" >> "$LOG"
+echo "MCP_URL=$MCP_URL" >> "$LOG"
+
+while IFS= read -r line; do
+  # Skip empty lines
+  [ -z "$line" ] && continue
+
+  echo "RECV: $line" >> "$LOG"
+
+  # Check if it's a notification (no "id" field) - we don't need the response
+  if echo "$line" | grep -q '"id"'; then
+    response=$(curl -s -X POST "$MCP_URL" \
+      -H 'Content-Type: application/json' \
+      -H 'Accept: application/json' \
+      -d "$line")
+    echo "SEND: $response" >> "$LOG"
+    echo "$response"
+  else
+    # Notification - fire and forget, no response expected
+    curl -s -o /dev/null -X POST "$MCP_URL" \
+      -H 'Content-Type: application/json' \
+      -d "$line"
+    echo "NOTIF: (no response)" >> "$LOG"
+  fi
+done
+
+echo "--- proxy exited at $(date) ---" >> "$LOG"

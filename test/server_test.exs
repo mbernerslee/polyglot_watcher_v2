@@ -84,6 +84,15 @@ defmodule PolyglotWatcherV2.ServerTest do
     end
   end
 
+  describe "handle_call/3 - user_input :eof" do
+    test "does not crash when stdin returns :eof" do
+      server_state = ServerStateBuilder.build()
+
+      assert {:noreply, ^server_state} =
+               Server.handle_call({:user_input, :eof}, {self(), make_ref()}, server_state)
+    end
+  end
+
   describe "handle_info/2 - file_event" do
     test "regonises file events from FileSystem, & returns a server_state" do
       server_state = ServerStateBuilder.build()

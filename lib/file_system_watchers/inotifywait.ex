@@ -5,7 +5,7 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.Inotifywait do
   @source_extensions FileExtensions.all()
 
   @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
-  def startup_command, do: ["inotifywait", ".", "-rmqe", "close_write"]
+  def startup_command, do: ["inotifywait", ".", "-rmqe", "close_write,moved_to"]
 
   @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def startup_message, do: "Starting inotifywait..."

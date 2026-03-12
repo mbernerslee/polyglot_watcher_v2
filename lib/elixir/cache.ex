@@ -18,6 +18,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   require Logger
 
   alias PolyglotWatcherV2.Elixir.Cache.{Get, Init, Update}
+  alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   @process_name :elixir_cache
   @default_options [name: @process_name]
@@ -45,12 +46,20 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, {:get_files, test_path})
   end
 
+  def mark_running(pid \\ @process_name, %MixTestArgs{} = mix_test_args) do
+    GenServer.call(pid, {:mark_running, mix_test_args})
+  end
+
+  def await_or_run(pid \\ @process_name, %MixTestArgs{} = mix_test_args) do
+    GenServer.call(pid, {:await_or_run, mix_test_args}, :infinity)
+  end
+
   # Callbacks
 
   @impl GenServer
   def init(_) do
     debug_log("starting up")
-    {:ok, %{status: :loading, cache_items: %{}}, {:continue, :load}}
+    {:ok, %{status: :loading, cache_items: %{}, running: %{}}, {:continue, :load}}
   end
 
   @impl GenServer
@@ -70,7 +79,21 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @impl GenServer
   def handle_call({:update, mix_test_args, mix_test_output, exit_code}, _from, state) do
     cache_items = Update.run(state.cache_items, mix_test_args, mix_test_output, exit_code)
-    state = %{state | cache_items: cache_items}
+
+    key = normalize_key(mix_test_args)
+    result = {mix_test_output, exit_code}
+
+    running =
+      case Map.get(state.running, key) do
+        %{waiters: waiters} ->
+          for from <- waiters, do: GenServer.reply(from, {:ok, result})
+          Map.delete(state.running, key)
+
+        nil ->
+          state.running
+      end
+
+    state = %{state | cache_items: cache_items, running: running}
     debug_log_cache(state)
     {:reply, :ok, state}
   end
@@ -85,7 +108,33 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     {:reply, Get.files(test_path, state.cache_items), state}
   end
 
+  @impl GenServer
+  def handle_call({:mark_running, mix_test_args}, _from, state) do
+    key = normalize_key(mix_test_args)
+    debug_log("mark_running: #{key}")
+    running = Map.put(state.running, key, %{waiters: []})
+    {:reply, :ok, %{state | running: running}}
+  end
+
+  @impl GenServer
+  def handle_call({:await_or_run, mix_test_args}, from, state) do
+    key = normalize_key(mix_test_args)
+
+    case Map.get(state.running, key) do
+      %{waiters: waiters} ->
+        debug_log("await_or_run: #{key} is running, adding waiter")
+        running = Map.put(state.running, key, %{waiters: [from | waiters]})
+        {:noreply, %{state | running: running}}
+
+      nil ->
+        {:reply, :not_running, state}
+    end
+  end
+
   # Private
+
+  defp normalize_key(%MixTestArgs{path: {test_path, _line}}), do: test_path
+  defp normalize_key(%MixTestArgs{path: path}), do: path
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
 

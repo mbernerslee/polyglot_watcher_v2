@@ -105,6 +105,7 @@ defmodule PolyglotWatcherV2.Server do
 
   @impl true
   def handle_info({_port, {:data, std_out}}, %{ignore_file_changes: false} = state) do
+    Logger.debug("#{__MODULE__} inotify raw: #{inspect(std_out)}")
     set_ignore_file_changes(true)
 
     state =
@@ -123,7 +124,17 @@ defmodule PolyglotWatcherV2.Server do
     {:noreply, state}
   end
 
-  def handle_info(_ignored, %{ignore_file_changes: true} = state) do
+  def handle_info({_port, {:data, std_out}}, %{ignore_file_changes: true} = state) do
+    Logger.debug("#{__MODULE__} inotify IGNORED (busy): #{inspect(std_out)}")
+    {:noreply, state}
+  end
+
+  def handle_info(_ignored, state) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_call({:user_input, :eof}, _from, state) do
     {:noreply, state}
   end
 

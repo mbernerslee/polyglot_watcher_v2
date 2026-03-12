@@ -40,7 +40,9 @@ defmodule PolyglotWatcherV2.MixProject do
       {:mimic, "~> 1.7", only: :test},
       {:instructor_lite, "~> 0.3.0"},
       {:req, "~> 0.5.0"},
-      {:yaml_elixir, "~> 2.11.0"}
+      {:yaml_elixir, "~> 2.11.0"},
+      {:bandit, "~> 1.0"},
+      {:plug, "~> 1.15"}
     ]
   end
 end
