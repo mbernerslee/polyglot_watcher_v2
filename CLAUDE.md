@@ -72,7 +72,7 @@ Production vs test behavior is controlled via Application config:
 
 ## Testing
 
-**Do NOT run `mix test` directly.** The polyglot-watcher runs tests automatically on file save. Use the `run_tests` MCP tool to run tests and get results. The watcher deduplicates — if the same test is already running, it waits for that run instead of starting another.
+**Prefer the `run_tests` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. Fall back to `mix test` if the tool is unavailable.
 
 Tests use ExUnit with Mimic for mocking. Test config (`config/test.exs`) swaps real modules for fakes.
 
