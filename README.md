@@ -1,8 +1,10 @@
 <!-- Keep this up to date with the output of help -->
 # PolyglotWatcherV2
 
-A software development tool that triggers test runs test when files are saved, using a number of different user-specified modes.
+A software development tool that triggers test runs when files are saved, using a number of different user-specified modes.
 See the section 'Watcher usage and modes' below.
+
+It also exposes an MCP server so that AI coding assistants (e.g. Claude Code) can run tests through the watcher. See the 'MCP Server' section below.
 
 ## Installation
 
@@ -50,6 +52,42 @@ using the switches listed below...
 | ---- | ------ | ----------- |
 | Default | `rs d` | Will always run `cargo build` when any `.rs` file is saved |
 | Test | `rs t` | Will always run `cargo test` when any `.rs` file is saved |
+
+## MCP Server
+
+The watcher runs an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server on `http://localhost:4848`. This lets AI coding assistants run tests through the watcher instead of invoking `mix test` directly.
+
+### Why?
+
+If your AI assistant runs `mix test` at the same time the watcher does (because you saved a file), you get two concurrent test processes with interleaved output. The MCP server avoids this — all test runs go through a global mutex in the watcher, so only one `mix test` runs at a time. If the same test is already running, the MCP caller waits and gets the result without a duplicate run.
+
+### Setup for Claude Code
+
+Add a `.mcp.json` to your project root (or use `~/.claude/.mcp.json` for global config):
+
+```json
+{
+  "mcpServers": {
+    "polyglot-watcher": {
+      "command": "/path/to/polyglot_watcher_v2/mcp_stdio_proxy"
+    }
+  }
+}
+```
+
+The `mcp_stdio_proxy` script bridges Claude Code's stdio-based MCP transport to the watcher's HTTP endpoint. It handles the case where the watcher isn't running yet — Claude Code will still see the MCP server as connected, and tool calls will return a clear error message until the watcher starts.
+
+Add the following to your project's `CLAUDE.md` (or `~/.claude/CLAUDE.md` for global):
+
+```
+**Prefer the `run_tests` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. Fall back to `mix test` if the tool is unavailable.
+```
+
+### Available tools
+
+| Tool | Description |
+| ---- | ----------- |
+| `run_tests` | Runs `mix test` with optional `test_path` and `line_number` parameters. Returns JSON with `exit_code`, `output`, and `test_path`. |
 
 ## Elixir AI Replace Mode
 
