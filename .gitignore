@@ -30,3 +30,4 @@ polyglot_watcher_v2_test
 polyglot_watcher_v2.diff
 
 .direnv
+.mcp.json

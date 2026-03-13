@@ -5,11 +5,12 @@ defmodule PolyglotWatcherV2 do
 
   @mcp_default_port 4848
 
-  # TODO consider race conditions. we should really "block" or queue mix test runs starting from when the intent message is printed, so that file-change-based and mcp-based mix test requests queue (or debounce) properly. we want to avoid interleaved puts on the screen as well as mix test runs
-  # TODO reconsider the ports problem. take a hash of the cwd to get a port, and increase its number til you find one thats free? or sth? need to be able to run at least 1 watcher from different dirs without conflict.
   # TODO do a strict analysis of lib files changed and ensure sufficient test coverage to be confident it worked
   # TODO update README with setup instructions
-  # TODO [future] let the watcher tell claude what tests have run & passed
+
+  # deferred
+  # TODO [future] reconsider the ports problem. take a hash of the cwd to get a port, and increase its number til you find one thats free? or sth? need to be able to run at least 1 watcher from different dirs without conflict.
+  # TODO [future] let the watcher tell claude what tests have run & passed (server side events?)
 
   def main(command_line_args \\ []) do
     run(command_line_args)

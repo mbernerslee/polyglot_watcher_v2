@@ -55,6 +55,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @impl GenServer
   def init(_) do
     debug_log("starting up")
+
     {:ok,
      %{
        status: :loading,
