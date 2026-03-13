@@ -266,28 +266,6 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
-  describe "mark_running/1" do
-    test "marks a test as running in state" do
-      assert {:ok, pid} = Cache.start_link([])
-
-      args = %MixTestArgs{path: "test/cool_test.exs"}
-      assert :ok == Cache.mark_running(pid, args)
-
-      state = :sys.get_state(pid)
-      assert %{"test/cool_test.exs" => %{waiters: []}} == state.running
-    end
-
-    test "normalizes tuple path to just the file" do
-      assert {:ok, pid} = Cache.start_link([])
-
-      args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
-      assert :ok == Cache.mark_running(pid, args)
-
-      state = :sys.get_state(pid)
-      assert %{"test/cool_test.exs" => %{waiters: []}} == state.running
-    end
-  end
-
   describe "await_or_run/1" do
     test "returns :not_running when nothing is running" do
       assert {:ok, pid} = Cache.start_link([])
@@ -296,46 +274,48 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       assert :not_running == Cache.await_or_run(pid, args)
     end
 
-    test "blocks when test is running, unblocks when update is called" do
+    test "blocks when same test is running, unblocks when update is called" do
       assert {:ok, pid} = Cache.start_link([])
 
       args = %MixTestArgs{path: "test/cool_test.exs"}
-      GenServer.call(pid, {:mark_running, args})
+      # First caller acquires the lock
+      assert :not_running == Cache.await_or_run(pid, args)
 
       test_pid = self()
 
       spawn_link(fn ->
-        result = GenServer.call(pid, {:await_or_run, args}, :infinity)
+        result = Cache.await_or_run(pid, args)
         send(test_pid, {:result, result})
       end)
 
-      wait_for_waiters(pid, "test/cool_test.exs", 1)
+      wait_for_same_key_waiters(pid, 1)
 
       mix_test_output = "1 test, 0 failures"
-      GenServer.call(pid, {:update, args, mix_test_output, 0})
+      Cache.update(pid, args, mix_test_output, 0)
 
       assert_receive {:result, {:ok, {^mix_test_output, 0}}}
     end
 
-    test "multiple waiters all get notified" do
+    test "multiple same-key waiters all get notified" do
       assert {:ok, pid} = Cache.start_link([])
 
       args = %MixTestArgs{path: "test/cool_test.exs"}
-      GenServer.call(pid, {:mark_running, args})
+      # First caller acquires the lock
+      assert :not_running == Cache.await_or_run(pid, args)
 
       test_pid = self()
 
       for _i <- 1..3 do
         spawn_link(fn ->
-          result = GenServer.call(pid, {:await_or_run, args}, :infinity)
+          result = Cache.await_or_run(pid, args)
           send(test_pid, {:result, result})
         end)
       end
 
-      wait_for_waiters(pid, "test/cool_test.exs", 3)
+      wait_for_same_key_waiters(pid, 3)
 
       mix_test_output = "1 test, 1 failure"
-      GenServer.call(pid, {:update, args, mix_test_output, 2})
+      Cache.update(pid, args, mix_test_output, 2)
 
       for _i <- 1..3 do
         assert_receive {:result, {:ok, {^mix_test_output, 2}}}
@@ -346,38 +326,155 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       assert {:ok, pid} = Cache.start_link([])
 
       args_with_line = %MixTestArgs{path: {"test/cool_test.exs", 42}}
-      GenServer.call(pid, {:mark_running, args_with_line})
+      # First caller acquires the lock
+      assert :not_running == Cache.await_or_run(pid, args_with_line)
 
       test_pid = self()
 
       spawn_link(fn ->
-        result =
-          GenServer.call(pid, {:await_or_run, %MixTestArgs{path: "test/cool_test.exs"}}, :infinity)
-
+        result = Cache.await_or_run(pid, %MixTestArgs{path: "test/cool_test.exs"})
         send(test_pid, {:result, result})
       end)
 
-      wait_for_waiters(pid, "test/cool_test.exs", 1)
+      wait_for_same_key_waiters(pid, 1)
 
       mix_test_output = "1 test, 0 failures"
-      GenServer.call(pid, {:update, args_with_line, mix_test_output, 0})
+      Cache.update(pid, args_with_line, mix_test_output, 0)
 
       assert_receive {:result, {:ok, {^mix_test_output, 0}}}
+    end
+
+    test "different test queued behind a running test" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args_a = %MixTestArgs{path: "test/a_test.exs"}
+      args_b = %MixTestArgs{path: "test/b_test.exs"}
+
+      # First caller acquires the lock for test A
+      assert :not_running == Cache.await_or_run(pid, args_a)
+
+      test_pid = self()
+
+      # Second caller wants test B — gets queued
+      spawn_link(fn ->
+        result = Cache.await_or_run(pid, args_b)
+        send(test_pid, {:result_b, result})
+      end)
+
+      wait_for_queue_length(pid, 1)
+
+      # Complete test A — test B should get the lock
+      Cache.update(pid, args_a, "a output", 0)
+
+      # Test B caller should receive :not_running (their turn to run)
+      assert_receive {:result_b, :not_running}
+
+      # Verify test B now holds the lock
+      state = :sys.get_state(pid)
+      assert state.running_key == "test/b_test.exs"
+    end
+
+    test "queue drains in order" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args_a = %MixTestArgs{path: "test/a_test.exs"}
+      args_b = %MixTestArgs{path: "test/b_test.exs"}
+      args_c = %MixTestArgs{path: "test/c_test.exs"}
+
+      # A acquires the lock
+      assert :not_running == Cache.await_or_run(pid, args_a)
+
+      test_pid = self()
+
+      # B and C queue up (in order)
+      spawn_link(fn ->
+        result = Cache.await_or_run(pid, args_b)
+        send(test_pid, {:result_b, result})
+      end)
+
+      wait_for_queue_length(pid, 1)
+
+      spawn_link(fn ->
+        result = Cache.await_or_run(pid, args_c)
+        send(test_pid, {:result_c, result})
+      end)
+
+      wait_for_queue_length(pid, 2)
+
+      # Complete A — B gets the lock
+      Cache.update(pid, args_a, "a output", 0)
+      assert_receive {:result_b, :not_running}
+
+      # Complete B — C gets the lock
+      Cache.update(pid, args_b, "b output", 0)
+      assert_receive {:result_c, :not_running}
+
+      # Queue is drained
+      state = :sys.get_state(pid)
+      assert state.queue == []
+    end
+
+    test "same-key dedup within the queue" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args_a = %MixTestArgs{path: "test/a_test.exs"}
+      args_b = %MixTestArgs{path: "test/b_test.exs"}
+
+      # A acquires the lock
+      assert :not_running == Cache.await_or_run(pid, args_a)
+
+      test_pid = self()
+
+      # Two callers queue up for the same test B
+      spawn_link(fn ->
+        result = Cache.await_or_run(pid, args_b)
+        send(test_pid, {:result_b1, result})
+      end)
+
+      wait_for_queue_length(pid, 1)
+
+      spawn_link(fn ->
+        result = Cache.await_or_run(pid, args_b)
+        send(test_pid, {:result_b2, result})
+      end)
+
+      wait_for_queue_length(pid, 2)
+
+      # Complete A — first B caller runs, second B caller becomes same_key_waiter
+      Cache.update(pid, args_a, "a output", 0)
+
+      # First B caller gets :not_running (runs the test)
+      assert_receive {:result_b1, :not_running}
+
+      # Second B caller is waiting as a same_key_waiter (hasn't received anything yet)
+      refute_receive {:result_b2, _}
+
+      state = :sys.get_state(pid)
+      assert state.running_key == "test/b_test.exs"
+      assert length(state.same_key_waiters) == 1
+      assert state.queue == []
+
+      # Complete B — second caller gets the result
+      Cache.update(pid, args_b, "b output", 0)
+      assert_receive {:result_b2, {:ok, {"b output", 0}}}
     end
   end
 
   describe "update/4 - running state" do
-    test "clears running state after update" do
+    test "clears running state after update when queue is empty" do
       assert {:ok, pid} = Cache.start_link([])
 
       args = %MixTestArgs{path: "test/cool_test.exs"}
-      Cache.mark_running(pid, args)
+      assert :not_running == Cache.await_or_run(pid, args)
 
-      assert %{"test/cool_test.exs" => _} = :sys.get_state(pid).running
+      assert "test/cool_test.exs" == :sys.get_state(pid).running_key
 
       Cache.update(pid, args, "output", 0)
 
-      assert %{} == :sys.get_state(pid).running
+      state = :sys.get_state(pid)
+      assert state.running_key == nil
+      assert state.same_key_waiters == []
+      assert state.queue == []
     end
   end
 
@@ -388,15 +485,23 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
-  defp wait_for_waiters(pid, key, expected_count) do
+  defp wait_for_same_key_waiters(pid, expected_count) do
     state = :sys.get_state(pid)
 
-    case get_in(state, [:running, key, :waiters]) do
-      waiters when is_list(waiters) and length(waiters) == expected_count ->
-        :ok
+    if length(state.same_key_waiters) == expected_count do
+      :ok
+    else
+      wait_for_same_key_waiters(pid, expected_count)
+    end
+  end
 
-      _ ->
-        wait_for_waiters(pid, key, expected_count)
+  defp wait_for_queue_length(pid, expected_count) do
+    state = :sys.get_state(pid)
+
+    if length(state.queue) == expected_count do
+      :ok
+    else
+      wait_for_queue_length(pid, expected_count)
     end
   end
 end

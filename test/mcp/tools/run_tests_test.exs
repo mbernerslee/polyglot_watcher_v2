@@ -11,7 +11,6 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       args = %MixTestArgs{path: "test/cool_test.exs"}
 
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
-      Mimic.expect(Cache, :mark_running, fn ^args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
         {"1 test, 0 failures", 0}
@@ -31,7 +30,6 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
 
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
-      Mimic.expect(Cache, :mark_running, fn ^args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs:42 --color" ->
         {"1 test, 0 failures", 0}
@@ -49,7 +47,6 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       args = %MixTestArgs{path: :all}
 
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
-      Mimic.expect(Cache, :mark_running, fn ^args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test --color" ->
         {"10 tests, 0 failures", 0}

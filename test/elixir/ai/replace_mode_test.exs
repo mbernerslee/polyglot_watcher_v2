@@ -117,7 +117,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
       assert {tree, @server_state_normal_mode} = ReplaceMode.switch(@server_state_normal_mode)
 
       expected_action_tree_keys = [
-        :clear_screen,
         :put_switch_mode_msg,
         :switch_mode,
         :persist_api_key,
@@ -137,7 +136,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
         ReplaceMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
 
       expected_action_tree_keys = [
-        :clear_screen,
         :mix_test,
         :reload_ai_prompt,
         :build_ai_api_request,
@@ -155,7 +153,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
         ReplaceMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
 
       expected_action_tree_keys = [
-        :clear_screen,
         :mix_test,
         :reload_ai_prompt,
         :build_ai_api_request,
@@ -176,7 +173,6 @@ defmodule PolyglotWatcherV2.Elixir.AI.ReplaceModeTest do
         )
 
       expected_action_tree_keys = [
-        :clear_screen,
         :cannot_find_msg
       ]
 

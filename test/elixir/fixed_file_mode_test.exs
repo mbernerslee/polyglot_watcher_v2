@@ -10,14 +10,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
       server_state = ServerStateBuilder.build()
       test_path = {"test/cool_test.exs", 42}
 
-      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+      assert {%{entry_point: :switch_mode, actions_tree: actions_tree} = tree, ^server_state} =
                FixedFileMode.switch(server_state, test_path)
 
       assert %{
-               clear_screen: %PolyglotWatcherV2.Action{
-                 runnable: :clear_screen,
-                 next_action: :switch_mode
-               },
                switch_mode: %PolyglotWatcherV2.Action{
                  runnable: {:switch_mode, :elixir, {:fixed_file, {"test/cool_test.exs", 42}}},
                  next_action: :put_switch_mode_msg
@@ -51,14 +47,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
         {:ok, {"test/cool_test.exs", 10}}
       end)
 
-      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+      assert {%{entry_point: :switch_mode, actions_tree: actions_tree} = tree, ^server_state} =
                FixedFileMode.switch(server_state)
 
       assert %{
-               clear_screen: %PolyglotWatcherV2.Action{
-                 runnable: :clear_screen,
-                 next_action: :switch_mode
-               },
                switch_mode: %PolyglotWatcherV2.Action{
                  runnable: {:switch_mode, :elixir, {:fixed_file, {"test/cool_test.exs", 10}}},
                  next_action: :put_switch_mode_msg
@@ -88,14 +80,10 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
 
       Mimic.expect(Cache, :get_test_failure, fn :latest -> {:error, :not_found} end)
 
-      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+      assert {%{entry_point: :put_error_msg, actions_tree: actions_tree} = tree, ^server_state} =
                FixedFileMode.switch(server_state)
 
       assert %{
-               clear_screen: %PolyglotWatcherV2.Action{
-                 runnable: :clear_screen,
-                 next_action: :put_error_msg
-               },
                put_error_msg: %Action{
                  runnable:
                    {:puts,
@@ -128,7 +116,6 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
       assert {tree, _server_state} = FixedFileMode.switch(server_state)
 
       expected_action_tree_keys = [
-        :clear_screen,
         :switch_mode,
         :put_switch_mode_msg,
         :mix_test
@@ -149,7 +136,6 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
       assert {tree, _server_state} = FixedFileMode.switch(server_state)
 
       expected_action_tree_keys = [
-        :clear_screen,
         :put_error_msg
       ]
 
@@ -168,16 +154,12 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %PolyglotWatcherV2.Action{
-                   runnable: :clear_screen,
-                   next_action: :mix_test
-                 },
                  mix_test: %PolyglotWatcherV2.Action{
                    runnable: {:mix_test, %MixTestArgs{path: "test/cool_test.exs"}},
                    next_action: :exit
                  }
                },
-               entry_point: :clear_screen
+               entry_point: :mix_test
              } == tree
 
       ActionsTreeValidator.validate(tree)
@@ -192,16 +174,12 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %PolyglotWatcherV2.Action{
-                   runnable: :clear_screen,
-                   next_action: :mix_test
-                 },
                  mix_test: %PolyglotWatcherV2.Action{
                    runnable: {:mix_test, %MixTestArgs{path: {"test/x_test.exs", 123}}},
                    next_action: :exit
                  }
                },
-               entry_point: :clear_screen
+               entry_point: :mix_test
              } == tree
 
       ActionsTreeValidator.validate(tree)

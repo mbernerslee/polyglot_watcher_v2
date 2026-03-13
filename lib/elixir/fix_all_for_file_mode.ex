@@ -14,10 +14,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
     case Cache.get_test_failure(:latest) do
       {:ok, {test_path, _line_number}} ->
         my_specific_actions_tree = %{
-          clear_screen: %Action{
-            runnable: :clear_screen,
-            next_action: :switch_mode
-          },
           switch_mode: %Action{
             runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
             next_action: :put_mode_switch_msg
@@ -36,7 +32,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
         }
 
         tree = %{
-          entry_point: :clear_screen,
+          entry_point: :switch_mode,
           actions_tree: Map.merge(my_specific_actions_tree, action_loop(test_path))
         }
 
@@ -44,12 +40,8 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
 
       {:error, :not_found} ->
         {%{
-           entry_point: :clear_screen,
+           entry_point: :put_error_msg,
            actions_tree: %{
-             clear_screen: %Action{
-               runnable: :clear_screen,
-               next_action: :put_error_msg
-             },
              put_error_msg: %Action{
                runnable:
                  {:puts,
@@ -73,10 +65,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
   @impl PolyglotWatcherV2.Mode
   def switch(server_state, test_path) do
     my_specific_actions_tree = %{
-      clear_screen: %Action{
-        runnable: :clear_screen,
-        next_action: :switch_mode
-      },
       switch_mode: %Action{
         runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
         next_action: :put_mode_switch_msg
@@ -94,7 +82,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
     }
 
     tree = %{
-      entry_point: :clear_screen,
+      entry_point: :switch_mode,
       actions_tree: Map.merge(my_specific_actions_tree, action_loop(test_path))
     }
 
@@ -103,16 +91,9 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileMode do
 
   @impl PolyglotWatcherV2.Mode
   def determine_actions(%{elixir: %{mode: {:fix_all_for_file, test_path}}} = server_state) do
-    my_specific_actions_tree = %{
-      clear_screen: %Action{
-        runnable: :clear_screen,
-        next_action: :mix_test_latest_line
-      }
-    }
-
     tree = %{
-      entry_point: :clear_screen,
-      actions_tree: Map.merge(my_specific_actions_tree, action_loop(test_path))
+      entry_point: :mix_test_latest_line,
+      actions_tree: action_loop(test_path)
     }
 
     {tree, server_state}

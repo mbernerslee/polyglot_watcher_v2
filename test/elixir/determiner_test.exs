@@ -18,10 +18,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :check_file_exists} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :check_file_exists,
         :mix_test,
         :no_test_msg
@@ -38,10 +37,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :mix_test} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :mix_test
       ]
 
@@ -66,10 +64,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.determine_actions(@ex_file_path, server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :mix_test_latest_line} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :mix_test_latest_line,
         :put_mix_test_error,
         :mix_test_all_for_file,
@@ -98,10 +95,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.user_input_actions("ex d", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :put_switch_mode_msg} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :put_switch_mode_msg,
         :switch_mode
       ]
@@ -116,7 +112,7 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       assert {tree, ^server_state} =
                Determiner.user_input_actions("ex f test/cool_test.exs", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :switch_mode} = tree
 
       ActionsTreeValidator.validate(tree)
 
@@ -168,10 +164,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.user_input_actions("ex ra", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :switch_mode} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :switch_mode,
         :put_switch_mode_msg,
         :mix_test
@@ -200,12 +195,11 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       assert {tree, ^server_state} =
                Determiner.user_input_actions("ex faff #{test_path}", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :switch_mode} = tree
 
       ActionsTreeValidator.assert_exact_keys(
         tree,
         [
-          :clear_screen,
           :mix_test_latest_line,
           :put_mix_test_error,
           :switch_mode,
@@ -239,12 +233,11 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       assert {tree, ^server_state} = Determiner.user_input_actions("ex faff", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :switch_mode} = tree
 
       ActionsTreeValidator.assert_exact_keys(
         tree,
         [
-          :clear_screen,
           :mix_test_latest_line,
           :put_mix_test_error,
           :mix_test_all_for_file,
@@ -261,10 +254,9 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
       server_state = ServerStateBuilder.build()
       assert {tree, ^server_state} = Determiner.user_input_actions("ex air", server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :put_switch_mode_msg} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :put_switch_mode_msg,
         :switch_mode,
         :persist_api_key,

@@ -12,10 +12,9 @@ defmodule PolyglotWatcherV2.Elixir.RunAllModeTest do
 
       assert {tree, ^server_state} = RunAllMode.switch(server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :switch_mode} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :switch_mode,
         :put_switch_mode_msg,
         :mix_test
@@ -34,10 +33,9 @@ defmodule PolyglotWatcherV2.Elixir.RunAllModeTest do
 
       assert {tree, ^server_state} = RunAllMode.determine_actions(server_state)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :mix_test} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :mix_test
       ]
 

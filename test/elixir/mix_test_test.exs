@@ -12,7 +12,6 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       mock_output = mock_mix_test_output()
 
       Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
-      Mimic.expect(Cache, :mark_running, fn ^mix_test_args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test #{test_path} --color"
@@ -44,7 +43,6 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       exit_code = 0
 
       Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
-      Mimic.expect(Cache, :mark_running, fn ^mix_test_args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test #{test_path} --color"
@@ -66,7 +64,6 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       exit_code = 0
 
       Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
-      Mimic.expect(Cache, :mark_running, fn ^mix_test_args -> :ok end)
 
       Mimic.expect(ShellCommandRunner, :run, fn shell_command ->
         assert shell_command == "mix test --color"

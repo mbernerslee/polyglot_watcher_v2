@@ -18,10 +18,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %Action{
-                   next_action: :mix_test_latest_line,
-                   runnable: :clear_screen
-                 },
                  mix_test_latest_line: %Action{
                    next_action: %{
                      {:mix_test, :passed} => :mix_test_latest_max_failures_1,
@@ -60,7 +56,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                    }
                  }
                },
-               entry_point: :clear_screen
+               entry_point: :mix_test_latest_line
              } == tree
 
       ActionsTreeValidator.validate(tree)
@@ -77,10 +73,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %Action{
-                   next_action: :put_switch_mode_msg,
-                   runnable: :clear_screen
-                 },
                  put_switch_mode_msg: %Action{
                    runnable:
                      {:puts,
@@ -133,7 +125,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
                    }
                  }
                },
-               entry_point: :clear_screen
+               entry_point: :put_switch_mode_msg
              } == tree
 
       ActionsTreeValidator.validate(tree)

@@ -12,12 +12,8 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
     mix_test_args = %MixTestArgs{path: test_path}
 
     {%{
-       entry_point: :clear_screen,
+       entry_point: :mix_test,
        actions_tree: %{
-         clear_screen: %Action{
-           runnable: :clear_screen,
-           next_action: :mix_test
-         },
          mix_test: %Action{
            runnable: {:mix_test, mix_test_args},
            next_action: :exit
@@ -41,12 +37,8 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
 
   defp no_idea_what_to_run(lib_path) do
     %{
-      entry_point: :clear_screen,
+      entry_point: :cannot_find_msg,
       actions_tree: %{
-        clear_screen: %Action{
-          runnable: :clear_screen,
-          next_action: :cannot_find_msg
-        },
         cannot_find_msg: %Action{
           runnable:
             {:puts, :magenta,
@@ -68,12 +60,8 @@ defmodule PolyglotWatcherV2.Elixir.DefaultMode do
     mix_test_args = %MixTestArgs{path: test_path}
 
     %{
-      entry_point: :clear_screen,
+      entry_point: :check_file_exists,
       actions_tree: %{
-        clear_screen: %Action{
-          runnable: :clear_screen,
-          next_action: :check_file_exists
-        },
         check_file_exists: %Action{
           runnable: {:file_exists, test_path},
           next_action: %{true => :mix_test, :fallback => :no_test_msg}

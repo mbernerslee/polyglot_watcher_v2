@@ -46,10 +46,6 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, {:get_files, test_path})
   end
 
-  def mark_running(pid \\ @process_name, %MixTestArgs{} = mix_test_args) do
-    GenServer.call(pid, {:mark_running, mix_test_args})
-  end
-
   def await_or_run(pid \\ @process_name, %MixTestArgs{} = mix_test_args) do
     GenServer.call(pid, {:await_or_run, mix_test_args}, :infinity)
   end
@@ -59,7 +55,14 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   @impl GenServer
   def init(_) do
     debug_log("starting up")
-    {:ok, %{status: :loading, cache_items: %{}, running: %{}}, {:continue, :load}}
+    {:ok,
+     %{
+       status: :loading,
+       cache_items: %{},
+       running_key: nil,
+       same_key_waiters: [],
+       queue: []
+     }, {:continue, :load}}
   end
 
   @impl GenServer
@@ -80,20 +83,38 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   def handle_call({:update, mix_test_args, mix_test_output, exit_code}, _from, state) do
     cache_items = Update.run(state.cache_items, mix_test_args, mix_test_output, exit_code)
 
-    key = normalize_key(mix_test_args)
     result = {mix_test_output, exit_code}
 
-    running =
-      case Map.get(state.running, key) do
-        %{waiters: waiters} ->
-          for from <- waiters, do: GenServer.reply(from, {:ok, result})
-          Map.delete(state.running, key)
+    # Reply to all same-key waiters with the result
+    for from <- state.same_key_waiters, do: GenServer.reply(from, {:ok, result})
 
-        nil ->
-          state.running
+    # Drain the queue: pop next item
+    state =
+      case state.queue do
+        [] ->
+          %{state | cache_items: cache_items, running_key: nil, same_key_waiters: [], queue: []}
+
+        [{next_from, next_args} | rest] ->
+          next_key = normalize_key(next_args)
+
+          # Collect any remaining queue entries with the same key as same_key_waiters
+          {same_key_entries, remaining_queue} =
+            Enum.split_with(rest, fn {_from, args} -> normalize_key(args) == next_key end)
+
+          new_same_key_waiters = Enum.map(same_key_entries, fn {from, _args} -> from end)
+
+          # Tell the next caller to run
+          GenServer.reply(next_from, :not_running)
+
+          %{
+            state
+            | cache_items: cache_items,
+              running_key: next_key,
+              same_key_waiters: new_same_key_waiters,
+              queue: remaining_queue
+          }
       end
 
-    state = %{state | cache_items: cache_items, running: running}
     debug_log_cache(state)
     {:reply, :ok, state}
   end
@@ -109,25 +130,24 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   @impl GenServer
-  def handle_call({:mark_running, mix_test_args}, _from, state) do
-    key = normalize_key(mix_test_args)
-    debug_log("mark_running: #{key}")
-    running = Map.put(state.running, key, %{waiters: []})
-    {:reply, :ok, %{state | running: running}}
-  end
-
-  @impl GenServer
   def handle_call({:await_or_run, mix_test_args}, from, state) do
     key = normalize_key(mix_test_args)
 
-    case Map.get(state.running, key) do
-      %{waiters: waiters} ->
-        debug_log("await_or_run: #{key} is running, adding waiter")
-        running = Map.put(state.running, key, %{waiters: [from | waiters]})
-        {:noreply, %{state | running: running}}
-
+    case state.running_key do
       nil ->
-        {:reply, :not_running, state}
+        # Nothing running — caller gets the lock
+        debug_log("await_or_run: #{key} — acquired lock")
+        {:reply, :not_running, %{state | running_key: key}}
+
+      ^key ->
+        # Same test running — wait for its result
+        debug_log("await_or_run: #{key} is running, adding same-key waiter")
+        {:noreply, %{state | same_key_waiters: [from | state.same_key_waiters]}}
+
+      other_key ->
+        # Different test running — queue up
+        debug_log("await_or_run: #{key} queued behind #{other_key}")
+        {:noreply, %{state | queue: state.queue ++ [{from, mix_test_args}]}}
     end
   end
 

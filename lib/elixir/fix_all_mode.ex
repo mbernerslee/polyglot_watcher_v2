@@ -5,25 +5,13 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
 
   @impl PolyglotWatcherV2.Mode
   def determine_actions(server_state) do
-    actions_tree =
-      Map.merge(fix_all_actions_loop(), %{
-        clear_screen: %Action{
-          next_action: :mix_test_latest_line,
-          runnable: :clear_screen
-        }
-      })
-
-    {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
+    {%{entry_point: :mix_test_latest_line, actions_tree: fix_all_actions_loop()}, server_state}
   end
 
   @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     actions_tree =
       Map.merge(fix_all_actions_loop(), %{
-        clear_screen: %Action{
-          runnable: :clear_screen,
-          next_action: :put_switch_mode_msg
-        },
         put_switch_mode_msg: %Action{
           runnable:
             {:puts,
@@ -40,7 +28,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllMode do
         }
       })
 
-    {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
+    {%{entry_point: :put_switch_mode_msg, actions_tree: actions_tree}, server_state}
   end
 
   defp fix_all_actions_loop do

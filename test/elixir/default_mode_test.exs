@@ -17,10 +17,9 @@ defmodule PolyglotWatcherV2.Elixir.DefaultModeTest do
       {tree, @server_state_normal_mode} =
         DefaultMode.determine_actions(@lib_ex_file_path, @server_state_normal_mode)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :check_file_exists} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :check_file_exists,
         :mix_test,
         :no_test_msg
@@ -37,10 +36,9 @@ defmodule PolyglotWatcherV2.Elixir.DefaultModeTest do
           @server_state_normal_mode
         )
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :cannot_find_msg} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :cannot_find_msg
       ]
 
@@ -52,10 +50,9 @@ defmodule PolyglotWatcherV2.Elixir.DefaultModeTest do
       {tree, @server_state_normal_mode} =
         DefaultMode.determine_actions(@test_exs_file_path, @server_state_normal_mode)
 
-      assert %{entry_point: :clear_screen} = tree
+      assert %{entry_point: :mix_test} = tree
 
       expected_action_tree_keys = [
-        :clear_screen,
         :mix_test
       ]
 

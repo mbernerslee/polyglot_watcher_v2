@@ -5,8 +5,6 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   def run(%MixTestArgs{} = mix_test_args) do
-    put_running_message(mix_test_args)
-
     {output, exit_code} =
       case Cache.await_or_run(mix_test_args) do
         {:ok, result} ->
@@ -26,7 +24,8 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
   end
 
   defp execute(mix_test_args) do
-    Cache.mark_running(mix_test_args)
+    ActionsExecutor.execute(:clear_screen)
+    put_running_message(mix_test_args)
 
     {mix_test_output, exit_code} =
       mix_test_args

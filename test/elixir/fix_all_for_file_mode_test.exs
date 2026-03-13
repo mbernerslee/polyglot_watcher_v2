@@ -16,13 +16,8 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
         {:ok, {test_path, line_number}}
       end)
 
-      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+      assert {%{entry_point: :switch_mode, actions_tree: actions_tree} = tree, ^server_state} =
                FixAllForFileMode.switch(server_state)
-
-      assert actions_tree.clear_screen == %Action{
-               runnable: :clear_screen,
-               next_action: :switch_mode
-             }
 
       assert actions_tree.switch_mode == %Action{
                runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
@@ -44,7 +39,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       ActionsTreeValidator.assert_exact_keys(
         tree,
         [
-          :clear_screen,
           :switch_mode,
           :put_mode_switch_msg,
           :mix_test_latest_line,
@@ -62,14 +56,10 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
 
       Mimic.expect(Cache, :get_test_failure, fn :latest -> {:error, :not_found} end)
 
-      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+      assert {%{entry_point: :put_error_msg, actions_tree: actions_tree} = tree, ^server_state} =
                FixAllForFileMode.switch(server_state)
 
       assert %{
-               clear_screen: %Action{
-                 runnable: :clear_screen,
-                 next_action: :put_error_msg
-               },
                put_error_msg: %Action{
                  runnable:
                    {:puts,
@@ -96,13 +86,8 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       server_state = ServerStateBuilder.build()
       test_path = "test/cool_test.exs"
 
-      assert {%{entry_point: :clear_screen, actions_tree: actions_tree} = tree, ^server_state} =
+      assert {%{entry_point: :switch_mode, actions_tree: actions_tree} = tree, ^server_state} =
                FixAllForFileMode.switch(server_state, test_path)
-
-      assert actions_tree.clear_screen == %Action{
-               runnable: :clear_screen,
-               next_action: :switch_mode
-             }
 
       assert actions_tree.switch_mode == %Action{
                runnable: {:switch_mode, :elixir, {:fix_all_for_file, test_path}},
@@ -123,7 +108,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
       ActionsTreeValidator.assert_exact_keys(
         tree,
         [
-          :clear_screen,
           :switch_mode,
           :put_mode_switch_msg,
           :mix_test_latest_line,
@@ -147,10 +131,6 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
 
       assert %{
                actions_tree: %{
-                 clear_screen: %Action{
-                   next_action: :mix_test_latest_line,
-                   runnable: :clear_screen
-                 },
                  mix_test_all_for_file: %Action{
                    next_action: %{
                      0 => :exit,
@@ -188,7 +168,7 @@ defmodule PolyglotWatcherV2.Elixir.FixAllForFileModeTest do
                    }
                  }
                },
-               entry_point: :clear_screen
+               entry_point: :mix_test_latest_line
              } == tree
 
       ActionsTreeValidator.validate(tree)

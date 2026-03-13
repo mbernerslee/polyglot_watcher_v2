@@ -3,12 +3,52 @@
 # Thin stdio-to-HTTP proxy for MCP.
 # Claude Code spawns this, sends JSON-RPC on stdin, gets responses on stdout.
 # Forwards everything to the running watcher's MCP HTTP endpoint.
+#
+# If the watcher isn't running, the proxy stays alive and:
+#   - Responds to initialize/tools/list itself (so Claude considers the MCP connected)
+#   - Returns JSON-RPC errors for tool calls (so the user gets a clear message)
+# As soon as the watcher starts, everything works automatically.
 
 MCP_URL="${MCP_URL:-http://localhost:4848/mcp}"
 LOG="/tmp/mcp_stdio_proxy.log"
 
 echo "--- proxy started at $(date) ---" >> "$LOG"
 echo "MCP_URL=$MCP_URL" >> "$LOG"
+
+# Extract the "id" field from a JSON-RPC request (integer or string)
+extract_id() {
+  echo "$1" | sed -n 's/.*"id" *: *\([0-9]*\).*/\1/p'
+}
+
+# Extract the "method" field from a JSON-RPC request
+extract_method() {
+  echo "$1" | sed -n 's/.*"method" *: *"\([^"]*\)".*/\1/p'
+}
+
+# Fallback responses when the watcher is not running
+fallback_initialize() {
+  local id="$1"
+  cat <<EOJSON
+{"jsonrpc":"2.0","id":${id},"result":{"protocolVersion":"2025-03-26","capabilities":{"tools":{}},"serverInfo":{"name":"polyglot-watcher","version":"0.1.0"}}}
+EOJSON
+}
+
+fallback_tools_list() {
+  local id="$1"
+  cat <<EOJSON
+{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"run_tests","description":"Runs the specified Elixir test(s) via mix test and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again. Use this instead of running mix test directly.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}}]}}
+EOJSON
+}
+
+fallback_ping() {
+  local id="$1"
+  echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"result\":{}}"
+}
+
+fallback_error() {
+  local id="$1"
+  echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"error\":{\"code\":-32000,\"message\":\"Watcher is not running. Start it and try again.\"}}"
+}
 
 while IFS= read -r line; do
   # Skip empty lines
@@ -17,20 +57,51 @@ while IFS= read -r line; do
   echo "RECV: $line" >> "$LOG"
 
   # Check if it's a notification (no "id" field) - we don't need the response
-  if echo "$line" | grep -q '"id"'; then
-    response=$(curl -s -X POST "$MCP_URL" \
+  if ! echo "$line" | grep -q '"id"'; then
+    # Notification - fire and forget, no response expected
+    curl -s -o /dev/null --max-time 2 -X POST "$MCP_URL" \
       -H 'Content-Type: application/json' \
-      -H 'Accept: application/json' \
-      -d "$line")
+      -d "$line" 2>/dev/null
+    echo "NOTIF: (no response)" >> "$LOG"
+    continue
+  fi
+
+  # It's a request - try to forward to the watcher
+  response=$(curl -s --max-time 30 -X POST "$MCP_URL" \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json' \
+    -d "$line" 2>/dev/null)
+
+  # If curl succeeded and we got a response, use it
+  if [ $? -eq 0 ] && [ -n "$response" ]; then
     echo "SEND: $response" >> "$LOG"
     echo "$response"
-  else
-    # Notification - fire and forget, no response expected
-    curl -s -o /dev/null -X POST "$MCP_URL" \
-      -H 'Content-Type: application/json' \
-      -d "$line"
-    echo "NOTIF: (no response)" >> "$LOG"
+    continue
   fi
+
+  # Watcher is not running - generate fallback response
+  req_id=$(extract_id "$line")
+  method=$(extract_method "$line")
+
+  echo "FALLBACK ($method): watcher unreachable" >> "$LOG"
+
+  case "$method" in
+    initialize)
+      response=$(fallback_initialize "$req_id")
+      ;;
+    ping)
+      response=$(fallback_ping "$req_id")
+      ;;
+    tools/list)
+      response=$(fallback_tools_list "$req_id")
+      ;;
+    *)
+      response=$(fallback_error "$req_id")
+      ;;
+  esac
+
+  echo "SEND: $response" >> "$LOG"
+  echo "$response"
 done
 
 echo "--- proxy exited at $(date) ---" >> "$LOG"

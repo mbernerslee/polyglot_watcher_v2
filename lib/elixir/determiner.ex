@@ -132,12 +132,8 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
 
   defp switch_to_default_mode(server_state) do
     {%{
-       entry_point: :clear_screen,
+       entry_point: :put_switch_mode_msg,
        actions_tree: %{
-         clear_screen: %Action{
-           runnable: :clear_screen,
-           next_action: :put_switch_mode_msg
-         },
          put_switch_mode_msg: %Action{
            runnable: {:puts, :magenta, "Switched Elixir to default mode"},
            next_action: :switch_mode

@@ -5,13 +5,9 @@ defmodule PolyglotWatcherV2.Elixir.RunAllMode do
   @impl PolyglotWatcherV2.Mode
   def switch(server_state) do
     {%{
-       entry_point: :clear_screen,
+       entry_point: :switch_mode,
        actions_tree:
          Map.merge(shared_actions(), %{
-           clear_screen: %Action{
-             runnable: :clear_screen,
-             next_action: :switch_mode
-           },
            switch_mode: %Action{
              runnable: {:switch_mode, :elixir, :run_all},
              next_action: :put_switch_mode_msg
@@ -27,14 +23,8 @@ defmodule PolyglotWatcherV2.Elixir.RunAllMode do
   @impl PolyglotWatcherV2.Mode
   def determine_actions(server_state) do
     {%{
-       entry_point: :clear_screen,
-       actions_tree:
-         Map.merge(shared_actions(), %{
-           clear_screen: %Action{
-             runnable: :clear_screen,
-             next_action: :mix_test
-           }
-         })
+       entry_point: :mix_test,
+       actions_tree: shared_actions()
      }, server_state}
   end
 

@@ -12,10 +12,6 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
           {test_path, line_number}
           |> common_actions_tree()
           |> Map.merge(%{
-            clear_screen: %PolyglotWatcherV2.Action{
-              runnable: :clear_screen,
-              next_action: :switch_mode
-            },
             switch_mode: %PolyglotWatcherV2.Action{
               runnable: {:switch_mode, :elixir, {:fixed_file, {test_path, line_number}}},
               next_action: :put_switch_mode_msg
@@ -33,16 +29,12 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
             }
           })
 
-        {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
+        {%{entry_point: :switch_mode, actions_tree: actions_tree}, server_state}
 
       {:error, :not_found} ->
         {%{
-           entry_point: :clear_screen,
+           entry_point: :put_error_msg,
            actions_tree: %{
-             clear_screen: %PolyglotWatcherV2.Action{
-               runnable: :clear_screen,
-               next_action: :put_error_msg
-             },
              put_error_msg: %Action{
                runnable:
                  {:puts,
@@ -69,10 +61,6 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
       test_path
       |> common_actions_tree()
       |> Map.merge(%{
-        clear_screen: %PolyglotWatcherV2.Action{
-          runnable: :clear_screen,
-          next_action: :switch_mode
-        },
         switch_mode: %PolyglotWatcherV2.Action{
           runnable: {:switch_mode, :elixir, {:fixed_file, test_path}},
           next_action: :put_switch_mode_msg
@@ -90,17 +78,14 @@ defmodule PolyglotWatcherV2.Elixir.FixedFileMode do
         }
       })
 
-    {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
+    {%{entry_point: :switch_mode, actions_tree: actions_tree}, server_state}
   end
 
   @impl PolyglotWatcherV2.Mode
   def determine_actions(%{elixir: %{mode: {:fixed_file, test_path}}} = server_state) do
-    actions_tree =
-      test_path
-      |> common_actions_tree()
-      |> Map.put(:clear_screen, %Action{runnable: :clear_screen, next_action: :mix_test})
+    actions_tree = common_actions_tree(test_path)
 
-    {%{entry_point: :clear_screen, actions_tree: actions_tree}, server_state}
+    {%{entry_point: :mix_test, actions_tree: actions_tree}, server_state}
   end
 
   defp common_actions_tree(test_path) do

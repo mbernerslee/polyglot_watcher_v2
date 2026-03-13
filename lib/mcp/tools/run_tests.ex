@@ -32,7 +32,6 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
   def call(arguments) do
     mix_test_args = build_args(arguments)
 
-    ActionsExecutor.execute(:clear_screen)
     ActionsExecutor.execute({:puts, :cyan, "MCP request received..."})
 
     {output, exit_code} = MixTest.run(mix_test_args)
