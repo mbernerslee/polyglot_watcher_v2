@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.FileSystem.FileWrapper.Real do
   def mkdir_p(path), do: File.mkdir_p(path)
   def exists?(path), do: File.exists?(path)
   def expand_path(path), do: Path.expand(path)
+  def rename(source, destination), do: File.rename(source, destination)
 end
 
 defmodule PolyglotWatcherV2.FileSystem.FileWrapper.Fake do
@@ -16,6 +17,7 @@ defmodule PolyglotWatcherV2.FileSystem.FileWrapper.Fake do
   def mkdir_p(_path), do: :ok
   def exists?(_path), do: true
   def expand_path(path), do: String.replace(path, "~", "/home/default_mocked_expand_path")
+  def rename(_source, _destination), do: :ok
 end
 
 defmodule PolyglotWatcherV2.FileSystem.FileWrapper do
@@ -26,6 +28,7 @@ defmodule PolyglotWatcherV2.FileSystem.FileWrapper do
   def mkdir_p(path), do: module().mkdir_p(path)
   def exists?(path), do: module().exists?(path)
   def expand_path(path), do: module().expand_path(path)
+  def rename(source, destination), do: module().rename(source, destination)
 
   defp module do
     if Application.get_env(:polyglot_watcher_v2, :use_real_file_wrapper_module, true) do
