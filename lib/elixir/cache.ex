@@ -150,9 +150,15 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
       case Map.get(state.last_run_results, key) do
         %{epoch: epoch, output: output, exit_code: exit_code}
         when epoch == state.change_epoch ->
+          debug_log("cache HIT for #{inspect(key)} at epoch #{epoch}")
           {:hit, output, exit_code}
 
-        _ ->
+        %{epoch: stale_epoch} ->
+          debug_log("cache MISS for #{inspect(key)} (cached epoch #{stale_epoch}, current epoch #{state.change_epoch})")
+          :miss
+
+        nil ->
+          debug_log("cache MISS for #{inspect(key)} (no cached result)")
           :miss
       end
 
