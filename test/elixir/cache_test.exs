@@ -478,6 +478,34 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
+  describe "bump_change_epoch/1" do
+    test "increments the change_epoch in state" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      assert :sys.get_state(pid).change_epoch == 0
+
+      Cache.bump_change_epoch(pid)
+      # cast is async, use :sys.get_state to force synchronization
+      assert :sys.get_state(pid).change_epoch == 1
+
+      Cache.bump_change_epoch(pid)
+      assert :sys.get_state(pid).change_epoch == 2
+    end
+  end
+
+  describe "get_change_epoch/1" do
+    test "returns the current change_epoch" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      assert 0 == Cache.get_change_epoch(pid)
+
+      Cache.bump_change_epoch(pid)
+      _ = :sys.get_state(pid)
+
+      assert 1 == Cache.get_change_epoch(pid)
+    end
+  end
+
   describe "child_spec/0" do
     test "returns the default genserver options" do
       assert %{id: Cache, start: {Cache, :start_link, [[name: :elixir_cache]]}} ==

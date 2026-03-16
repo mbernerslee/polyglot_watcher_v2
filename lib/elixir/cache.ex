@@ -50,6 +50,14 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, {:await_or_run, mix_test_args}, :infinity)
   end
 
+  def bump_change_epoch(pid \\ @process_name) do
+    GenServer.cast(pid, :bump_change_epoch)
+  end
+
+  def get_change_epoch(pid \\ @process_name) do
+    GenServer.call(pid, :get_change_epoch)
+  end
+
   # Callbacks
 
   @impl GenServer
@@ -62,7 +70,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
        cache_items: %{},
        running_key: nil,
        same_key_waiters: [],
-       queue: []
+       queue: [],
+       change_epoch: 0
      }, {:continue, :load}}
   end
 
@@ -78,6 +87,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     debug_log_cache(state)
 
     {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_call(:get_change_epoch, _from, state) do
+    {:reply, state.change_epoch, state}
   end
 
   @impl GenServer
@@ -150,6 +164,11 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
         debug_log("await_or_run: #{key} queued behind #{other_key}")
         {:noreply, %{state | queue: state.queue ++ [{from, mix_test_args}]}}
     end
+  end
+
+  @impl GenServer
+  def handle_cast(:bump_change_epoch, state) do
+    {:noreply, Map.update!(state, :change_epoch, &(&1 + 1))}
   end
 
   # Private
