@@ -9,7 +9,26 @@
 #   - Runs mix test directly for run_tests calls (streaming output to stderr)
 # As soon as the watcher starts, everything works automatically.
 
-MCP_URL="${MCP_URL:-http://localhost:4848/mcp}"
+CONFIG_FILE=".polyglot_watcher_v2/config.json"
+
+# Read MCP URL from config file written by the watcher
+read_mcp_url() {
+  if [ -f "$CONFIG_FILE" ]; then
+    local port
+    port=$(jq -r '.mcp_tcp_port // empty' "$CONFIG_FILE" 2>/dev/null)
+    if [ -n "$port" ]; then
+      echo "http://localhost:${port}/mcp"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+MCP_URL=""
+if url=$(read_mcp_url); then
+  MCP_URL="$url"
+fi
+
 LOG="/tmp/mcp_stdio_proxy.log"
 
 echo "--- proxy started at $(date) ---" >> "$LOG"
@@ -136,62 +155,95 @@ while IFS= read -r line; do
 
   echo "RECV: $line" >> "$LOG"
 
+  # If we have no URL yet, try reading config
+  if [ -z "$MCP_URL" ]; then
+    if url=$(read_mcp_url); then
+      MCP_URL="$url"
+      echo "DISCOVERED: $MCP_URL" >> "$LOG"
+    fi
+  fi
+
   # Check if it's a notification (no "id" field) - we don't need the response
   if ! echo "$line" | grep -q '"id"'; then
-    # Notification - fire and forget, no response expected
-    curl -s -o /dev/null --max-time 2 -X POST "$MCP_URL" \
-      -H 'Content-Type: application/json' \
-      -d "$line" 2>/dev/null
+    if [ -n "$MCP_URL" ]; then
+      curl -s -o /dev/null --max-time 2 -X POST "$MCP_URL" \
+        -H 'Content-Type: application/json' \
+        -d "$line" 2>/dev/null
+    fi
     echo "NOTIF: (no response)" >> "$LOG"
     continue
   fi
 
   # It's a request - try to forward to the watcher
-  response=$(curl -s --max-time 30 -X POST "$MCP_URL" \
-    -H 'Content-Type: application/json' \
-    -H 'Accept: application/json' \
-    -d "$line" 2>/dev/null)
+  sent=false
+  if [ -n "$MCP_URL" ]; then
+    response=$(curl -s --max-time 30 -X POST "$MCP_URL" \
+      -H 'Content-Type: application/json' \
+      -H 'Accept: application/json' \
+      -d "$line" 2>/dev/null)
 
-  # If curl succeeded and we got a response, use it
-  if [ $? -eq 0 ] && [ -n "$response" ]; then
-    echo "SEND: $response" >> "$LOG"
-    echo "$response"
-    continue
+    if [ $? -eq 0 ] && [ -n "$response" ]; then
+      echo "SEND: $response" >> "$LOG"
+      echo "$response"
+      sent=true
+    fi
   fi
 
-  # Watcher is not running - generate fallback response
-  req_id=$(extract_id "$line")
-  method=$(extract_method "$line")
+  # On failure, re-read config and retry (handles watcher restart with new port)
+  if [ "$sent" = false ]; then
+    if new_url=$(read_mcp_url); then
+      if [ "$new_url" != "$MCP_URL" ]; then
+        MCP_URL="$new_url"
+        echo "RETRY: new URL=$MCP_URL" >> "$LOG"
+        response=$(curl -s --max-time 30 -X POST "$MCP_URL" \
+          -H 'Content-Type: application/json' \
+          -H 'Accept: application/json' \
+          -d "$line" 2>/dev/null)
 
-  echo "FALLBACK ($method): watcher unreachable" >> "$LOG"
-
-  case "$method" in
-    initialize)
-      response=$(fallback_initialize "$req_id")
-      ;;
-    ping)
-      response=$(fallback_ping "$req_id")
-      ;;
-    tools/list)
-      response=$(fallback_tools_list "$req_id")
-      ;;
-    tools/call)
-      tool_name=$(extract_tool_name "$line")
-      if [ "$tool_name" = "run_tests" ]; then
-        test_path=$(extract_test_path "$line")
-        line_number=$(extract_line_number "$line")
-        response=$(fallback_run_tests "$req_id" "$test_path" "$line_number")
-      else
-        response=$(fallback_error "$req_id")
+        if [ $? -eq 0 ] && [ -n "$response" ]; then
+          echo "SEND: $response" >> "$LOG"
+          echo "$response"
+          sent=true
+        fi
       fi
-      ;;
-    *)
-      response=$(fallback_error "$req_id")
-      ;;
-  esac
+    fi
+  fi
 
-  echo "SEND: $response" >> "$LOG"
-  echo "$response"
+  # Watcher is not reachable - generate fallback response
+  if [ "$sent" = false ]; then
+    req_id=$(extract_id "$line")
+    method=$(extract_method "$line")
+
+    echo "FALLBACK ($method): watcher unreachable" >> "$LOG"
+
+    case "$method" in
+      initialize)
+        response=$(fallback_initialize "$req_id")
+        ;;
+      ping)
+        response=$(fallback_ping "$req_id")
+        ;;
+      tools/list)
+        response=$(fallback_tools_list "$req_id")
+        ;;
+      tools/call)
+        tool_name=$(extract_tool_name "$line")
+        if [ "$tool_name" = "run_tests" ]; then
+          test_path=$(extract_test_path "$line")
+          line_number=$(extract_line_number "$line")
+          response=$(fallback_run_tests "$req_id" "$test_path" "$line_number")
+        else
+          response=$(fallback_error "$req_id")
+        fi
+        ;;
+      *)
+        response=$(fallback_error "$req_id")
+        ;;
+    esac
+
+    echo "SEND: $response" >> "$LOG"
+    echo "$response"
+  fi
 done
 
 echo "--- proxy exited at $(date) ---" >> "$LOG"
