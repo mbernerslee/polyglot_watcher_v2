@@ -4,6 +4,7 @@ defmodule PolyglotWatcherV2 do
   alias PolyglotWatcherV2.Elixir.Cache, as: ElixirCache
 
   @mcp_default_port 4848
+  # TODO add docs/ to gitignore & delete the plan from the file before merging
 
   def main(command_line_args \\ []) do
     run(command_line_args)
