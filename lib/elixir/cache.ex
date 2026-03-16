@@ -58,6 +58,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, :get_change_epoch)
   end
 
+  def get_cached_result(pid \\ @process_name, %MixTestArgs{} = mix_test_args) do
+    GenServer.call(pid, {:get_cached_result, mix_test_args})
+  end
+
   # Callbacks
 
   @impl GenServer
@@ -136,6 +140,23 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
     debug_log_cache(state)
     {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:get_cached_result, mix_test_args}, _from, state) do
+    key = run_result_key(mix_test_args)
+
+    result =
+      case Map.get(state.last_run_results, key) do
+        %{epoch: epoch, output: output, exit_code: exit_code}
+        when epoch == state.change_epoch ->
+          {:hit, output, exit_code}
+
+        _ ->
+          :miss
+      end
+
+    {:reply, result, state}
   end
 
   @impl GenServer

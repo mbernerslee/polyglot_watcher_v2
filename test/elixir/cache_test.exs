@@ -530,6 +530,57 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
+  describe "get_cached_result/2" do
+    test "returns :miss when no cached result exists" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      assert :miss == Cache.get_cached_result(pid, args)
+    end
+
+    test "returns {:hit, output, exit_code} when epoch matches" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      Cache.update(pid, args, "1 test, 0 failures", 0)
+
+      assert {:hit, "1 test, 0 failures", 0} == Cache.get_cached_result(pid, args)
+    end
+
+    test "returns :miss when epoch has moved on" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      Cache.update(pid, args, "1 test, 0 failures", 0)
+
+      Cache.bump_change_epoch(pid)
+      _ = :sys.get_state(pid)
+
+      assert :miss == Cache.get_cached_result(pid, args)
+    end
+
+    test "distinguishes between file path and file:line path" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      file_args = %MixTestArgs{path: "test/cool_test.exs"}
+      line_args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
+
+      Cache.update(pid, file_args, "file output", 0)
+
+      assert {:hit, "file output", 0} == Cache.get_cached_result(pid, file_args)
+      assert :miss == Cache.get_cached_result(pid, line_args)
+    end
+
+    test "works with :all path" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: :all}
+      Cache.update(pid, args, "all output", 0)
+
+      assert {:hit, "all output", 0} == Cache.get_cached_result(pid, args)
+    end
+  end
+
   describe "bump_change_epoch/1" do
     test "increments the change_epoch in state" do
       assert {:ok, pid} = Cache.start_link([])
