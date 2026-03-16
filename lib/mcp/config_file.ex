@@ -28,6 +28,7 @@ defmodule PolyglotWatcherV2.MCP.ConfigFile do
   end
 
   def delete do
+    FileWrapper.rm_rf(tmp_path())
     FileWrapper.rm_rf(path())
   end
 end

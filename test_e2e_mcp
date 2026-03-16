@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WATCHER_BIN="$SCRIPT_DIR/polyglot_watcher_v2"
 CONFIG_FILE=".polyglot_watcher_v2/config.json"
 WATCHER_PID=""
+WATCHER2_PID=""
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -17,6 +18,10 @@ fail() { echo -e "${RED}FAIL${NC}: $1"; cleanup; exit 1; }
 info() { echo -e "${YELLOW}INFO${NC}: $1"; }
 
 cleanup() {
+  if [[ -n "$WATCHER2_PID" ]]; then
+    kill "$WATCHER2_PID" 2>/dev/null || true
+    wait "$WATCHER2_PID" 2>/dev/null || true
+  fi
   if [[ -n "$WATCHER_PID" ]]; then
     info "Stopping watcher (pid $WATCHER_PID)"
     kill "$WATCHER_PID" 2>/dev/null || true
@@ -146,6 +151,30 @@ UNKNOWN_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
   -d '{"jsonrpc": "2.0", "id": 5, "method": "bogus/method"}')
 
 echo "$UNKNOWN_RESPONSE" | grep -q '"Method not found"' && pass "Unknown method returned error" || fail "Unknown method response unexpected: $UNKNOWN_RESPONSE"
+
+# --- Test 8: Second instance doesn't crash ---
+info "Test 8: Second instance skips MCP without crashing"
+"$WATCHER_BIN" > /dev/null 2>&1 &
+WATCHER2_PID=$!
+sleep 2
+
+if kill -0 "$WATCHER2_PID" 2>/dev/null; then
+  pass "Second instance is still running (skipped MCP gracefully)"
+else
+  fail "Second instance crashed (expected it to skip MCP and keep running)"
+fi
+
+# First instance's MCP should still work
+PING2_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"jsonrpc": "2.0", "id": 99, "method": "ping"}')
+
+echo "$PING2_RESPONSE" | grep -q '"result":{}' && pass "First instance MCP still responds after second instance started" || fail "First instance MCP broke: $PING2_RESPONSE"
+
+kill "$WATCHER2_PID" 2>/dev/null || true
+wait "$WATCHER2_PID" 2>/dev/null || true
+WATCHER2_PID=""
 
 echo ""
 echo -e "${GREEN}All MCP e2e tests passed!${NC}"

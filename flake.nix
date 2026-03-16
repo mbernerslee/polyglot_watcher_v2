@@ -22,6 +22,7 @@
             bash
             bc
             python3
+            jq
             inotify-tools
           ];
 

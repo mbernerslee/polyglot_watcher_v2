@@ -11,7 +11,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
 
       Mimic.expect(Req, :post, fn "http://localhost:5123/mcp", opts ->
         assert opts[:json] == %{"jsonrpc" => "2.0", "id" => 0, "method" => "ping"}
-        assert opts[:receive_timeout] == 2_000
+        assert opts[:receive_timeout] == 500
         assert opts[:retry] == false
         {:ok, %{status: 200, body: %{"jsonrpc" => "2.0", "result" => %{}}}}
       end)

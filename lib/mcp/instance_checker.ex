@@ -13,8 +13,8 @@ defmodule PolyglotWatcherV2.MCP.InstanceChecker do
   defp mcp_responds?(port) do
     case Req.post("http://localhost:#{port}/mcp",
            json: %{"jsonrpc" => "2.0", "id" => 0, "method" => "ping"},
-           receive_timeout: 2_000,
-           connect_options: [timeout: 2_000],
+           receive_timeout: 500,
+           connect_options: [timeout: 500],
            retry: false
          ) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->

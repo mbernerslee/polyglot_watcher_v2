@@ -50,7 +50,8 @@ defmodule PolyglotWatcherV2.MCP.ConfigFileTest do
   end
 
   describe "delete/0" do
-    test "removes config file" do
+    test "removes tmp file and config file" do
+      Mimic.expect(FileWrapper, :rm_rf, fn ".polyglot_watcher_v2/config.json.tmp" -> {:ok, []} end)
       Mimic.expect(FileWrapper, :rm_rf, fn ".polyglot_watcher_v2/config.json" -> {:ok, []} end)
 
       assert ConfigFile.delete()

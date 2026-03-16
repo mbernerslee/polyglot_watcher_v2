@@ -11,6 +11,8 @@ defmodule PolyglotWatcherV2.MCP.Startup do
   @impl GenServer
   def init(_opts) do
     Process.flag(:trap_exit, true)
+    Application.ensure_all_started(:req)
+    Application.ensure_all_started(:bandit)
 
     case check_and_start() do
       {:ok, state} -> {:ok, state}
@@ -50,8 +52,6 @@ defmodule PolyglotWatcherV2.MCP.Startup do
   end
 
   defp do_start do
-    Application.ensure_all_started(:bandit)
-
     # Bandit is linked (not supervised separately) so that if it crashes,
     # this GenServer stops, cleans up the config file, and the supervisor
     # restarts both together.
