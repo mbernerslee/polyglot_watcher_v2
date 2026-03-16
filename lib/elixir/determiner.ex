@@ -3,6 +3,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   alias PolyglotWatcherV2.{Action, FilePath}
 
   alias PolyglotWatcherV2.Elixir.{
+    Cache,
     DefaultMode,
     FixAllForFileMode,
     FixAllMode,
@@ -24,6 +25,7 @@ defmodule PolyglotWatcherV2.Elixir.Determiner do
   @impl PolyglotWatcherV2.Mode
   def determine_actions(%FilePath{} = file_path, server_state) do
     if file_path.extension in @extensions do
+      Cache.bump_change_epoch()
       by_mode(file_path, server_state)
     else
       {:none, server_state}
