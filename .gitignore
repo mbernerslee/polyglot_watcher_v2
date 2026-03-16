@@ -32,3 +32,5 @@ polyglot_watcher_v2.diff
 
 .direnv
 .mcp.json
+
+.polyglot_watcher_v2/

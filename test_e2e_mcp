@@ -3,8 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MCP_PORT=4848
 WATCHER_BIN="$SCRIPT_DIR/polyglot_watcher_v2"
+CONFIG_FILE=".polyglot_watcher_v2/config.json"
 WATCHER_PID=""
 
 RED='\033[0;31m'
@@ -22,6 +22,7 @@ cleanup() {
     kill "$WATCHER_PID" 2>/dev/null || true
     wait "$WATCHER_PID" 2>/dev/null || true
   fi
+  rm -f ".polyglot_watcher_v2/config.json" 2>/dev/null || true
 }
 
 trap cleanup EXIT
@@ -31,10 +32,10 @@ info "Starting watcher..."
 "$WATCHER_BIN" > /dev/null 2>&1 &
 WATCHER_PID=$!
 
-# Wait for MCP port to be ready
-info "Waiting for MCP server on port $MCP_PORT..."
+# Phase 1: Wait for config file to appear
+info "Waiting for config file at $CONFIG_FILE..."
 for i in $(seq 1 30); do
-  if curl -s -o /dev/null -w '' "http://localhost:$MCP_PORT/mcp" --max-time 1 -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null; then
+  if [ -f "$CONFIG_FILE" ]; then
     break
   fi
   if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
@@ -43,8 +44,32 @@ for i in $(seq 1 30); do
   sleep 0.5
 done
 
-if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
-  fail "Watcher process is not running"
+if [ ! -f "$CONFIG_FILE" ]; then
+  fail "Config file never appeared at $CONFIG_FILE"
+fi
+
+MCP_PORT=$(jq -r '.mcp_tcp_port' "$CONFIG_FILE")
+if [ -z "$MCP_PORT" ] || [ "$MCP_PORT" = "null" ]; then
+  fail "Config file exists but mcp_tcp_port is missing or null"
+fi
+info "Discovered MCP port: $MCP_PORT"
+
+# Phase 2: Wait for MCP server on discovered port
+info "Waiting for MCP server on port $MCP_PORT..."
+MCP_READY=false
+for i in $(seq 1 30); do
+  if curl -s -o /dev/null -w '' "http://localhost:$MCP_PORT/mcp" --max-time 1 -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null; then
+    MCP_READY=true
+    break
+  fi
+  if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
+    fail "Watcher process died during startup"
+  fi
+  sleep 0.5
+done
+
+if [ "$MCP_READY" = false ]; then
+  fail "MCP server never became ready on port $MCP_PORT"
 fi
 
 # --- Test 1: MCP Initialize handshake ---
