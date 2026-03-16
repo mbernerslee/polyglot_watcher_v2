@@ -7,7 +7,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
 
   describe "alive?/2" do
     test "returns true when PID is running and port responds to MCP ping" do
-      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345" -> {"", 0} end)
+      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345 2>/dev/null" -> {"", 0} end)
 
       Mimic.expect(Req, :post, fn "http://localhost:5123/mcp", opts ->
         assert opts[:json] == %{"jsonrpc" => "2.0", "id" => 0, "method" => "ping"}
@@ -20,7 +20,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
     end
 
     test "returns false when PID is not running" do
-      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 99999" ->
+      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 99999 2>/dev/null" ->
         {"kill: (99999) - No such process", 1}
       end)
 
@@ -28,7 +28,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
     end
 
     test "returns false when PID is running but port doesn't respond" do
-      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345" -> {"", 0} end)
+      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345 2>/dev/null" -> {"", 0} end)
 
       Mimic.expect(Req, :post, fn _url, _opts ->
         {:error, %Req.TransportError{reason: :econnrefused}}
@@ -38,7 +38,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
     end
 
     test "returns false when port responds with non-MCP response" do
-      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345" -> {"", 0} end)
+      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345 2>/dev/null" -> {"", 0} end)
 
       Mimic.expect(Req, :post, fn _url, _opts ->
         {:ok, %{status: 200, body: %{"not" => "mcp"}}}
@@ -48,7 +48,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
     end
 
     test "returns false when port responds with non-200 status" do
-      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345" -> {"", 0} end)
+      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345 2>/dev/null" -> {"", 0} end)
 
       Mimic.expect(Req, :post, fn _url, _opts ->
         {:ok, %{status: 500, body: "Internal Server Error"}}
@@ -58,7 +58,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceCheckerTest do
     end
 
     test "returns false when request times out" do
-      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345" -> {"", 0} end)
+      Mimic.expect(ShellCommandRunner, :run, fn "kill -0 12345 2>/dev/null" -> {"", 0} end)
 
       Mimic.expect(Req, :post, fn _url, _opts ->
         {:error, %Req.TransportError{reason: :timeout}}

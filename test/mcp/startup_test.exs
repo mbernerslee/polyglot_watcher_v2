@@ -40,7 +40,7 @@ defmodule PolyglotWatcherV2.MCP.StartupTest do
       Mimic.expect(FileWrapper, :read, fn _ ->
         {:ok, ~s({"mcp_tcp_port": 5555, "pid": 12345})}
       end)
-      Mimic.expect(PolyglotWatcherV2.ShellCommandRunner, :run, fn "kill -0 12345" -> {"", 0} end)
+      Mimic.expect(PolyglotWatcherV2.ShellCommandRunner, :run, fn "kill -0 12345 2>/dev/null" -> {"", 0} end)
       Mimic.expect(Req, :post, fn _, _ ->
         {:ok, %{status: 200, body: %{"jsonrpc" => "2.0", "result" => %{}}}}
       end)
@@ -58,7 +58,7 @@ defmodule PolyglotWatcherV2.MCP.StartupTest do
       Mimic.expect(FileWrapper, :read, fn _ ->
         {:ok, ~s({"mcp_tcp_port": 5555, "pid": 99999})}
       end)
-      Mimic.expect(PolyglotWatcherV2.ShellCommandRunner, :run, fn "kill -0 99999" ->
+      Mimic.expect(PolyglotWatcherV2.ShellCommandRunner, :run, fn "kill -0 99999 2>/dev/null" ->
         {"No such process", 1}
       end)
       Mimic.expect(Bandit, :start_link, fn _ -> {:ok, fake_bandit_pid} end)

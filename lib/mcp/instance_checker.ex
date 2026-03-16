@@ -6,7 +6,7 @@ defmodule PolyglotWatcherV2.MCP.InstanceChecker do
   end
 
   defp pid_running?(pid) do
-    {_output, exit_code} = ShellCommandRunner.run("kill -0 #{pid}")
+    {_output, exit_code} = ShellCommandRunner.run("kill -0 #{pid} 2>/dev/null")
     exit_code == 0
   end
 

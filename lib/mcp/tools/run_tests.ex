@@ -1,5 +1,4 @@
 defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
-  alias PolyglotWatcherV2.ActionsExecutor
   alias PolyglotWatcherV2.Elixir.MixTest
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
@@ -32,9 +31,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
   def call(arguments) do
     mix_test_args = build_args(arguments)
 
-    ActionsExecutor.execute({:puts, :cyan, "MCP request received..."})
-
-    {output, exit_code} = MixTest.run(mix_test_args, use_cache: :cached)
+    {output, exit_code} = MixTest.run(mix_test_args, use_cache: :cached, source: :mcp, pre_message: "MCP request received...")
 
     Jason.encode!(%{
       exit_code: exit_code,

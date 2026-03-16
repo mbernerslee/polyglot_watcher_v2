@@ -32,6 +32,7 @@ fi
 LOG="/tmp/mcp_stdio_proxy.log"
 
 echo "--- proxy started at $(date) ---" >> "$LOG"
+echo "CWD=$(pwd)" >> "$LOG"
 echo "MCP_URL=$MCP_URL" >> "$LOG"
 
 # Extract the "id" field from a JSON-RPC request (integer or string)

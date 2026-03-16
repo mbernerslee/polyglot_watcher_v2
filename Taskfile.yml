@@ -1,0 +1,67 @@
+---
+version: '3'
+output: group
+output-group-error-only: true
+run: once
+set: [e, pipefail]
+
+tasks:
+  build:
+    desc: "Run full build pipeline"
+    deps:
+      - find_todos
+      - loadconfig
+      - mix_test
+      - e2e_test
+
+  find_todos:
+    desc: "Check for TODO comments"
+    cmds:
+      - "! git grep TODO -- './*' ':!build' ':!Taskfile.yml' ':!test/elm_examples' ':!CLAUDE.md'"
+
+  mix_deps_get:
+    desc: "Get dependencies"
+    cmds:
+      - mix deps.get
+
+  loadconfig:
+    desc: "Validate prod config"
+    cmds:
+      - mix loadconfig config/prod.exs
+    deps: [mix_deps_get]
+
+  mix_compile_test:
+    desc: "Compile with warnings as errors"
+    env:
+      MIX_ENV: test
+    cmds:
+      - mix compile --warnings-as-errors --force
+    deps: [mix_deps_get]
+
+  mix_test:
+    desc: "Run unit tests"
+    cmds:
+      - mix test
+    deps: [mix_compile_test]
+
+  mix_compile_prod:
+    desc: "Compile for production"
+    env:
+      MIX_ENV: prod
+    cmds:
+      - mix compile
+    deps: [mix_deps_get]
+
+  mix_release:
+    desc: "Build production release"
+    env:
+      MIX_ENV: prod
+    cmds:
+      - mix release --overwrite
+    deps: [mix_compile_prod]
+
+  e2e_test:
+    desc: "Run MCP e2e tests"
+    cmds:
+      - ./test_e2e_mcp
+    deps: [mix_release, mix_test]

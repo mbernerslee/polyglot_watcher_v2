@@ -3,7 +3,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
   use Mimic
 
   alias PolyglotWatcherV2.Elixir.{Cache, MixTest, MixTestArgs}
-  alias PolyglotWatcherV2.{ShellCommandRunner, ServerStateBuilder}
+  alias PolyglotWatcherV2.{ActionsExecutor, ShellCommandRunner, ServerStateBuilder}
 
   describe "run/1" do
     test "when not running, executes and returns {output, exit_code}" do
@@ -99,6 +99,30 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       Mimic.expect(Cache, :get_cached_result, fn ^mix_test_args ->
         {:hit, "1 test, 0 failures", 0}
       end)
+
+      assert {"1 test, 0 failures", 0} == MixTest.run(mix_test_args, use_cache: :cached)
+    end
+
+    test "use_cache: :cached with source: :mcp puts cache hit message on hit" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+
+      Mimic.expect(Cache, :get_cached_result, fn ^mix_test_args ->
+        {:hit, "1 test, 0 failures", 0}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn {:puts, :cyan, "MCP cache hit: mix test test/cool_test.exs --color"} -> :ok end)
+
+      assert {"1 test, 0 failures", 0} == MixTest.run(mix_test_args, use_cache: :cached, source: :mcp)
+    end
+
+    test "use_cache: :cached without source: :mcp does not put cache hit message" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+
+      Mimic.expect(Cache, :get_cached_result, fn ^mix_test_args ->
+        {:hit, "1 test, 0 failures", 0}
+      end)
+
+      Mimic.reject(ActionsExecutor, :execute, 1)
 
       assert {"1 test, 0 failures", 0} == MixTest.run(mix_test_args, use_cache: :cached)
     end

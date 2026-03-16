@@ -132,7 +132,7 @@ CALL_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
     "jsonrpc": "2.0",
     "id": 4,
     "method": "tools/call",
-    "params": {"name": "run_tests", "arguments": {}}
+    "params": {"name": "run_tests", "arguments": {"test_path": "test/e2e_stub_test.exs"}}
   }')
 
 echo "$CALL_RESPONSE" | grep -q 'exit_code' && pass "run_tests returned exit_code" || fail "run_tests response unexpected: $CALL_RESPONSE"
@@ -156,7 +156,13 @@ echo "$UNKNOWN_RESPONSE" | grep -q '"Method not found"' && pass "Unknown method 
 info "Test 8: Second instance skips MCP without crashing"
 "$WATCHER_BIN" > /dev/null 2>&1 &
 WATCHER2_PID=$!
-sleep 2
+
+for i in $(seq 1 10); do
+  if ! kill -0 "$WATCHER2_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.2
+done
 
 if kill -0 "$WATCHER2_PID" 2>/dev/null; then
   pass "Second instance is still running (skipped MCP gracefully)"

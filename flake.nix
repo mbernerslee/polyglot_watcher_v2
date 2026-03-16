@@ -24,6 +24,7 @@
             python3
             jq
             inotify-tools
+            go-task
           ];
 
           #shellHook = ''

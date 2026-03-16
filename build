@@ -1,21 +1,38 @@
 #!/usr/bin/env bash
 
-find_todos() {
-  find_result=$(git grep TODO -- './*' ':!build' ':!test/elm_examples' ':!CLAUDE.md')
-  result=$?
-  if [ $result -eq 0 ]; then
-    echo "TODO found in:"
-    echo "$find_result" | while read -r res; do echo " - $res"; done
-    exit 1
-  fi
-}
+#find_todos() {
+#  find_result=$(git grep TODO -- './*' ':!build' ':!test/elm_examples' ':!CLAUDE.md')
+#  result=$?
+#  if [ $result -eq 0 ]; then
+#    echo "TODO found in:"
+#    echo "$find_result" | while read -r res; do echo " - $res"; done
+#    exit 1
+#  fi
+#}
+#
+#. ./scripts/eautifier
+#run_action "find_todos"
+#run_action "mix deps.get"
+#run_action "mix loadconfig config/prod.exs"
+#run_action "MIX_ENV=test mix compile --warnings-as-errors --force"
+#run_action "mix test"
+#run_action "MIX_ENV=prod mix compile"
+#run_action "MIX_ENV=prod mix release --overwrite"
+#run_action "./test_e2e_mcp"
 
-. ./scripts/beautifier
-run_action "find_todos"
-run_action "mix deps.get"
-run_action "mix loadconfig config/prod.exs"
-run_action "MIX_ENV=test mix compile --warnings-as-errors --force"
-run_action "mix test"
-run_action "MIX_ENV=prod mix compile"
-run_action "MIX_ENV=prod mix release --overwrite"
-run_action "./test_e2e_mcp"
+
+case "$1" in
+  "-p")
+    task build --output prefixed
+    ;;
+  "-v")
+    task build --output prefixed --verbose
+    ;;
+  "")
+    task build --output group --output-group-error-only
+    ;;
+  *)
+    task build "$@"
+    ;;
+esac
+

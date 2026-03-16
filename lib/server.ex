@@ -80,7 +80,7 @@ defmodule PolyglotWatcherV2.Server do
 
     Logger.debug("#{__MODULE__} #{watcher.startup_message()}")
 
-    port = Port.open({:spawn_executable, @zombie_killer}, args: watcher.startup_command())
+    port = Port.open({:spawn_executable, @zombie_killer}, [:stderr_to_stdout, args: watcher.startup_command()])
 
     Logger.debug("#{__MODULE__} Loaded config file #{inspect(config, pretty: true)}")
 
