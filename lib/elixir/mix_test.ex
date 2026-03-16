@@ -4,23 +4,39 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
-  def run(%MixTestArgs{} = mix_test_args) do
-    {output, exit_code} =
-      case Cache.await_or_run(mix_test_args) do
-        {:ok, result} ->
-          result
+  def run(%MixTestArgs{} = mix_test_args, opts \\ []) do
+    use_cache = Keyword.get(opts, :use_cache, :no_cache)
+    server_state = Keyword.get(opts, :server_state)
 
-        :not_running ->
-          execute(mix_test_args)
+    {output, exit_code, from_cache?} =
+      case use_cache do
+        :cached ->
+          case Cache.get_cached_result(mix_test_args) do
+            {:hit, output, exit_code} -> {output, exit_code, true}
+            :miss -> run_tests(mix_test_args)
+          end
+
+        :no_cache ->
+          run_tests(mix_test_args)
       end
 
-    put_result_message(exit_code)
-    {output, exit_code}
+    unless from_cache?, do: put_result_message(exit_code)
+
+    if server_state do
+      {exit_code, server_state}
+    else
+      {output, exit_code}
+    end
   end
 
-  def run(%MixTestArgs{} = mix_test_args, server_state) do
-    {_output, exit_code} = run(mix_test_args)
-    {exit_code, server_state}
+  defp run_tests(mix_test_args) do
+    {output, exit_code} =
+      case Cache.await_or_run(mix_test_args) do
+        {:ok, result} -> result
+        :not_running -> execute(mix_test_args)
+      end
+
+    {output, exit_code, false}
   end
 
   defp execute(mix_test_args) do

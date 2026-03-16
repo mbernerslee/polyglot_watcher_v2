@@ -55,7 +55,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       server_state = ServerStateBuilder.build()
 
-      assert {0, server_state} == MixTest.run(mix_test_args, server_state)
+      assert {0, server_state} == MixTest.run(mix_test_args, server_state: server_state)
     end
 
     test "given :all & server state, runs all the tests" do
@@ -76,7 +76,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       server_state = ServerStateBuilder.build()
 
-      assert {0, server_state} == MixTest.run(mix_test_args, server_state)
+      assert {0, server_state} == MixTest.run(mix_test_args, server_state: server_state)
     end
 
     test "when already running, returns exit_code from awaited result" do
@@ -88,7 +88,67 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
 
       server_state = ServerStateBuilder.build()
 
-      assert {2, server_state} == MixTest.run(mix_test_args, server_state)
+      assert {2, server_state} == MixTest.run(mix_test_args, server_state: server_state)
+    end
+  end
+
+  describe "run/2 with use_cache" do
+    test "use_cache: :cached returns cached result on hit" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+
+      Mimic.expect(Cache, :get_cached_result, fn ^mix_test_args ->
+        {:hit, "1 test, 0 failures", 0}
+      end)
+
+      assert {"1 test, 0 failures", 0} == MixTest.run(mix_test_args, use_cache: :cached)
+    end
+
+    test "use_cache: :cached falls through to run on miss" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+      mock_output = mock_mix_test_output()
+
+      Mimic.expect(Cache, :get_cached_result, fn ^mix_test_args -> :miss end)
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
+        {mock_output, 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_output, 0 -> :ok end)
+
+      assert {mock_output, 0} == MixTest.run(mix_test_args, use_cache: :cached)
+    end
+
+    test "use_cache: :no_cache always runs (does not check cache)" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+      mock_output = mock_mix_test_output()
+
+      # No expect for get_cached_result — it should NOT be called
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
+        {mock_output, 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_output, 0 -> :ok end)
+
+      assert {mock_output, 0} == MixTest.run(mix_test_args, use_cache: :no_cache)
+    end
+
+    test "with server_state option returns {exit_code, server_state}" do
+      mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
+      mock_output = mock_mix_test_output()
+      server_state = ServerStateBuilder.build()
+
+      Mimic.expect(Cache, :await_or_run, fn ^mix_test_args -> :not_running end)
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
+        {mock_output, 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_output, 0 -> :ok end)
+
+      assert {0, ^server_state} = MixTest.run(mix_test_args, server_state: server_state)
     end
   end
 

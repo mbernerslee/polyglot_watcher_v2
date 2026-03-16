@@ -124,11 +124,11 @@ defmodule PolyglotWatcherV2.ActionsExecutorReal do
   end
 
   defp do_execute(:mix_test, server_state) do
-    MixTest.run(%MixTestArgs{path: :all}, server_state)
+    MixTest.run(%MixTestArgs{path: :all}, server_state: server_state)
   end
 
   defp do_execute({:mix_test, %MixTestArgs{} = mix_test_args}, server_state) do
-    MixTest.run(mix_test_args, server_state)
+    MixTest.run(mix_test_args, server_state: server_state)
   end
 
   defp do_execute(:mix_test_latest_max_failures_1, server_state) do
