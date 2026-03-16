@@ -135,8 +135,13 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
           }
       end
 
-    run_result = %{output: mix_test_output, exit_code: exit_code, epoch: state.change_epoch}
-    state = put_in(state.last_run_results[run_result_key(mix_test_args)], run_result)
+    state =
+      if mix_test_args.max_failures == nil do
+        run_result = %{output: mix_test_output, exit_code: exit_code, epoch: state.change_epoch}
+        put_in(state.last_run_results[run_result_key(mix_test_args)], run_result)
+      else
+        state
+      end
 
     debug_log_cache(state)
     {:reply, :ok, state}

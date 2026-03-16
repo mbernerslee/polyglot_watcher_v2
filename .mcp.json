@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "polyglot-watcher": {
-      "command": "/Users/berners/src/polyglot_watcher_v2/mcp_stdio_proxy"
+      "command": "bash",
+      "args": ["-c", "$HOME/src/polyglot_watcher_v2/mcp_stdio_proxy"]
     }
   }
 }

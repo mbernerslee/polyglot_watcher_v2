@@ -141,6 +141,16 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       assert %{all: %{output: "10 tests, 0 failures", exit_code: 0, epoch: 0}} = state.last_run_results
     end
 
+    test "does not store run result when max_failures is set" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs", max_failures: 1}
+      Cache.update(pid, args, "1 test, 0 failures", 0)
+
+      state = :sys.get_state(pid)
+      assert state.last_run_results == %{}
+    end
+
     test "epoch on stored result reflects the change_epoch at time of update" do
       assert {:ok, pid} = Cache.start_link([])
 
