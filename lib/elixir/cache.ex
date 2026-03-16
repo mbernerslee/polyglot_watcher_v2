@@ -103,45 +103,12 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   def handle_call({:update, mix_test_args, mix_test_output, exit_code}, _from, state) do
     cache_items = Update.run(state.cache_items, mix_test_args, mix_test_output, exit_code)
 
-    result = {mix_test_output, exit_code}
-
-    # Reply to all same-key waiters with the result
-    for from <- state.same_key_waiters, do: GenServer.reply(from, {:ok, result})
-
-    # Drain the queue: pop next item
-    state =
-      case state.queue do
-        [] ->
-          %{state | cache_items: cache_items, running_key: nil, same_key_waiters: [], queue: []}
-
-        [{next_from, next_args} | rest] ->
-          next_key = normalize_key(next_args)
-
-          # Collect any remaining queue entries with the same key as same_key_waiters
-          {same_key_entries, remaining_queue} =
-            Enum.split_with(rest, fn {_from, args} -> normalize_key(args) == next_key end)
-
-          new_same_key_waiters = Enum.map(same_key_entries, fn {from, _args} -> from end)
-
-          # Tell the next caller to run
-          GenServer.reply(next_from, :not_running)
-
-          %{
-            state
-            | cache_items: cache_items,
-              running_key: next_key,
-              same_key_waiters: new_same_key_waiters,
-              queue: remaining_queue
-          }
-      end
+    notify_waiters(state.same_key_waiters, mix_test_output, exit_code)
 
     state =
-      if mix_test_args.max_failures == nil do
-        run_result = %{output: mix_test_output, exit_code: exit_code, epoch: state.change_epoch}
-        put_in(state.last_run_results[run_result_key(mix_test_args)], run_result)
-      else
-        state
-      end
+      state
+      |> drain_queue(cache_items)
+      |> maybe_store_run_result(mix_test_args, mix_test_output, exit_code)
 
     debug_log_cache(state)
     {:reply, :ok, state}
@@ -208,6 +175,43 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
   end
 
   # Private
+
+  defp notify_waiters(waiters, output, exit_code) do
+    result = {output, exit_code}
+    for from <- waiters, do: GenServer.reply(from, {:ok, result})
+  end
+
+  defp drain_queue(state, cache_items) do
+    case state.queue do
+      [] ->
+        %{state | cache_items: cache_items, running_key: nil, same_key_waiters: [], queue: []}
+
+      [{next_from, next_args} | rest] ->
+        next_key = normalize_key(next_args)
+
+        {same_key_entries, remaining_queue} =
+          Enum.split_with(rest, fn {_from, args} -> normalize_key(args) == next_key end)
+
+        new_same_key_waiters = Enum.map(same_key_entries, fn {from, _args} -> from end)
+
+        GenServer.reply(next_from, :not_running)
+
+        %{
+          state
+          | cache_items: cache_items,
+            running_key: next_key,
+            same_key_waiters: new_same_key_waiters,
+            queue: remaining_queue
+        }
+    end
+  end
+
+  defp maybe_store_run_result(state, %MixTestArgs{max_failures: nil} = args, output, exit_code) do
+    run_result = %{output: output, exit_code: exit_code, epoch: state.change_epoch}
+    put_in(state.last_run_results[run_result_key(args)], run_result)
+  end
+
+  defp maybe_store_run_result(state, _args, _output, _exit_code), do: state
 
   defp normalize_key(%MixTestArgs{path: {test_path, _line}}), do: test_path
   defp normalize_key(%MixTestArgs{path: path}), do: path
