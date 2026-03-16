@@ -71,7 +71,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
        running_key: nil,
        same_key_waiters: [],
        queue: [],
-       change_epoch: 0
+       change_epoch: 0,
+       last_run_results: %{}
      }, {:continue, :load}}
   end
 
@@ -130,6 +131,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
           }
       end
 
+    run_result = %{output: mix_test_output, exit_code: exit_code, epoch: state.change_epoch}
+    state = put_in(state.last_run_results[run_result_key(mix_test_args)], run_result)
+
     debug_log_cache(state)
     {:reply, :ok, state}
   end
@@ -175,6 +179,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
   defp normalize_key(%MixTestArgs{path: {test_path, _line}}), do: test_path
   defp normalize_key(%MixTestArgs{path: path}), do: path
+
+  defp run_result_key(%MixTestArgs{path: path}), do: path
 
   defp debug_log(msg), do: Logger.debug("#{__MODULE__} #{msg}")
 

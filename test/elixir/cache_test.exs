@@ -104,6 +104,58 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
+  describe "update/4 - last_run_results" do
+    test "stores the run result with the current epoch" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      Cache.update(pid, args, "1 test, 0 failures", 0)
+
+      state = :sys.get_state(pid)
+
+      assert %{
+               "test/cool_test.exs" => %{output: "1 test, 0 failures", exit_code: 0, epoch: 0}
+             } = state.last_run_results
+    end
+
+    test "stores with tuple key when line number is present" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
+      Cache.update(pid, args, "1 test, 0 failures", 0)
+
+      state = :sys.get_state(pid)
+
+      assert %{
+               {"test/cool_test.exs", 42} => %{output: "1 test, 0 failures", exit_code: 0, epoch: 0}
+             } = state.last_run_results
+    end
+
+    test "stores with :all key" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: :all}
+      Cache.update(pid, args, "10 tests, 0 failures", 0)
+
+      state = :sys.get_state(pid)
+      assert %{all: %{output: "10 tests, 0 failures", exit_code: 0, epoch: 0}} = state.last_run_results
+    end
+
+    test "epoch on stored result reflects the change_epoch at time of update" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      Cache.bump_change_epoch(pid)
+      Cache.bump_change_epoch(pid)
+      _ = :sys.get_state(pid)
+
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+      Cache.update(pid, args, "output", 0)
+
+      state = :sys.get_state(pid)
+      assert state.last_run_results["test/cool_test.exs"].epoch == 2
+    end
+  end
+
   describe "get/2" do
     test "when there's the given test_path in the state, return the most recent test failure line" do
       assert {:ok, pid} = Cache.start_link([])
