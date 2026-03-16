@@ -6,7 +6,7 @@
 #
 # If the watcher isn't running, the proxy stays alive and:
 #   - Responds to initialize/tools/list itself (so Claude considers the MCP connected)
-#   - Returns JSON-RPC errors for tool calls (so the user gets a clear message)
+#   - Runs mix test directly for run_tests calls (streaming output to stderr)
 # As soon as the watcher starts, everything works automatically.
 
 MCP_URL="${MCP_URL:-http://localhost:4848/mcp}"
@@ -48,6 +48,86 @@ fallback_ping() {
 fallback_error() {
   local id="$1"
   echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"error\":{\"code\":-32000,\"message\":\"Watcher is not running. Start it and try again.\"}}"
+}
+
+# Extract tool arguments from a tools/call request using python3 (jq-free)
+extract_tool_name() {
+  echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('params',{}).get('name',''))" 2>/dev/null
+}
+
+extract_test_path() {
+  echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('params',{}).get('arguments',{}).get('test_path',''))" 2>/dev/null
+}
+
+extract_line_number() {
+  echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('params',{}).get('arguments',{}).get('line_number',''))" 2>/dev/null
+}
+
+# Run mix test directly, streaming to stderr and capturing output.
+# Returns a JSON-RPC result matching the watcher's format.
+fallback_run_tests() {
+  local id="$1"
+  local test_path="$2"
+  local line_number="$3"
+
+  # Build the mix test command
+  local cmd="mix test --color"
+  local display_path="all"
+  if [ -n "$test_path" ]; then
+    if [ -n "$line_number" ]; then
+      cmd="$cmd ${test_path}:${line_number}"
+      display_path="${test_path}:${line_number}"
+    else
+      cmd="$cmd $test_path"
+      display_path="$test_path"
+    fi
+  fi
+
+  echo "FALLBACK_RUN: $cmd" >> "$LOG"
+  echo -e "\033[36m[mcp proxy] watcher not running — running directly: $cmd\033[0m" >&2
+
+  # Run mix test: tee to stderr for real-time streaming, capture full output
+  local tmpfile
+  tmpfile=$(mktemp)
+  $cmd 2>&1 | tee "$tmpfile" >&2
+  local exit_code=${PIPESTATUS[0]}
+
+  local raw_output
+  raw_output=$(cat "$tmpfile")
+  rm -f "$tmpfile"
+
+  # Strip ANSI codes for the JSON response
+  local clean_output
+  clean_output=$(echo "$raw_output" | sed 's/\x1b\[[0-9;]*m//g')
+
+  echo "FALLBACK_RUN: exit_code=$exit_code" >> "$LOG"
+
+  # Build the inner JSON payload (matches RunTests.call format)
+  local inner_json
+  inner_json=$(python3 -c "
+import json, sys
+print(json.dumps({
+    'exit_code': int(sys.argv[1]),
+    'output': sys.argv[2],
+    'test_path': sys.argv[3]
+}))
+" "$exit_code" "$clean_output" "$display_path")
+
+  # Wrap in MCP tools/call result format
+  local result
+  result=$(python3 -c "
+import json, sys
+inner = sys.argv[1]
+print(json.dumps({
+    'jsonrpc': '2.0',
+    'id': int(sys.argv[2]),
+    'result': {
+        'content': [{'type': 'text', 'text': inner}]
+    }
+}))
+" "$inner_json" "$id")
+
+  echo "$result"
 }
 
 while IFS= read -r line; do
@@ -94,6 +174,16 @@ while IFS= read -r line; do
       ;;
     tools/list)
       response=$(fallback_tools_list "$req_id")
+      ;;
+    tools/call)
+      tool_name=$(extract_tool_name "$line")
+      if [ "$tool_name" = "run_tests" ]; then
+        test_path=$(extract_test_path "$line")
+        line_number=$(extract_line_number "$line")
+        response=$(fallback_run_tests "$req_id" "$test_path" "$line_number")
+      else
+        response=$(fallback_error "$req_id")
+      fi
       ;;
     *)
       response=$(fallback_error "$req_id")
