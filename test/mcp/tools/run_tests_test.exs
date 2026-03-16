@@ -10,6 +10,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     test "runs test for given test_path" do
       args = %MixTestArgs{path: "test/cool_test.exs"}
 
+      Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
@@ -29,6 +30,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     test "runs test with line_number" do
       args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
 
+      Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs:42 --color" ->
@@ -46,6 +48,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     test "runs all tests when no test_path given" do
       args = %MixTestArgs{path: :all}
 
+      Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test --color" ->
@@ -61,7 +64,23 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       assert decoded["test_path"] == "all"
     end
 
+    test "returns cached result when cache hit" do
+      args = %MixTestArgs{path: "test/cool_test.exs"}
+
+      Mimic.expect(Cache, :get_cached_result, fn ^args ->
+        {:hit, "1 test, 0 failures", 0}
+      end)
+
+      result = RunTests.call(%{"test_path" => "test/cool_test.exs"})
+      decoded = Jason.decode!(result)
+
+      assert decoded["exit_code"] == 0
+      assert decoded["output"] == "1 test, 0 failures"
+      assert decoded["test_path"] == "test/cool_test.exs"
+    end
+
     test "returns awaited result when test is already running" do
+      Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn %MixTestArgs{path: "test/cool_test.exs"} ->
         {:ok, {"1 test, 1 failure", 2}}
       end)

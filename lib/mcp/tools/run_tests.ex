@@ -34,7 +34,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
 
     ActionsExecutor.execute({:puts, :cyan, "MCP request received..."})
 
-    {output, exit_code} = MixTest.run(mix_test_args)
+    {output, exit_code} = MixTest.run(mix_test_args, use_cache: :cached)
 
     Jason.encode!(%{
       exit_code: exit_code,

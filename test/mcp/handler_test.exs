@@ -52,6 +52,7 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
     test "calls run_tests and returns result" do
       args = %MixTestArgs{path: "test/cool_test.exs"}
 
+      Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
       Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
