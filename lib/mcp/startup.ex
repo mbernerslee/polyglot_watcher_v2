@@ -52,6 +52,9 @@ defmodule PolyglotWatcherV2.MCP.Startup do
   defp do_start do
     Application.ensure_all_started(:bandit)
 
+    # Bandit is linked (not supervised separately) so that if it crashes,
+    # this GenServer stops, cleans up the config file, and the supervisor
+    # restarts both together.
     with {:ok, bandit_pid} <-
            Bandit.start_link(
              plug: PolyglotWatcherV2.MCP.PlugRouter,
@@ -61,7 +64,12 @@ defmodule PolyglotWatcherV2.MCP.Startup do
            ),
          {:ok, {_addr, port}} <- ThousandIsland.listener_info(bandit_pid) do
       os_pid = System.pid() |> String.to_integer()
-      ConfigFile.write(port, os_pid)
+
+      case ConfigFile.write(port, os_pid) do
+        :ok -> :ok
+        error -> Puts.on_new_line("Warning: failed to write MCP config file: #{inspect(error)}", :yellow)
+      end
+
       {:ok, %{bandit_pid: bandit_pid, port: port}}
     else
       error ->
