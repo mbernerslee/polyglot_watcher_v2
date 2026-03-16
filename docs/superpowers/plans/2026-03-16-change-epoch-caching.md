@@ -6,6 +6,8 @@
 
 **Architecture:** A monotonic `change_epoch` integer in the `ElixirCache` GenServer increments on every Elixir file change (via the Determiner). Test run results are stored alongside the epoch at which they ran. When MCP calls `run_tests`, if the stored epoch matches the current epoch, cached results are returned instantly. A separate `last_run_results` map in GenServer state holds run results keyed by exact `MixTestArgs.path` (preserving line numbers and `:all`), keeping this cleanly separated from the existing `cache_items` failure-tracking map.
 
+**Spec deviation:** The spec suggested extending `cache_items` and `CacheItem` to store passed tests. This plan uses a separate `last_run_results` map instead because: (1) `cache_items` keys are normalized file-path strings, but run results need to distinguish `:all`, directory paths, and `{file, line}` tuples; (2) the existing failure-tracking logic (Update, FixedTests, Get) doesn't need to change; (3) no changes needed to `CacheItem` struct or any existing tests. The epoch caching goal is fully achieved without touching the failure-tracking system.
+
 **Tech Stack:** Elixir, GenServer, ExUnit, Mimic
 
 **Spec:** `docs/superpowers/specs/2026-03-16-change-epoch-caching-design.md`
@@ -432,24 +434,11 @@ def determine_actions(%FilePath{} = file_path, server_state) do
 end
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Add Mimic stub for bump_change_epoch to existing tests**
 
-Run: `mix test test/elixir/determiner_test.exs --color`
-Expected: FAIL — the other existing `determine_actions` tests will now fail because they don't expect the `bump_change_epoch` call.
+The new test passes, but other existing `determine_actions` tests fail because they don't expect the `bump_change_epoch` call. Fix this before running.
 
-- [ ] **Step 5: Add Mimic stub for bump_change_epoch to existing tests**
-
-The existing `determine_actions` tests don't set up a mock for `bump_change_epoch`, so Mimic will reject the unexpected call. Add a `setup` block to the describe (or add `Mimic.stub(Cache, :bump_change_epoch, fn -> :ok end)` to each test, or add a setup block for the describe).
-
-The cleanest approach: add a module-level setup that stubs it by default. In the test module, after `use Mimic`, add:
-
-```elixir
-setup :verify_on_exit!
-```
-
-Then in individual tests that DON'T care about bump_change_epoch, stub it. But looking at the existing test structure, the tests use `Mimic.expect` for specific calls. The simplest approach: add `Mimic.stub(Cache, :bump_change_epoch, fn -> :ok end)` at the beginning of each existing `determine_actions` test that doesn't already test for it.
-
-Alternatively, add to the top of the `describe "determine_actions/2"` block:
+The existing `determine_actions` tests don't set up a mock for `bump_change_epoch`, so Mimic will reject the unexpected call. Add a `setup` block at the top of the `describe "determine_actions/2"` block:
 
 ```elixir
 setup do
@@ -458,19 +447,19 @@ setup do
 end
 ```
 
-This stubs `bump_change_epoch` for all tests in the describe block. The explicit expect in the new test (step 1) will override the stub for that specific test.
+This stubs `bump_change_epoch` for all tests in the describe block. The explicit `Mimic.expect` in the new test (step 1) will override the stub for that specific test.
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `mix test test/elixir/determiner_test.exs --color`
 Expected: ALL PASS
 
-- [ ] **Step 7: Run full test suite**
+- [ ] **Step 6: Run full test suite**
 
 Run: `mix test --color`
 Expected: All pass. Check that no other tests call `determine_actions` without a `bump_change_epoch` mock.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```
 feat: bump change_epoch in Elixir.Determiner on every file change
@@ -571,11 +560,11 @@ def run(%MixTestArgs{} = mix_test_args, opts \\ []) do
   use_cache = Keyword.get(opts, :use_cache, :no_cache)
   server_state = Keyword.get(opts, :server_state)
 
-  {output, exit_code} =
+  {output, exit_code, from_cache?} =
     case use_cache do
       :cached ->
         case Cache.get_cached_result(mix_test_args) do
-          {:hit, output, exit_code} -> {output, exit_code}
+          {:hit, output, exit_code} -> {output, exit_code, true}
           :miss -> run_tests(mix_test_args)
         end
 
@@ -583,7 +572,7 @@ def run(%MixTestArgs{} = mix_test_args, opts \\ []) do
         run_tests(mix_test_args)
     end
 
-  put_result_message(exit_code)
+  unless from_cache?, do: put_result_message(exit_code)
 
   if server_state do
     {exit_code, server_state}
@@ -593,10 +582,13 @@ def run(%MixTestArgs{} = mix_test_args, opts \\ []) do
 end
 
 defp run_tests(mix_test_args) do
-  case Cache.await_or_run(mix_test_args) do
-    {:ok, result} -> result
-    :not_running -> execute(mix_test_args)
-  end
+  {output, exit_code} =
+    case Cache.await_or_run(mix_test_args) do
+      {:ok, result} -> result
+      :not_running -> execute(mix_test_args)
+    end
+
+  {output, exit_code, false}
 end
 ```
 
@@ -624,23 +616,9 @@ Update all three tests in the `describe "run/2"` block.
 Run: `mix test test/elixir/mix_test_test.exs --color`
 Expected: ALL PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Update ActionsExecutor callers to use keyword opts**
 
-```
-feat: add use_cache option to MixTest.run for epoch-based caching
-```
-
----
-
-### Task 6: Update all callers of MixTest.run/2 to use keyword opts
-
-**Files:**
-- Modify: `lib/actions_executor.ex:126-131`
-- Modify: `lib/mcp/tools/run_tests.ex:37`
-
-The callers in `actions_executor.ex` pass `server_state` as the second arg. Update them to keyword form. The MCP caller passes no second arg yet (handled in Task 7).
-
-- [ ] **Step 1: Update ActionsExecutor callers**
+The callers in `lib/actions_executor.ex` pass `server_state` as the second arg. Update them to keyword form at the same time as the signature change so the codebase stays compilable.
 
 In `lib/actions_executor.ex`, line 127:
 
@@ -662,20 +640,20 @@ MixTest.run(mix_test_args, server_state)
 MixTest.run(mix_test_args, server_state: server_state)
 ```
 
-- [ ] **Step 2: Run full test suite**
+- [ ] **Step 8: Run full test suite**
 
 Run: `mix test --color`
 Expected: ALL PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 9: Commit**
 
 ```
-refactor: update MixTest.run callers to use keyword opts
+feat: add use_cache option to MixTest.run and update all callers
 ```
 
 ---
 
-### Task 7: Update RunTests.call to use cache
+### Task 6: Update RunTests.call to use cache
 
 **Files:**
 - Modify: `lib/mcp/tools/run_tests.ex`
@@ -764,7 +742,7 @@ feat: MCP run_tests uses epoch-based cache to skip redundant test runs
 
 ## Chunk 3: Verification
 
-### Task 8: Full integration verification
+### Task 7: Full integration verification
 
 - [ ] **Step 1: Run the complete test suite**
 
