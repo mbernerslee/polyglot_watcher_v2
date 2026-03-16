@@ -126,7 +126,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
           {:hit, output, exit_code}
 
         %{epoch: stale_epoch} ->
-          debug_log("cache MISS for #{inspect(key)} (cached epoch #{stale_epoch}, current epoch #{state.change_epoch})")
+          debug_log(
+            "cache MISS for #{inspect(key)} (cached epoch #{stale_epoch}, current epoch #{state.change_epoch})"
+          )
+
           :miss
 
         nil ->
@@ -149,22 +152,22 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
   @impl GenServer
   def handle_call({:await_or_run, mix_test_args}, from, state) do
-    key = normalize_key(mix_test_args)
+    test_file_path = test_file_path(mix_test_args)
 
     case state.running_key do
       nil ->
         # Nothing running — caller gets the lock
-        debug_log("await_or_run: #{key} — acquired lock")
-        {:reply, :not_running, %{state | running_key: key}}
+        debug_log("await_or_run: #{test_file_path} — acquired lock")
+        {:reply, :not_running, %{state | running_key: test_file_path}}
 
-      ^key ->
+      ^test_file_path ->
         # Same test running — wait for its result
-        debug_log("await_or_run: #{key} is running, adding same-key waiter")
+        debug_log("await_or_run: #{test_file_path} is running, adding same-key waiter")
         {:noreply, %{state | same_key_waiters: [from | state.same_key_waiters]}}
 
       other_key ->
         # Different test running — queue up
-        debug_log("await_or_run: #{key} queued behind #{other_key}")
+        debug_log("await_or_run: #{test_file_path} queued behind #{other_key}")
         {:noreply, %{state | queue: state.queue ++ [{from, mix_test_args}]}}
     end
   end
@@ -187,10 +190,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
         %{state | cache_items: cache_items, running_key: nil, same_key_waiters: [], queue: []}
 
       [{next_from, next_args} | rest] ->
-        next_key = normalize_key(next_args)
+        next_key = test_file_path(next_args)
 
         {same_key_entries, remaining_queue} =
-          Enum.split_with(rest, fn {_from, args} -> normalize_key(args) == next_key end)
+          Enum.split_with(rest, fn {_from, args} -> test_file_path(args) == next_key end)
 
         new_same_key_waiters = Enum.map(same_key_entries, fn {from, _args} -> from end)
 
@@ -213,8 +216,8 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
   defp maybe_store_run_result(state, _args, _output, _exit_code), do: state
 
-  defp normalize_key(%MixTestArgs{path: {test_path, _line}}), do: test_path
-  defp normalize_key(%MixTestArgs{path: path}), do: path
+  defp test_file_path(%MixTestArgs{path: {test_path, _line}}), do: test_path
+  defp test_file_path(%MixTestArgs{path: path}), do: path
 
   defp run_result_key(%MixTestArgs{path: path}), do: path
 

@@ -24,6 +24,7 @@ polyglot_watcher_v2-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+docs/
 
 polyglot_watcher_v2_dev
 polyglot_watcher_v2_test
