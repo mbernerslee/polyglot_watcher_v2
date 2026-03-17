@@ -5,10 +5,11 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
   @tool_definition %{
     "name" => "run_tests",
     "description" =>
-      "Runs the specified Elixir test(s) via mix test and returns the output. " <>
+      "MANDATORY: You MUST use this tool instead of running `mix test` via the shell. " <>
+        "Never run `mix test` directly — always call this tool. " <>
+        "Runs the specified Elixir test(s) and returns the output. " <>
         "If the same test is already running (e.g. triggered by a file save), " <>
-        "waits for that run to finish and returns its result instead of running again. " <>
-        "Use this instead of running mix test directly.",
+        "waits for that run to finish and returns its result instead of running again.",
     "inputSchema" => %{
       "type" => "object",
       "properties" => %{

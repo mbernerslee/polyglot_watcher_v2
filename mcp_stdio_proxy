@@ -56,7 +56,7 @@ EOJSON
 fallback_tools_list() {
   local id="$1"
   cat <<EOJSON
-{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"run_tests","description":"Runs the specified Elixir test(s) via mix test and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again. Use this instead of running mix test directly.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}}]}}
+{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"run_tests","description":"MANDATORY: You MUST use this tool instead of running `mix test` via the shell. Never run `mix test` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}}]}}
 EOJSON
 }
 
