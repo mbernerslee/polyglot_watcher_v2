@@ -17,7 +17,7 @@ tasks:
   find_todos:
     desc: "Check for TODO comments"
     cmds:
-      - "! git grep TODO -- './*' ':!build' ':!Taskfile.yml' ':!test/elm_examples' ':!CLAUDE.md'"
+      - ./scripts/find_todos
 
   mix_deps_get:
     desc: "Get dependencies"

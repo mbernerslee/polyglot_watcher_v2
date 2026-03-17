@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+result=$(git grep TODO -- . ':!build' ':!Taskfile.yml' ':!test/elm_examples' ':!CLAUDE.md' ':!scripts/find_todos')
+
+if [ -n "$result" ]; then
+  echo "TODO found in:"
+  echo "$result" | while read -r line; do echo " - $line"; done
+  exit 1
+fi
