@@ -121,10 +121,10 @@ TOOLS_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
   -H 'Accept: application/json' \
   -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/list"}')
 
-echo "$TOOLS_RESPONSE" | grep -q '"run_tests"' && pass "tools/list includes run_tests" || fail "tools/list response unexpected: $TOOLS_RESPONSE"
+echo "$TOOLS_RESPONSE" | grep -q '"mix_test"' && pass "tools/list includes mix_test" || fail "tools/list response unexpected: $TOOLS_RESPONSE"
 
-# --- Test 5: tools/call run_tests ---
-info "Test 5: tools/call run_tests"
+# --- Test 5: tools/call mix_test ---
+info "Test 5: tools/call mix_test"
 CALL_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
@@ -132,10 +132,10 @@ CALL_RESPONSE=$(curl -s -X POST "http://localhost:$MCP_PORT/mcp" \
     "jsonrpc": "2.0",
     "id": 4,
     "method": "tools/call",
-    "params": {"name": "run_tests", "arguments": {"test_path": "test/e2e_stub_test.exs"}}
+    "params": {"name": "mix_test", "arguments": {"test_path": "test/e2e_stub_test.exs"}}
   }')
 
-echo "$CALL_RESPONSE" | grep -q 'exit_code' && pass "run_tests returned exit_code" || fail "run_tests response unexpected: $CALL_RESPONSE"
+echo "$CALL_RESPONSE" | grep -q 'exit_code' && pass "mix_test returned exit_code" || fail "mix_test response unexpected: $CALL_RESPONSE"
 
 # --- Test 6: 404 on GET ---
 info "Test 6: GET returns 404"

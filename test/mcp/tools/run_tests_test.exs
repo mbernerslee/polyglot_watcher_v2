@@ -97,7 +97,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     test "returns valid tool definition" do
       defn = RunTests.definition()
 
-      assert defn["name"] == "run_tests"
+      assert defn["name"] == "mix_test"
       assert is_binary(defn["description"])
       assert defn["inputSchema"]["type"] == "object"
       assert Map.has_key?(defn["inputSchema"]["properties"], "test_path")

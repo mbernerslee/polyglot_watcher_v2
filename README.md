@@ -55,7 +55,7 @@ using the switches listed below...
 
 ## MCP Server
 
-The watcher runs an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server on `http://localhost:4848`. This lets AI coding assistants run tests through the watcher instead of invoking `mix test` directly.
+The watcher runs an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server on a dynamically assigned port. This lets AI coding assistants run tests through the watcher instead of invoking `mix test` directly.
 
 ### Why?
 
@@ -75,19 +75,33 @@ Add a `.mcp.json` to your project root (or use `~/.claude/.mcp.json` for global 
 }
 ```
 
-The `mcp_stdio_proxy` script bridges Claude Code's stdio-based MCP transport to the watcher's HTTP endpoint. It handles the case where the watcher isn't running yet — Claude Code will still see the MCP server as connected, and tool calls will return a clear error message until the watcher starts.
+The `mcp_stdio_proxy` script bridges Claude Code's stdio-based MCP transport to the watcher's HTTP endpoint. If the watcher isn't running, the proxy falls back to running `mix test` directly (with a warning in the response) so tests still work. Claude Code will see the MCP server as connected either way.
 
 Add the following to your project's `CLAUDE.md` (or `~/.claude/CLAUDE.md` for global):
 
 ```
-**Prefer the `run_tests` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. Fall back to `mix test` if the tool is unavailable.
+**Prefer the `mix_test` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. Fall back to `mix test` if the tool is unavailable.
 ```
+
+### Preventing Claude from running `mix test` directly
+
+The `CLAUDE.md` instruction nudges Claude to use the MCP tool, but it can still fall back to `mix test`. To enforce this, add a deny rule to your project's `.claude/settings.local.json`:
+
+```json
+{
+  "permissions": {
+    "deny": ["Bash(mix test:*)"]
+  }
+}
+```
+
+Merge this with any existing settings in that file. This blocks Claude from running any `mix test` command, forcing it to use the `mix_test` MCP tool instead.
 
 ### Available tools
 
 | Tool | Description |
 | ---- | ----------- |
-| `run_tests` | Runs `mix test` with optional `test_path` and `line_number` parameters. Returns JSON with `exit_code`, `output`, and `test_path`. |
+| `mix_test` | Runs `mix test` with optional `test_path` and `line_number` parameters. Returns JSON with `exit_code`, `output`, and `test_path`. |
 
 ## Elixir AI Replace Mode
 

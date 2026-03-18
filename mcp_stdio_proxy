@@ -6,7 +6,7 @@
 #
 # If the watcher isn't running, the proxy stays alive and:
 #   - Responds to initialize/tools/list itself (so Claude considers the MCP connected)
-#   - Runs mix test directly for run_tests calls (streaming output to stderr)
+#   - Runs mix test directly for mix_test calls (streaming output to stderr)
 # As soon as the watcher starts, everything works automatically.
 
 CONFIG_FILE=".polyglot_watcher_v2/config.json"
@@ -56,7 +56,7 @@ EOJSON
 fallback_tools_list() {
   local id="$1"
   cat <<EOJSON
-{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"run_tests","description":"MANDATORY: You MUST use this tool instead of running `mix test` via the shell. Never run `mix test` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}}]}}
+{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running `mix test` via the shell. Never run `mix test` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}}]}}
 EOJSON
 }
 
@@ -122,14 +122,15 @@ fallback_run_tests() {
 
   echo "FALLBACK_RUN: exit_code=$exit_code" >> "$LOG"
 
-  # Build the inner JSON payload (matches RunTests.call format)
+  # Build the inner JSON payload (matches RunTests.call format, with warning)
   local inner_json
   inner_json=$(python3 -c "
 import json, sys
 print(json.dumps({
     'exit_code': int(sys.argv[1]),
     'output': sys.argv[2],
-    'test_path': sys.argv[3]
+    'test_path': sys.argv[3],
+    'warning': 'Watcher is not running — ran mix test directly. Test deduplication is not active. Start the watcher to avoid concurrent test runs.'
 }))
 " "$exit_code" "$clean_output" "$display_path")
 
@@ -229,7 +230,7 @@ while IFS= read -r line; do
         ;;
       tools/call)
         tool_name=$(extract_tool_name "$line")
-        if [ "$tool_name" = "run_tests" ]; then
+        if [ "$tool_name" = "mix_test" ]; then
           test_path=$(extract_test_path "$line")
           line_number=$(extract_line_number "$line")
           response=$(fallback_run_tests "$req_id" "$test_path" "$line_number")

@@ -70,7 +70,7 @@ defmodule PolyglotWatcherV2.MCP.Handler do
     {:error, json_rpc_error(nil, @invalid_request, "Invalid request")}
   end
 
-  defp call_tool("run_tests", arguments) do
+  defp call_tool("mix_test", arguments) do
     {:ok, RunTests.call(arguments)}
   end
 

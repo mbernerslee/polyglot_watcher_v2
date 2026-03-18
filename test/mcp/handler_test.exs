@@ -35,12 +35,12 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
   end
 
   describe "handle_message/1 - tools/list" do
-    test "returns the run_tests tool definition" do
+    test "returns the mix_test tool definition" do
       assert {:ok,
               %{
                 "id" => 3,
                 "result" => %{
-                  "tools" => [%{"name" => "run_tests", "description" => description}]
+                  "tools" => [%{"name" => "mix_test", "description" => description}]
                 }
               }} = Handler.handle_message(%{"method" => "tools/list", "id" => 3})
 
@@ -48,8 +48,8 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
     end
   end
 
-  describe "handle_message/1 - tools/call run_tests" do
-    test "calls run_tests and returns result" do
+  describe "handle_message/1 - tools/call mix_test" do
+    test "calls mix_test and returns result" do
       args = %MixTestArgs{path: "test/cool_test.exs"}
 
       Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
@@ -69,7 +69,7 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
                Handler.handle_message(%{
                  "method" => "tools/call",
                  "id" => 4,
-                 "params" => %{"name" => "run_tests", "arguments" => %{"test_path" => "test/cool_test.exs"}}
+                 "params" => %{"name" => "mix_test", "arguments" => %{"test_path" => "test/cool_test.exs"}}
                })
 
       assert %{"exit_code" => 0, "output" => "1 test, 0 failures"} = Jason.decode!(text)

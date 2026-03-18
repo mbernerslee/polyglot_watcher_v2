@@ -3,7 +3,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   @tool_definition %{
-    "name" => "run_tests",
+    "name" => "mix_test",
     "description" =>
       "MANDATORY: You MUST use this tool instead of running `mix test` via the shell. " <>
         "Never run `mix test` directly — always call this tool. " <>
