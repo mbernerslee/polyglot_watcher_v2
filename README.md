@@ -99,6 +99,8 @@ Add a deny rule to your project's `.claude/settings.local.json`:
 
 Merge this with any existing settings in that file. This blocks Claude from running any `mix test` command via Bash.
 
+This is safe to do even if the watcher isn't always running — the `mcp_stdio_proxy` falls back to running `mix test` directly when the watcher is unreachable, so tests still work either way. The deny rule only blocks Claude from bypassing the MCP tool; it doesn't block tests from running.
+
 **Important:** Check that `Bash(mix test:*)` is not also in your `allow` list (it can accumulate there from past approvals). If it appears in both `allow` and `deny`, remove it from `allow`.
 
 ### Available tools
