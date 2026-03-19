@@ -77,15 +77,17 @@ Add a `.mcp.json` to your project root (or use `~/.claude/.mcp.json` for global 
 
 The `mcp_stdio_proxy` script bridges Claude Code's stdio-based MCP transport to the watcher's HTTP endpoint. If the watcher isn't running, the proxy falls back to running `mix test` directly (with a warning in the response) so tests still work. Claude Code will see the MCP server as connected either way.
 
-Add the following to your project's `CLAUDE.md` (or `~/.claude/CLAUDE.md` for global):
+Add the following to `~/.claude/projects/<your-project-path>/CLAUDE.md` (the private, per-user project instruction file — not the repo's own `CLAUDE.md`):
 
 ```
-**Prefer the `mix_test` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. Fall back to `mix test` if the tool is unavailable.
+**MANDATORY: Use the `mcp__polyglot-watcher__mix_test` MCP tool to run tests.** Never run `mix test` via Bash — the MCP tool deduplicates with the file watcher's test runs. This overrides any `mix test` commands listed in the repo's CLAUDE.md. The MCP tool accepts `test_path` (string) and `line_number` (integer) parameters.
 ```
+
+Why this file and not the repo's `CLAUDE.md`? Your repo's `CLAUDE.md` likely already lists `mix test` in its commands section — that directly tells Claude to use Bash. A project-level override in `~/.claude/projects/` takes effect alongside the repo instructions and is private to your machine.
 
 ### Preventing Claude from running `mix test` directly
 
-The `CLAUDE.md` instruction nudges Claude to use the MCP tool, but it can still fall back to `mix test`. To enforce this, add a deny rule to your project's `.claude/settings.local.json`:
+Add a deny rule to your project's `.claude/settings.local.json`:
 
 ```json
 {
@@ -95,7 +97,9 @@ The `CLAUDE.md` instruction nudges Claude to use the MCP tool, but it can still 
 }
 ```
 
-Merge this with any existing settings in that file. This blocks Claude from running any `mix test` command, forcing it to use the `mix_test` MCP tool instead.
+Merge this with any existing settings in that file. This blocks Claude from running any `mix test` command via Bash.
+
+**Important:** Check that `Bash(mix test:*)` is not also in your `allow` list (it can accumulate there from past approvals). If it appears in both `allow` and `deny`, remove it from `allow`.
 
 ### Available tools
 
