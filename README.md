@@ -69,6 +69,7 @@ Add a `.mcp.json` to your project root (or use `~/.claude/.mcp.json` for global 
 {
   "mcpServers": {
     "polyglot-watcher": {
+      "type": "stdio",
       "command": "/path/to/polyglot_watcher_v2/mcp_stdio_proxy"
     }
   }
