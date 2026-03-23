@@ -12,6 +12,8 @@ defmodule PolyglotWatcherV2.ServerTest do
     SystemWrapper
   }
 
+  alias PolyglotWatcherV2.Elixir.Cache
+
   alias PolyglotWatcherV2.Support.Mocks.ConfigFileMock
 
   setup :set_mimic_global
@@ -104,6 +106,20 @@ defmodule PolyglotWatcherV2.ServerTest do
                )
 
       assert new_server_state == server_state
+    end
+
+    test "when ignore_file_changes is true, still bumps the cache epoch" do
+      server_state =
+        ServerStateBuilder.build()
+        |> ServerStateBuilder.with_ignore_file_changes(true)
+
+      Mimic.expect(Cache, :bump_change_epoch, fn -> :ok end)
+
+      assert {:noreply, ^server_state} =
+               Server.handle_info(
+                 {:port, {:data, ~c"./test/ CLOSE_WRITE,CLOSE server_test.exs\n"}},
+                 server_state
+               )
     end
   end
 end

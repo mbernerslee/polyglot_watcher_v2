@@ -13,11 +13,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
   @ex_file_path %FilePath{path: "lib/cool", extension: @ex}
 
   describe "determine_actions/2" do
-    setup do
-      Mimic.stub(Cache, :bump_change_epoch, fn -> :ok end)
-      :ok
-    end
-
     test "can find the expected normal mode actions" do
       server_state = ServerStateBuilder.build()
 
@@ -80,14 +75,6 @@ defmodule PolyglotWatcherV2.Elixir.DeterminerTest do
 
       ActionsTreeValidator.assert_exact_keys(tree, expected_action_tree_keys)
       ActionsTreeValidator.validate(tree)
-    end
-
-    test "bumps the change_epoch on the cache" do
-      server_state = ServerStateBuilder.build()
-
-      Mimic.expect(Cache, :bump_change_epoch, fn -> :ok end)
-
-      Determiner.determine_actions(@ex_file_path, server_state)
     end
 
     test "returns the AI Replace Mode actions when in that state" do

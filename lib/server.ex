@@ -14,6 +14,9 @@ defmodule PolyglotWatcherV2.Server do
     StartupMessage
   }
 
+  alias PolyglotWatcherV2.Elixir.Cache
+  alias PolyglotWatcherV2.FilePath
+
   alias PolyglotWatcherV2.FileSystemWatchers.{Inotifywait, FSWatch}
 
   @process_name :server
@@ -112,6 +115,7 @@ defmodule PolyglotWatcherV2.Server do
       std_out
       |> to_string()
       |> state.watcher.parse_std_out(state.starting_dir)
+      |> tap(&maybe_bump_cache_epoch/1)
       |> Determine.actions(state)
       |> TraverseActionsTree.execute_all()
 
@@ -122,6 +126,12 @@ defmodule PolyglotWatcherV2.Server do
 
   def handle_info({_port, {:data, std_out}}, %{ignore_file_changes: true} = state) do
     Logger.debug("#{__MODULE__} inotify IGNORED (busy): #{inspect(std_out)}")
+
+    std_out
+    |> to_string()
+    |> state.watcher.parse_std_out(state.starting_dir)
+    |> maybe_bump_cache_epoch()
+
     {:noreply, state}
   end
 
@@ -179,4 +189,11 @@ defmodule PolyglotWatcherV2.Server do
   defp should_listen_for_user_input? do
     Application.get_env(:polyglot_watcher_v2, :listen_for_user_input, true)
   end
+
+  defp maybe_bump_cache_epoch({:ok, %FilePath{extension: ext}})
+       when ext in ["ex", "exs"] do
+    Cache.bump_change_epoch()
+  end
+
+  defp maybe_bump_cache_epoch(_), do: :ok
 end
