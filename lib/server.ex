@@ -83,7 +83,7 @@ defmodule PolyglotWatcherV2.Server do
 
     Logger.debug("#{__MODULE__} #{watcher.startup_message()}")
 
-    port = Port.open({:spawn_executable, @zombie_killer}, [:stderr_to_stdout, args: watcher.startup_command()])
+    port = Port.open({:spawn_executable, @zombie_killer}, [:stderr_to_stdout, :exit_status, args: watcher.startup_command()])
 
     Logger.debug("#{__MODULE__} Loaded config file #{inspect(config, pretty: true)}")
 
@@ -133,6 +133,22 @@ defmodule PolyglotWatcherV2.Server do
     |> maybe_bump_cache_epoch()
 
     {:noreply, state}
+  end
+
+  def handle_info({port, {:exit_status, code}}, %{port: port} = state) do
+    Logger.warning("#{__MODULE__} file watcher exited with code #{code}, restarting")
+    Puts.on_new_line("File watcher died (exit code #{code}), restarting...", :red)
+
+    new_port =
+      Port.open({:spawn_executable, @zombie_killer}, [
+        :stderr_to_stdout,
+        :exit_status,
+        args: state.watcher.startup_command()
+      ])
+
+    Puts.on_new_line("File watcher restarted successfully", :green)
+
+    {:noreply, %{state | port: new_port}}
   end
 
   def handle_info(_ignored, state) do

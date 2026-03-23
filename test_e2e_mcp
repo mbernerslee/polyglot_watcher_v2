@@ -32,6 +32,9 @@ cleanup() {
 
 trap cleanup EXIT
 
+# --- Clean stale config from previous runs ---
+rm -f "$CONFIG_FILE" 2>/dev/null || true
+
 # --- Start the watcher in the background ---
 info "Starting watcher..."
 "$WATCHER_BIN" > /dev/null 2>&1 &

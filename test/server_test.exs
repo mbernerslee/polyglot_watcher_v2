@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.ServerTest do
   alias PolyglotWatcherV2.{
     Config,
     OSWrapper,
+    Puts,
     Server,
     ServerState,
     ServerStateBuilder,
@@ -120,6 +121,26 @@ defmodule PolyglotWatcherV2.ServerTest do
                  {:port, {:data, ~c"./test/ CLOSE_WRITE,CLOSE server_test.exs\n"}},
                  server_state
                )
+    end
+  end
+
+  describe "handle_info/2 - watcher exit" do
+    @tag capture_log: true
+    test "restarts the file watcher when it dies" do
+      old_port = Port.open({:spawn_executable, "/usr/bin/true"}, [:exit_status])
+
+      server_state = %{ServerStateBuilder.build() | port: old_port}
+
+      Mimic.expect(Puts, :on_new_line, 2, fn
+        msg, :red -> assert msg =~ "File watcher died"
+        msg, :green -> assert msg =~ "restarted successfully"
+      end)
+
+      assert {:noreply, new_state} =
+               Server.handle_info({old_port, {:exit_status, 1}}, server_state)
+
+      assert new_state.port != old_port
+      assert is_port(new_state.port)
     end
   end
 end
