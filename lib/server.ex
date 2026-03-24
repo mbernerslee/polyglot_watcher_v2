@@ -206,8 +206,9 @@ defmodule PolyglotWatcherV2.Server do
     Application.get_env(:polyglot_watcher_v2, :listen_for_user_input, true)
   end
 
-  defp maybe_bump_cache_epoch({:ok, %FilePath{extension: ext}})
+  defp maybe_bump_cache_epoch({:ok, %FilePath{extension: ext} = file_path})
        when ext in ["ex", "exs"] do
+    Logger.debug("#{__MODULE__} bumping cache epoch because #{FilePath.stringify(file_path)} changed")
     Cache.bump_change_epoch()
   end
 

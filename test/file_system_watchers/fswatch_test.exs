@@ -4,6 +4,12 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.FSWatchTest do
   alias PolyglotWatcherV2.FilePath
   alias PolyglotWatcherV2.FileSystemWatchers.FSWatch
 
+  describe "startup_command/0" do
+    test "only listens for Updated events" do
+      assert ["fswatch", "--event", "Updated", "."] = FSWatch.startup_command()
+    end
+  end
+
   describe "parse_std_out/1" do
     test "can dedupe & return a file path" do
       std_out =

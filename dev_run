@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
-MIX_ENV=dev mix compile && MIX_ENV=dev mix release --overwrite || exit 1
-
+ORIGINAL_DIR="$(pwd)"
 REAL_SCRIPT="$(readlink -f "$0")"
 PROJECT_DIR="$(dirname "$REAL_SCRIPT")"
+
+cd "$PROJECT_DIR" || exit 1
+MIX_ENV=dev mix compile && MIX_ENV=dev mix release --overwrite || exit 1
+cd "$ORIGINAL_DIR" || exit 1
+
 RELEASE_BIN="$PROJECT_DIR/_build/dev/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2"
 
 ARGS="["

@@ -174,7 +174,9 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
   @impl GenServer
   def handle_cast(:bump_change_epoch, state) do
-    {:noreply, Map.update!(state, :change_epoch, &(&1 + 1))}
+    new_epoch = state.change_epoch + 1
+    debug_log("cache epoch bumped from #{state.change_epoch} to #{new_epoch}")
+    {:noreply, %{state | change_epoch: new_epoch}}
   end
 
   # Private
