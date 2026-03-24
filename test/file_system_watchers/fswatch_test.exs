@@ -5,8 +5,9 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.FSWatchTest do
   alias PolyglotWatcherV2.FileSystemWatchers.FSWatch
 
   describe "startup_command/0" do
-    test "only listens for Updated events" do
-      assert ["fswatch", "--event", "Updated", "."] = FSWatch.startup_command()
+    test "listens for Updated and Renamed events only" do
+      assert ["fswatch", "--event", "Updated", "--event", "Renamed", "."] =
+               FSWatch.startup_command()
     end
   end
 

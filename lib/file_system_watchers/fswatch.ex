@@ -5,7 +5,7 @@ defmodule PolyglotWatcherV2.FileSystemWatchers.FSWatch do
   @source_extensions FileExtensions.all()
 
   @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
-  def startup_command, do: ["fswatch", "--event", "Updated", "."]
+  def startup_command, do: ["fswatch", "--event", "Updated", "--event", "Renamed", "."]
 
   @impl PolyglotWatcherV2.FileSystemWatchers.Behaviour
   def startup_message, do: "Starting fswatch..."
