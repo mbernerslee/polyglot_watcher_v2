@@ -91,7 +91,7 @@ fallback_run_tests() {
   local line_number="$3"
 
   # Build the mix test command
-  local cmd="mix test --color"
+  local cmd="mix test"
   local display_path="all"
   if [ -n "$test_path" ]; then
     if [ -n "$line_number" ]; then
@@ -102,6 +102,7 @@ fallback_run_tests() {
       display_path="$test_path"
     fi
   fi
+  cmd="$cmd --max-failures 3 --color"
 
   echo "FALLBACK_RUN: $cmd" >> "$LOG"
   echo -e "\033[36m[mcp proxy] watcher not running — running directly: $cmd\033[0m" >&2
@@ -127,12 +128,13 @@ fallback_run_tests() {
   inner_json=$(python3 -c "
 import json, sys
 print(json.dumps({
+    'command': sys.argv[4],
     'exit_code': int(sys.argv[1]),
     'output': sys.argv[2],
     'test_path': sys.argv[3],
     'warning': 'Watcher is not running — ran mix test directly. Test deduplication is not active. Start the watcher to avoid concurrent test runs.'
 }))
-" "$exit_code" "$clean_output" "$display_path")
+" "$exit_code" "$clean_output" "$display_path" "$cmd")
 
   # Wrap in MCP tools/call result format
   local result
