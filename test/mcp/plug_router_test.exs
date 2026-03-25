@@ -10,12 +10,12 @@ defmodule PolyglotWatcherV2.MCP.PlugRouterTest do
 
   describe "POST /mcp" do
     test "successful tool call returns 200 with JSON result" do
-      args = %MixTestArgs{path: :all}
+      args = %MixTestArgs{path: :all, max_failures: 3}
 
       Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
-      Mimic.expect(ShellCommandRunner, :run, fn "mix test --color" ->
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test --max-failures 3 --color" ->
         {"10 tests, 0 failures", 0}
       end)
 

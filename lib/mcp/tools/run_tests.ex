@@ -35,23 +35,26 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
     {output, exit_code} = MixTest.run(mix_test_args, use_cache: :cached, source: :mcp, pre_message: "MCP request received...")
 
     Jason.encode!(%{
+      command: MixTestArgs.to_shell_command(mix_test_args),
       exit_code: exit_code,
       output: strip_ansi(output),
       test_path: format_path(mix_test_args.path)
     })
   end
 
+  @max_failures 3
+
   defp build_args(%{"test_path" => test_path, "line_number" => line})
        when is_binary(test_path) and test_path != "" and is_integer(line) do
-    %MixTestArgs{path: {test_path, line}}
+    %MixTestArgs{path: {test_path, line}, max_failures: @max_failures}
   end
 
   defp build_args(%{"test_path" => test_path})
        when is_binary(test_path) and test_path != "" do
-    %MixTestArgs{path: test_path}
+    %MixTestArgs{path: test_path, max_failures: @max_failures}
   end
 
-  defp build_args(_), do: %MixTestArgs{path: :all}
+  defp build_args(_), do: %MixTestArgs{path: :all, max_failures: @max_failures}
 
   defp strip_ansi(text), do: String.replace(text, ~r/\e\[[0-9;]*m/, "")
 

@@ -8,12 +8,12 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
 
   describe "call/1" do
     test "runs test for given test_path" do
-      args = %MixTestArgs{path: "test/cool_test.exs"}
+      args = %MixTestArgs{path: "test/cool_test.exs", max_failures: 3}
 
       Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
-      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --max-failures 3 --color" ->
         {"1 test, 0 failures", 0}
       end)
 
@@ -25,15 +25,16 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       assert decoded["exit_code"] == 0
       assert decoded["output"] == "1 test, 0 failures"
       assert decoded["test_path"] == "test/cool_test.exs"
+      assert decoded["command"] == "mix test test/cool_test.exs --max-failures 3 --color"
     end
 
     test "runs test with line_number" do
-      args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
+      args = %MixTestArgs{path: {"test/cool_test.exs", 42}, max_failures: 3}
 
       Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
-      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs:42 --color" ->
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs:42 --max-failures 3 --color" ->
         {"1 test, 0 failures", 0}
       end)
 
@@ -46,12 +47,12 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     end
 
     test "runs all tests when no test_path given" do
-      args = %MixTestArgs{path: :all}
+      args = %MixTestArgs{path: :all, max_failures: 3}
 
       Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
-      Mimic.expect(ShellCommandRunner, :run, fn "mix test --color" ->
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test --max-failures 3 --color" ->
         {"10 tests, 0 failures", 0}
       end)
 
@@ -65,7 +66,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     end
 
     test "returns cached result when cache hit" do
-      args = %MixTestArgs{path: "test/cool_test.exs"}
+      args = %MixTestArgs{path: "test/cool_test.exs", max_failures: 3}
 
       Mimic.expect(Cache, :get_cached_result, fn ^args ->
         {:hit, "1 test, 0 failures", 0}
