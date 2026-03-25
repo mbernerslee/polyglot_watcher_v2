@@ -83,7 +83,12 @@ defmodule PolyglotWatcherV2.Server do
 
     Logger.debug("#{__MODULE__} #{watcher.startup_message()}")
 
-    port = Port.open({:spawn_executable, @zombie_killer}, [:stderr_to_stdout, :exit_status, args: watcher.startup_command()])
+    port =
+      Port.open({:spawn_executable, @zombie_killer}, [
+        :stderr_to_stdout,
+        :exit_status,
+        args: watcher.startup_command()
+      ])
 
     Logger.debug("#{__MODULE__} Loaded config file #{inspect(config, pretty: true)}")
 
@@ -208,7 +213,10 @@ defmodule PolyglotWatcherV2.Server do
 
   defp maybe_bump_cache_epoch({:ok, %FilePath{extension: ext} = file_path})
        when ext in ["ex", "exs"] do
-    Logger.debug("#{__MODULE__} bumping cache epoch because #{FilePath.stringify(file_path)} changed")
+    Logger.debug(
+      "#{__MODULE__} bumping cache epoch because #{FilePath.stringify(file_path)} changed"
+    )
+
     Cache.bump_change_epoch()
   end
 

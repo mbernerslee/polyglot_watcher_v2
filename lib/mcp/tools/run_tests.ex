@@ -1,5 +1,6 @@
 defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
   alias PolyglotWatcherV2.Elixir.MixTest
+  alias PolyglotWatcherV2.Elixir.MixTestOutputTruncator, as: OutputTruncator
   alias PolyglotWatcherV2.Elixir.MixTestArgs
 
   @tool_definition %{
@@ -37,24 +38,22 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
     Jason.encode!(%{
       command: MixTestArgs.to_shell_command(mix_test_args),
       exit_code: exit_code,
-      output: strip_ansi(output),
+      output: output |> strip_ansi() |> OutputTruncator.truncate(),
       test_path: format_path(mix_test_args.path)
     })
   end
 
-  @max_failures 3
-
   defp build_args(%{"test_path" => test_path, "line_number" => line})
        when is_binary(test_path) and test_path != "" and is_integer(line) do
-    %MixTestArgs{path: {test_path, line}, max_failures: @max_failures}
+    %MixTestArgs{path: {test_path, line}}
   end
 
   defp build_args(%{"test_path" => test_path})
        when is_binary(test_path) and test_path != "" do
-    %MixTestArgs{path: test_path, max_failures: @max_failures}
+    %MixTestArgs{path: test_path}
   end
 
-  defp build_args(_), do: %MixTestArgs{path: :all, max_failures: @max_failures}
+  defp build_args(_), do: %MixTestArgs{path: :all}
 
   defp strip_ansi(text), do: String.replace(text, ~r/\e\[[0-9;]*m/, "")
 

@@ -15,10 +15,17 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
         :cached ->
           case Cache.get_cached_result(mix_test_args) do
             {:hit, output, exit_code} ->
-              if source == :mcp, do: ActionsExecutor.execute({:puts, :cyan, "MCP cache hit: #{MixTestArgs.to_shell_command(mix_test_args)}"})
+              if source == :mcp,
+                do:
+                  ActionsExecutor.execute(
+                    {:puts, :cyan,
+                     "MCP cache hit: #{MixTestArgs.to_shell_command(mix_test_args)}"}
+                  )
+
               {output, exit_code, true}
 
-            :miss -> run_tests(mix_test_args, pre_message)
+            :miss ->
+              run_tests(mix_test_args, pre_message)
           end
 
         :no_cache ->
@@ -60,7 +67,9 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
   end
 
   defp put_running_message(mix_test_args) do
-    ActionsExecutor.execute({:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_args)}"})
+    ActionsExecutor.execute(
+      {:puts, :magenta, "Running #{MixTestArgs.to_shell_command(mix_test_args)}"}
+    )
   end
 
   defp put_result_message(0), do: ActionsExecutor.execute(:put_sarcastic_success)

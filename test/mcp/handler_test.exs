@@ -50,12 +50,12 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
 
   describe "handle_message/1 - tools/call mix_test" do
     test "calls mix_test and returns result" do
-      args = %MixTestArgs{path: "test/cool_test.exs", max_failures: 3}
+      args = %MixTestArgs{path: "test/cool_test.exs"}
 
       Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
       Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
 
-      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --max-failures 3 --color" ->
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --color" ->
         {"1 test, 0 failures", 0}
       end)
 
