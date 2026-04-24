@@ -211,7 +211,12 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     end
   end
 
-  defp maybe_store_run_result(state, %MixTestArgs{max_failures: nil} = args, output, exit_code) do
+  defp maybe_store_run_result(
+         state,
+         %MixTestArgs{max_failures: nil, extra_args: []} = args,
+         output,
+         exit_code
+       ) do
     run_result = %{output: output, exit_code: exit_code, epoch: state.change_epoch}
     put_in(state.last_run_results[run_result_key(args)], run_result)
   end

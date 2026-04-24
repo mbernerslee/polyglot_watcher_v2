@@ -159,6 +159,44 @@ defmodule PolyglotWatcherV2.Elixir.MixTestTest do
       assert {mock_output, 0} == MixTest.run(mix_test_args, use_cache: :no_cache)
     end
 
+    test "with extra_args, bypasses get_cached_result even with use_cache: :cached" do
+      mix_test_args = %MixTestArgs{
+        path: "test/cool_test.exs",
+        extra_args: ["--slowest", "5"]
+      }
+
+      mock_output = mock_mix_test_output()
+
+      Mimic.reject(Cache, :get_cached_result, 1)
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --slowest 5 --color" ->
+        {mock_output, 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_output, 0 -> :ok end)
+
+      assert {mock_output, 0} == MixTest.run(mix_test_args, use_cache: :cached)
+    end
+
+    test "with extra_args, bypasses await_or_run" do
+      mix_test_args = %MixTestArgs{
+        path: "test/cool_test.exs",
+        extra_args: ["--only", "integration"]
+      }
+
+      mock_output = mock_mix_test_output()
+
+      Mimic.reject(Cache, :await_or_run, 1)
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --only integration --color" ->
+        {mock_output, 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^mix_test_args, ^mock_output, 0 -> :ok end)
+
+      assert {mock_output, 0} == MixTest.run(mix_test_args, use_cache: :cached)
+    end
+
     test "with server_state option returns {exit_code, server_state}" do
       mix_test_args = %MixTestArgs{path: "test/cool_test.exs"}
       mock_output = mock_mix_test_output()

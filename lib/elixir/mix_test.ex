@@ -11,8 +11,12 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
     source = Keyword.get(opts, :source)
 
     {output, exit_code, from_cache?} =
-      case use_cache do
-        :cached ->
+      cond do
+        mix_test_args.extra_args != [] ->
+          {output, exit_code} = execute(mix_test_args, pre_message)
+          {output, exit_code, false}
+
+        use_cache == :cached ->
           case Cache.get_cached_result(mix_test_args) do
             {:hit, output, exit_code} ->
               if source == :mcp,
@@ -28,7 +32,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
               run_tests(mix_test_args, pre_message)
           end
 
-        :no_cache ->
+        true ->
           run_tests(mix_test_args, pre_message)
       end
 

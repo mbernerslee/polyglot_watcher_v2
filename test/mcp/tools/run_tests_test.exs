@@ -94,6 +94,63 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
     end
   end
 
+  describe "call/1 with extra_args" do
+    test "appends extra_args to the shell command and passes them through to Cache.update" do
+      args = %MixTestArgs{
+        path: "test/cool_test.exs",
+        extra_args: ["--slowest", "5"]
+      }
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs --slowest 5 --color" ->
+        {"1 test, 0 failures", 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^args, "1 test, 0 failures", 0 -> :ok end)
+
+      result =
+        RunTests.call(%{
+          "test_path" => "test/cool_test.exs",
+          "extra_args" => ["--slowest", "5"]
+        })
+
+      decoded = Jason.decode!(result)
+      assert decoded["exit_code"] == 0
+      assert decoded["command"] == "mix test test/cool_test.exs --slowest 5 --color"
+    end
+
+    test "bypasses cache read when extra_args is non-empty" do
+      Mimic.reject(Cache, :get_cached_result, 1)
+
+      Mimic.expect(ShellCommandRunner, :run, fn _ -> {"1 test, 0 failures", 0} end)
+      Mimic.expect(Cache, :update, fn _, _, _ -> :ok end)
+
+      result =
+        RunTests.call(%{
+          "test_path" => "test/cool_test.exs",
+          "extra_args" => ["--trace"]
+        })
+
+      decoded = Jason.decode!(result)
+      assert decoded["exit_code"] == 0
+    end
+
+    test "bypasses in-flight dedup (await_or_run) when extra_args is non-empty" do
+      Mimic.reject(Cache, :await_or_run, 1)
+
+      Mimic.expect(ShellCommandRunner, :run, fn _ -> {"1 test, 0 failures", 0} end)
+      Mimic.expect(Cache, :update, fn _, _, _ -> :ok end)
+
+      result =
+        RunTests.call(%{
+          "test_path" => "test/cool_test.exs",
+          "extra_args" => ["--only", "integration"]
+        })
+
+      decoded = Jason.decode!(result)
+      assert decoded["exit_code"] == 0
+    end
+  end
+
   describe "definition/0" do
     test "returns valid tool definition" do
       defn = RunTests.definition()
@@ -103,6 +160,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       assert defn["inputSchema"]["type"] == "object"
       assert Map.has_key?(defn["inputSchema"]["properties"], "test_path")
       assert Map.has_key?(defn["inputSchema"]["properties"], "line_number")
+      assert Map.has_key?(defn["inputSchema"]["properties"], "extra_args")
     end
   end
 end

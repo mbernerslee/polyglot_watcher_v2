@@ -14,12 +14,42 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgs do
   """
   use PolyglotWatcherV2.AccessBehaviour
   @enforce_keys [:path]
-  defstruct [:path, :max_failures]
+  defstruct [:path, :max_failures, extra_args: []]
 
   @type t() :: %__MODULE__{
           path: String.t() | {String.t(), integer()} | :all,
-          max_failures: integer() | nil
+          max_failures: integer() | nil,
+          extra_args: [String.t()]
         }
+
+  @safe_allowlist MapSet.new([
+                    "--trace",
+                    "--slowest",
+                    "--slowest-modules",
+                    "--color",
+                    "--no-color",
+                    "--formatter",
+                    "--preload-modules",
+                    "--max-requires",
+                    "--seed",
+                    "--cover"
+                  ])
+
+  def category(%__MODULE__{extra_args: []}), do: :safe
+
+  def category(%__MODULE__{extra_args: extra_args}) do
+    all_safe? =
+      extra_args
+      |> Enum.filter(&String.starts_with?(&1, "--"))
+      |> Enum.map(&flag_name/1)
+      |> Enum.all?(&MapSet.member?(@safe_allowlist, &1))
+
+    if all_safe?, do: :safe, else: :paranoid
+  end
+
+  defp flag_name(token) do
+    token |> String.split("=", parts: 2) |> hd()
+  end
 
   def to_shell_command(%__MODULE__{} = args) do
     formatters()
@@ -56,7 +86,7 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgs do
   end
 
   defp formatters do
-    [{:path, &path/1}, {:max_failures, &max_failures/1}]
+    [{:path, &path/1}, {:max_failures, &max_failures/1}, {:extra_args, &extra_args/1}]
   end
 
   defp path(:all), do: ""
@@ -73,6 +103,9 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgs do
 
   defp max_failures(nil), do: ""
   defp max_failures(count), do: "--max-failures #{count} "
+
+  defp extra_args([]), do: ""
+  defp extra_args(args), do: Enum.join(args, " ") <> " "
 
   defp splice_together(""), do: "mix test --color"
   defp splice_together(middle), do: "mix test #{String.trim(middle)} --color"

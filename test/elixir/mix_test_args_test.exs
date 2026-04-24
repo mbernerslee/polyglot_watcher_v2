@@ -48,6 +48,125 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgsTest do
     end
   end
 
+  describe "to_shell_command/1 with extra_args" do
+    test "empty extra_args is unchanged" do
+      args = %MixTestArgs{path: :all, extra_args: []}
+      assert MixTestArgs.to_shell_command(args) == "mix test --color"
+    end
+
+    test "appends extra_args after path" do
+      args = %MixTestArgs{path: "test/some_test.exs", extra_args: ["--trace"]}
+      assert MixTestArgs.to_shell_command(args) == "mix test test/some_test.exs --trace --color"
+    end
+
+    test "appends multiple extra_args tokens preserving order" do
+      args = %MixTestArgs{path: :all, extra_args: ["--slowest", "5", "--seed", "42"]}
+      assert MixTestArgs.to_shell_command(args) == "mix test --slowest 5 --seed 42 --color"
+    end
+
+    test "appends extra_args after max_failures" do
+      args = %MixTestArgs{path: "test/a_test.exs", max_failures: 3, extra_args: ["--trace"]}
+
+      assert MixTestArgs.to_shell_command(args) ==
+               "mix test test/a_test.exs --max-failures 3 --trace --color"
+    end
+
+    test "appends extra_args with path + line tuple" do
+      args = %MixTestArgs{path: {"test/a_test.exs", 10}, extra_args: ["--slowest", "5"]}
+
+      assert MixTestArgs.to_shell_command(args) ==
+               "mix test test/a_test.exs:10 --slowest 5 --color"
+    end
+  end
+
+  describe "category/1" do
+    test "returns :safe for empty extra_args" do
+      assert MixTestArgs.category(%MixTestArgs{path: :all}) == :safe
+      assert MixTestArgs.category(%MixTestArgs{path: "test/a_test.exs", extra_args: []}) == :safe
+    end
+
+    test "returns :safe for each safe-allowlist flag individually" do
+      for flag <- [
+            "--trace",
+            "--slowest",
+            "--slowest-modules",
+            "--color",
+            "--no-color",
+            "--formatter",
+            "--preload-modules",
+            "--max-requires",
+            "--seed",
+            "--cover"
+          ] do
+        assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: [flag]}) == :safe,
+               "expected #{flag} to be :safe"
+      end
+    end
+
+    test "returns :safe for safe flags in --flag=value form" do
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["--slowest=5"]}) == :safe
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["--seed=42"]}) == :safe
+    end
+
+    test "returns :safe for multiple safe flags with value tokens interleaved" do
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--slowest", "5", "--seed", "42", "--trace"]
+             }) == :safe
+    end
+
+    test "returns :paranoid for each explicitly-paranoid flag" do
+      for flag <- [
+            "--failed",
+            "--stale",
+            "--only",
+            "--exclude",
+            "--include",
+            "--timeout",
+            "--raise",
+            "--warnings-as-errors",
+            "--exit-status",
+            "--repeat-until-failure",
+            "--partitions",
+            "--partitions-total",
+            "--breakpoints",
+            "--max-failures"
+          ] do
+        assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: [flag]}) == :paranoid,
+               "expected #{flag} to be :paranoid"
+      end
+    end
+
+    test "returns :paranoid for an unknown flag" do
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["--made-up-flag"]}) ==
+               :paranoid
+    end
+
+    test "returns :paranoid when a safe flag and a paranoid flag are mixed" do
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--trace", "--failed"]
+             }) == :paranoid
+
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--failed", "--trace"]
+             }) == :paranoid
+    end
+
+    test "non-double-dash tokens alone don't flip the category" do
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["5"]}) == :safe
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["integration"]}) == :safe
+    end
+
+    test "paranoid wins even when the =value form is used" do
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--only=integration"]
+             }) == :paranoid
+    end
+  end
+
   describe "to_path/1" do
     test "returns {:ok, path} for a valid path without line number" do
       result = MixTestArgs.to_path("test/some_test.exs")
