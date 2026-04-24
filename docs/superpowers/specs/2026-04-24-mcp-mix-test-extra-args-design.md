@@ -102,14 +102,58 @@ Rationale for each column:
 - **`lib/elixir/cache.ex`** — extend the `maybe_store_run_result` guard so it also skips storage when `extra_args != []` (joining the existing `max_failures: nil` guard).
 - **`lib/elixir/cache/fixed_tests.ex`** — add a clause that returns `nil` when `MixTestArgs.category(args) == :paranoid`.
 
-### Test coverage
+### Implementation order — strict outside-in TDD
 
-- `mix_test_args_test.exs` — `category/1` returns `:safe` for empty args, `:safe` for each Safe-allowlist flag (with and without `=value` form), `:paranoid` for unknown flags, `:paranoid` for each explicitly-paranoid flag, `:paranoid` when one Safe and one Paranoid flag are mixed. `to_shell_command/1` appends extra args correctly.
-- `cache/fixed_tests_test.exs` — paranoid args with `exit_code == 0` return `nil`.
-- `mix_test_test.exs` — `extra_args` present causes cache read / dedup bypass.
-- `cache/update_test.exs` — paranoid args don't clear fixed tests; failures still recorded.
-- `cache_test.exs` — `maybe_store_run_result` skips when `extra_args != []`.
-- `mcp/tools/run_tests_test.exs` — MCP tool accepts `extra_args`, passes through to `MixTestArgs`, returns command string reflecting the flags.
+Start at the top of the call stack with a small number of high-level tests, drive the implementation down through every layer to make them green, then descend adding denser coverage at each lower module. The number of tests increases as we move down; the lowest module (`MixTestArgs`) has the most exhaustive coverage because it carries the most branching logic.
+
+Each step follows the red-green cycle: write a failing test first, then make it pass. No implementation code precedes a failing test.
+
+#### Step 1 — Top tier: MCP tool (few tests)
+
+File: `test/mcp/tools/run_tests_test.exs`.
+
+A small set of end-to-end-shaped tests that exercise the feature through the MCP tool entry point. These fail until the full vertical slice is implemented, so passing them drives changes in `run_tests.ex`, `mix_test_args.ex`, `mix_test.ex`, `cache.ex`, `cache/update.ex`, and `cache/fixed_tests.ex` all at once.
+
+Tests:
+
+1. Tool call with `extra_args: []` behaves identically to today (regression).
+2. Tool call with a Safe flag (e.g. `["--slowest", "5"]`) produces a shell command that includes the flag and returns the new flags in the response.
+3. Tool call with a Paranoid flag (e.g. `["--only", "integration"]`) on `exit_code == 0` does NOT clear the file's entry from `Cache.FixedTests`.
+4. Tool call with `extra_args != []` bypasses the stored-output cache read — the real command is executed even when a cached result exists for the same path.
+
+After step 1, the feature is functionally complete. The remaining steps add confidence and cover edge cases.
+
+#### Step 2 — Middle tier: orchestration and cache wiring
+
+Files: `test/elixir/mix_test_test.exs`, `test/elixir/cache_test.exs`, `test/elixir/cache/update_test.exs`, `test/elixir/cache/fixed_tests_test.exs`.
+
+Tests (roughly one or two per behavior):
+
+- `mix_test_test.exs` — `extra_args != []` skips `Cache.get_cached_result`; skips `Cache.await_or_run` dedup and runs independently.
+- `cache_test.exs` — `maybe_store_run_result` skips storing when `extra_args != []` (extends the existing `max_failures: nil` guard).
+- `cache/update_test.exs` — with paranoid args and `exit_code == 0`, the file's cache entry is not cleared; failures in the output are still recorded.
+- `cache/fixed_tests_test.exs` — returns `nil` when `MixTestArgs.category(args) == :paranoid`, regardless of exit code.
+
+#### Step 3 — Bottom tier: `MixTestArgs` (most coverage)
+
+File: `test/elixir/mix_test_args_test.exs`.
+
+Exhaustive unit tests for the pure logic:
+
+- `category/1`:
+  - `:safe` for empty `extra_args`.
+  - `:safe` for each individual flag in the Safe allowlist.
+  - `:safe` for each Safe flag in `--flag=value` form.
+  - `:safe` for multiple Safe flags together, including with interleaved value tokens.
+  - `:paranoid` for each explicitly-Paranoid flag called out in the design.
+  - `:paranoid` for an unknown flag not in either list.
+  - `:paranoid` for a mix of one Safe and one Paranoid flag.
+  - Non-`--` tokens (values) alone don't flip the category.
+- `to_shell_command/1`:
+  - Appends `extra_args` tokens verbatim after `path` and `max_failures`.
+  - Preserves ordering.
+  - Works with empty `extra_args` (unchanged from today).
+  - Works in combination with `path`, `{path, line}`, `:all`, and `max_failures`.
 
 ## Open questions / future work
 
