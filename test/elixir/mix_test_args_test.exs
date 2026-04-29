@@ -154,9 +154,42 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgsTest do
              }) == :paranoid
     end
 
-    test "non-double-dash tokens alone don't flip the category" do
-      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["5"]}) == :safe
-      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["integration"]}) == :safe
+    test "bare positional tokens (no preceding flag) are paranoid" do
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["5"]}) == :paranoid
+
+      assert MixTestArgs.category(%MixTestArgs{path: :all, extra_args: ["integration"]}) ==
+               :paranoid
+
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["test/other_test.exs"]
+             }) == :paranoid
+    end
+
+    test "a positional after a value-less safe flag is paranoid" do
+      # --trace takes no value, so a trailing token is a positional path mix would run
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--trace", "test/other_test.exs"]
+             }) == :paranoid
+
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--cover", "foo"]
+             }) == :paranoid
+    end
+
+    test "a value token is consumed by its preceding value-taking safe flag" do
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--slowest", "5", "test/other_test.exs"]
+             }) == :paranoid
+
+      # but the value-taking flag's actual value doesn't make it paranoid on its own
+      assert MixTestArgs.category(%MixTestArgs{
+               path: :all,
+               extra_args: ["--slowest", "5"]
+             }) == :safe
     end
 
     test "paranoid wins even when the =value form is used" do

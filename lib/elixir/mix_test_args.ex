@@ -11,6 +11,14 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgs do
   which is very difficult if not impossible if the args we give to `mix test` is a free for all string, and could include flags like --failed or --stale.
 
   So locking it down to just the variants we actually use by encoding it this way helps our logic be more trustworthy on determining what preciscely we ran and therefore which tests passed.
+
+  ## extra_args (MCP-only escape hatch)
+
+  The `extra_args` field carries arbitrary tokens passed through the MCP `mix_test` tool.
+  Cache safety is preserved by `category/1`, which returns `:paranoid` whenever the args
+  contain anything not in the safe allowlist (including bare positional path tokens, since
+  they tell mix to run additional tests outside `path`). Callers in `MixTest`/`Cache`
+  bypass cached reads, in-flight de-dup, and result storage when `extra_args != []`.
   """
   use PolyglotWatcherV2.AccessBehaviour
   @enforce_keys [:path]
@@ -22,33 +30,54 @@ defmodule PolyglotWatcherV2.Elixir.MixTestArgs do
           extra_args: [String.t()]
         }
 
-  @safe_allowlist MapSet.new([
-                    "--trace",
-                    "--slowest",
-                    "--slowest-modules",
-                    "--color",
-                    "--no-color",
-                    "--formatter",
-                    "--preload-modules",
-                    "--max-requires",
-                    "--seed",
-                    "--cover"
-                  ])
+  @safe_value_taking MapSet.new([
+                       "--slowest",
+                       "--slowest-modules",
+                       "--formatter",
+                       "--max-requires",
+                       "--seed"
+                     ])
+
+  @safe_no_value MapSet.new([
+                   "--trace",
+                   "--color",
+                   "--no-color",
+                   "--cover",
+                   "--preload-modules"
+                 ])
+
+  @safe_allowlist MapSet.union(@safe_value_taking, @safe_no_value)
 
   def category(%__MODULE__{extra_args: []}), do: :safe
 
   def category(%__MODULE__{extra_args: extra_args}) do
-    all_safe? =
-      extra_args
-      |> Enum.filter(&String.starts_with?(&1, "--"))
-      |> Enum.map(&flag_name/1)
-      |> Enum.all?(&MapSet.member?(@safe_allowlist, &1))
-
-    if all_safe?, do: :safe, else: :paranoid
+    if all_safe?(extra_args, :expect_flag), do: :safe, else: :paranoid
   end
 
-  defp flag_name(token) do
-    token |> String.split("=", parts: 2) |> hd()
+  defp all_safe?([], _state), do: true
+
+  defp all_safe?([_value | rest], :expect_value) do
+    all_safe?(rest, :expect_flag)
+  end
+
+  defp all_safe?([token | rest], :expect_flag) do
+    cond do
+      not String.starts_with?(token, "--") ->
+        false
+
+      String.contains?(token, "=") ->
+        flag = token |> String.split("=", parts: 2) |> hd()
+        MapSet.member?(@safe_allowlist, flag) and all_safe?(rest, :expect_flag)
+
+      MapSet.member?(@safe_value_taking, token) ->
+        all_safe?(rest, :expect_value)
+
+      MapSet.member?(@safe_no_value, token) ->
+        all_safe?(rest, :expect_flag)
+
+      true ->
+        false
+    end
   end
 
   def to_shell_command(%__MODULE__{} = args) do

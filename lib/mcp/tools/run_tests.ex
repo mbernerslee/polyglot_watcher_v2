@@ -29,8 +29,9 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
           "items" => %{"type" => "string"},
           "description" =>
             "Optional extra flags to pass to `mix test`, e.g. [\"--slowest\", \"5\"]. " <>
-              "Only use for ad-hoc diagnostics — when present, the run bypasses the watcher's " <>
-              "cache entirely and unrecognized flags are treated as worst-case for cache safety."
+              "Only use for ad-hoc diagnostics — when present, the watcher does NOT serve a " <>
+              "cached result or de-dup against an in-flight run (failures are still recorded), " <>
+              "and unrecognized flags are treated as worst-case for cache safety."
         }
       }
     }

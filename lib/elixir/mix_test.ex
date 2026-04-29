@@ -13,6 +13,11 @@ defmodule PolyglotWatcherV2.Elixir.MixTest do
     {output, exit_code, from_cache?} =
       cond do
         mix_test_args.extra_args != [] ->
+          # Skip Cache.get_cached_result and Cache.await_or_run: a cached/in-flight
+          # result was produced by a different command line and would mismatch the
+          # requested flags. Note this means an MCP run with extra_args can execute
+          # concurrently with a watcher run on the same project — be cautious with
+          # flags that touch shared state (e.g. --cover writes to cover/coverdata).
           {output, exit_code} = execute(mix_test_args, pre_message)
           {output, exit_code, false}
 
