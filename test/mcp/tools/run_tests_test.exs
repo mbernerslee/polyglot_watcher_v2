@@ -46,6 +46,26 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTestsTest do
       assert decoded["test_path"] == "test/cool_test.exs:42"
     end
 
+    test "runs test when test_path includes embedded line number" do
+      args = %MixTestArgs{path: {"test/cool_test.exs", 42}}
+
+      Mimic.expect(Cache, :get_cached_result, fn _ -> :miss end)
+      Mimic.expect(Cache, :await_or_run, fn ^args -> :not_running end)
+
+      Mimic.expect(ShellCommandRunner, :run, fn "mix test test/cool_test.exs:42 --color" ->
+        {"1 test, 0 failures", 0}
+      end)
+
+      Mimic.expect(Cache, :update, fn ^args, "1 test, 0 failures", 0 -> :ok end)
+
+      result = RunTests.call(%{"test_path" => "test/cool_test.exs:42"})
+      decoded = Jason.decode!(result)
+
+      assert decoded["exit_code"] == 0
+      assert decoded["test_path"] == "test/cool_test.exs:42"
+      assert decoded["command"] == "mix test test/cool_test.exs:42 --color"
+    end
+
     test "runs all tests when no test_path given" do
       args = %MixTestArgs{path: :all}
 
