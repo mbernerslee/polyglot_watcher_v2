@@ -45,12 +45,22 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
 
   defp build_args(%{"test_path" => test_path, "line_number" => line})
        when is_binary(test_path) and test_path != "" and is_integer(line) do
-    %MixTestArgs{path: {test_path, line}}
+    file =
+      case MixTestArgs.to_path(test_path) do
+        {:ok, {file, _embedded_line}} -> file
+        {:ok, file} -> file
+        :error -> test_path
+      end
+
+    %MixTestArgs{path: {file, line}}
   end
 
   defp build_args(%{"test_path" => test_path})
        when is_binary(test_path) and test_path != "" do
-    %MixTestArgs{path: test_path}
+    case MixTestArgs.to_path(test_path) do
+      {:ok, parsed} -> %MixTestArgs{path: parsed}
+      :error -> %MixTestArgs{path: test_path}
+    end
   end
 
   defp build_args(_), do: %MixTestArgs{path: :all}
