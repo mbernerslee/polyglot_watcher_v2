@@ -59,7 +59,7 @@ defmodule PolyglotWatcherV2.Elixir.Cache.MixTestOutputParser do
   end
 
   defp test_with_colon_then_line_number_parser(test) do
-    case Regex.named_captures(~r|^(?<test>.*test/.+):(?<line>[0-9]+)$|, test) do
+    case Regex.named_captures(~r|^(?<test>[\s\w./-]*test/.+):(?<line>[0-9]+)$|, test) do
       %{"test" => path, "line" => line} ->
         {String.trim(path), String.to_integer(line)}
 
