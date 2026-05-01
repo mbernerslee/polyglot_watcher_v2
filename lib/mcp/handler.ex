@@ -1,5 +1,5 @@
 defmodule PolyglotWatcherV2.MCP.Handler do
-  alias PolyglotWatcherV2.MCP.Tools.RunTests
+  alias PolyglotWatcherV2.MCP.Tools.{MixTestKnownFailures, RunTests}
 
   require Logger
 
@@ -33,7 +33,10 @@ defmodule PolyglotWatcherV2.MCP.Handler do
   end
 
   def handle_message(%{"method" => "tools/list", "id" => id}) do
-    {:ok, json_rpc_result(id, %{"tools" => [RunTests.definition()]})}
+    {:ok,
+     json_rpc_result(id, %{
+       "tools" => [RunTests.definition(), MixTestKnownFailures.definition()]
+     })}
   end
 
   def handle_message(%{"method" => "tools/call", "id" => id, "params" => params}) do
@@ -72,6 +75,10 @@ defmodule PolyglotWatcherV2.MCP.Handler do
 
   defp call_tool("mix_test", arguments) do
     {:ok, RunTests.call(arguments)}
+  end
+
+  defp call_tool("mix_test_known_failures", arguments) do
+    {:ok, MixTestKnownFailures.call(arguments)}
   end
 
   defp call_tool(name, _arguments) do

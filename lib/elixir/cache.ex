@@ -62,6 +62,10 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
     GenServer.call(pid, {:get_cached_result, mix_test_args})
   end
 
+  def get_known_failures(pid \\ @process_name) do
+    GenServer.call(pid, :get_known_failures)
+  end
+
   # Callbacks
 
   @impl GenServer
@@ -112,6 +116,26 @@ defmodule PolyglotWatcherV2.Elixir.Cache do
 
     debug_log_cache(state)
     {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call(:get_known_failures, _from, state) do
+    failures =
+      state.cache_items
+      |> Enum.filter(fn {_path, %{failed_line_numbers: lines}} -> lines != [] end)
+      |> Enum.sort_by(fn {_path, %{rank: rank}} -> rank end)
+      |> Enum.map(fn {_path, item} -> item end)
+
+    total_failing_lines =
+      Enum.reduce(failures, 0, fn %{failed_line_numbers: lines}, acc -> acc + length(lines) end)
+
+    result = %{
+      failures: failures,
+      total_failing_test_files: length(failures),
+      total_failing_lines: total_failing_lines
+    }
+
+    {:reply, result, state}
   end
 
   @impl GenServer

@@ -35,16 +35,17 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
   end
 
   describe "handle_message/1 - tools/list" do
-    test "returns the mix_test tool definition" do
+    test "returns both mix_test and mix_test_known_failures tool definitions" do
       assert {:ok,
               %{
                 "id" => 3,
-                "result" => %{
-                  "tools" => [%{"name" => "mix_test", "description" => description}]
-                }
+                "result" => %{"tools" => tools}
               }} = Handler.handle_message(%{"method" => "tools/list", "id" => 3})
 
-      assert is_binary(description)
+      tool_names = Enum.map(tools, & &1["name"])
+      assert "mix_test" in tool_names
+      assert "mix_test_known_failures" in tool_names
+      assert Enum.all?(tools, fn t -> is_binary(t["description"]) end)
     end
   end
 
@@ -73,6 +74,25 @@ defmodule PolyglotWatcherV2.MCP.HandlerTest do
                })
 
       assert %{"exit_code" => 0, "output" => "1 test, 0 failures"} = Jason.decode!(text)
+    end
+
+    test "calls mix_test_known_failures and returns result" do
+      Mimic.expect(Cache, :get_known_failures, fn ->
+        %{failures: [], total_failing_test_files: 0, total_failing_lines: 0}
+      end)
+
+      assert {:ok,
+              %{
+                "id" => 7,
+                "result" => %{"content" => [%{"type" => "text", "text" => text}]}
+              }} =
+               Handler.handle_message(%{
+                 "method" => "tools/call",
+                 "id" => 7,
+                 "params" => %{"name" => "mix_test_known_failures", "arguments" => %{}}
+               })
+
+      assert %{"known_failures" => [], "next_action" => _} = Jason.decode!(text)
     end
 
     test "unknown tool returns error content" do

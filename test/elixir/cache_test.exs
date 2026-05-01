@@ -277,6 +277,88 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
     end
   end
 
+  describe "get_known_failures/1" do
+    test "returns empty result when cache is empty" do
+      assert {:ok, pid} = Cache.start_link([])
+      :sys.replace_state(pid, fn state -> %{state | cache_items: %{}} end)
+
+      assert %{
+               failures: [],
+               total_failing_test_files: 0,
+               total_failing_lines: 0
+             } == Cache.get_known_failures(pid)
+    end
+
+    test "filters out cache items with no failing lines" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      cache_items = %{
+        "test/failing_test.exs" => %CacheItem{
+          test_path: "test/failing_test.exs",
+          failed_line_numbers: [10],
+          lib_path: "lib/failing.ex",
+          mix_test_output: "boom",
+          rank: 1
+        },
+        "test/passing_test.exs" => %CacheItem{
+          test_path: "test/passing_test.exs",
+          failed_line_numbers: [],
+          lib_path: "lib/passing.ex",
+          mix_test_output: nil,
+          rank: 2
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
+
+      assert %{
+               failures: [%CacheItem{test_path: "test/failing_test.exs"}],
+               total_failing_test_files: 1,
+               total_failing_lines: 1
+             } = Cache.get_known_failures(pid)
+    end
+
+    test "sorts failures by rank ascending (most-recent first) and counts lines across files" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      cache_items = %{
+        "test/older_test.exs" => %CacheItem{
+          test_path: "test/older_test.exs",
+          failed_line_numbers: [1, 2],
+          lib_path: "lib/older.ex",
+          mix_test_output: "older",
+          rank: 5
+        },
+        "test/newest_test.exs" => %CacheItem{
+          test_path: "test/newest_test.exs",
+          failed_line_numbers: [9],
+          lib_path: "lib/newest.ex",
+          mix_test_output: "newest",
+          rank: 1
+        },
+        "test/middle_test.exs" => %CacheItem{
+          test_path: "test/middle_test.exs",
+          failed_line_numbers: [3, 4, 5],
+          lib_path: "lib/middle.ex",
+          mix_test_output: "middle",
+          rank: 3
+        }
+      }
+
+      :sys.replace_state(pid, fn state -> %{state | cache_items: cache_items} end)
+
+      assert %{
+               failures: [
+                 %CacheItem{test_path: "test/newest_test.exs", rank: 1},
+                 %CacheItem{test_path: "test/middle_test.exs", rank: 3},
+                 %CacheItem{test_path: "test/older_test.exs", rank: 5}
+               ],
+               total_failing_test_files: 3,
+               total_failing_lines: 6
+             } = Cache.get_known_failures(pid)
+    end
+  end
+
   describe "get_files/2" do
     test "returns the test and lib files for a given test path" do
       assert {:ok, pid} = Cache.start_link([])

@@ -53,10 +53,14 @@ fallback_initialize() {
 EOJSON
 }
 
+# Keep this list in sync with PolyglotWatcherV2.MCP.Handler's tools/list response.
+# Each tool here must either be servable by a fallback_* handler below, or return
+# fallback_error for tools/call (e.g. mix_test_known_failures, whose data lives
+# in the watcher's in-memory cache and can't be served offline).
 fallback_tools_list() {
   local id="$1"
   cat <<EOJSON
-{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running \`mix test\` via the shell. Never run \`mix test\` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}}]}}
+{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running \`mix test\` via the shell. Never run \`mix test\` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."}}}},{"name":"mix_test_known_failures","description":"Returns failing tests captured in the watcher's in-memory cache from prior \`mix_test\` runs. Does NOT scan the project — tests that haven't been executed in this session won't appear. If the cache is empty, run \`mix_test\` first to populate it.","inputSchema":{"type":"object","properties":{}}}]}}
 EOJSON
 }
 
