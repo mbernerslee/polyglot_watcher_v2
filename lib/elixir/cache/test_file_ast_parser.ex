@@ -103,10 +103,18 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParser do
   end
 
   defp format_test_key(nil, test_name) do
-    :"test #{test_name}"
+    :"test #{ast_to_string(test_name)}"
   end
 
   defp format_test_key(describe_name, test_name) do
-    :"test #{describe_name} #{test_name}"
+    :"test #{ast_to_string(describe_name)} #{ast_to_string(test_name)}"
   end
+
+  defp ast_to_string(string) when is_binary(string), do: string
+
+  defp ast_to_string({:<>, _, parts}) when is_list(parts) do
+    parts |> Enum.map(&ast_to_string/1) |> Enum.join()
+  end
+
+  defp ast_to_string(other), do: Macro.to_string(other)
 end

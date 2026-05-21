@@ -134,5 +134,37 @@ defmodule PolyglotWatcherV2.Elixir.Cache.TestFileASTParserTest do
 
       assert %{} == TestFileASTParser.run(code)
     end
+
+    test "handles string concatenation in test names" do
+      code = """
+      defmodule ConcatTest do
+        use ExUnit.Case
+
+        test "first part " <>
+               "second part" do
+          assert true
+        end
+      end
+      """
+
+      assert %{:"test first part second part" => 4} == TestFileASTParser.run(code)
+    end
+
+    test "handles string concatenation in describe names" do
+      code = """
+      defmodule ConcatDescribeTest do
+        use ExUnit.Case
+
+        describe "group " <>
+                   "name" do
+          test "my test" do
+            assert true
+          end
+        end
+      end
+      """
+
+      assert %{:"test group name my test" => 6} == TestFileASTParser.run(code)
+    end
   end
 end
