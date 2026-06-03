@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.MCP.Tools.MixTestKnownFailures do
+  alias PolyglotWatcherV2.ActionsExecutor
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.MixTestOutputTruncator, as: OutputTruncator
 
@@ -19,6 +20,8 @@ defmodule PolyglotWatcherV2.MCP.Tools.MixTestKnownFailures do
   def definition, do: @tool_definition
 
   def call(_arguments) do
+    ActionsExecutor.execute({:puts, :cyan, "MCP known failures requested"})
+
     %{
       failures: failures,
       total_failing_test_files: total_failing_test_files,

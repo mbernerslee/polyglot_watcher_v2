@@ -3,10 +3,24 @@ defmodule PolyglotWatcherV2.MCP.Tools.MixTestKnownFailuresTest do
   use Mimic
 
   alias PolyglotWatcherV2.MCP.Tools.MixTestKnownFailures
+  alias PolyglotWatcherV2.ActionsExecutor
   alias PolyglotWatcherV2.Elixir.Cache
   alias PolyglotWatcherV2.Elixir.Cache.CacheItem
 
   describe "call/1" do
+    test "logs a cyan message to the watcher output when called" do
+      Mimic.expect(Cache, :get_known_failures, fn ->
+        %{failures: [], total_failing_test_files: 0, total_failing_lines: 0}
+      end)
+
+      Mimic.expect(ActionsExecutor, :execute, fn {:puts, :cyan, message} ->
+        assert message =~ "known failures"
+        :ok
+      end)
+
+      MixTestKnownFailures.call(%{})
+    end
+
     test "returns known_failures payload built from the cache" do
       Mimic.expect(Cache, :get_known_failures, fn ->
         %{
