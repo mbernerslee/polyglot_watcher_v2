@@ -61,6 +61,28 @@ defmodule PolyglotWatcherV2.MCP.Tools.MixTestKnownFailuresTest do
       refute Map.has_key?(decoded, "next_action")
     end
 
+    test "handles nil mix_test_output (failures loaded from manifest with no captured output)" do
+      Mimic.expect(Cache, :get_known_failures, fn ->
+        %{
+          failures: [
+            %CacheItem{
+              test_path: "test/cool_test.exs",
+              lib_path: "lib/cool.ex",
+              failed_line_numbers: [10],
+              mix_test_output: nil,
+              rank: 1
+            }
+          ],
+          total_failing_test_files: 1,
+          total_failing_lines: 1
+        }
+      end)
+
+      result = MixTestKnownFailures.call(%{})
+
+      assert %{"known_failures" => [%{"output_snippet" => nil}]} = Jason.decode!(result)
+    end
+
     test "strips ANSI from output_snippet and truncates very long output" do
       long_output =
         "header\n\n" <>

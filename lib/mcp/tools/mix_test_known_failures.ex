@@ -52,10 +52,12 @@ defmodule PolyglotWatcherV2.MCP.Tools.MixTestKnownFailures do
       test_path: item.test_path,
       lib_path: item.lib_path,
       failed_lines: item.failed_line_numbers,
-      output_snippet: item.mix_test_output |> strip_ansi() |> OutputTruncator.truncate()
+      output_snippet: output_snippet(item.mix_test_output)
     }
   end
 
-  defp strip_ansi(nil), do: nil
+  defp output_snippet(nil), do: nil
+  defp output_snippet(text), do: text |> strip_ansi() |> OutputTruncator.truncate()
+
   defp strip_ansi(text), do: String.replace(text, ~r/\e\[[0-9;]*m/, "")
 end

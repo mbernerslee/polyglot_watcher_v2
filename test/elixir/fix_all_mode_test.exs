@@ -1,6 +1,5 @@
 defmodule PolyglotWatcherV2.Elixir.FixAllModeTest do
   use ExUnit.Case, async: true
-  require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.Action
   alias PolyglotWatcherV2.ActionsTreeValidator

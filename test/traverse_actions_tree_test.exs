@@ -2,7 +2,6 @@ defmodule PolyglotWatcherV2.TraverseActionsTreeTest do
   use ExUnit.Case, async: true
   use Mimic
 
-  require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{
     Action,

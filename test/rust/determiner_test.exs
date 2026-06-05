@@ -1,7 +1,6 @@
 defmodule PolyglotWatcherV2.Rust.DeterminerTest do
   use ExUnit.Case, async: true
 
-  require PolyglotWatcherV2.ActionsTreeValidator
 
   alias PolyglotWatcherV2.{Action, ActionsTreeValidator, FilePath, ServerStateBuilder}
   alias PolyglotWatcherV2.Rust.Determiner
