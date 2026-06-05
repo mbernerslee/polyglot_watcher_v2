@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+# Kill every running watcher instance (any project, any MIX_ENV build) and
+# every mcp_stdio_proxy, then remove the stale config.json each watcher
+# leaves behind (SIGTERM doesn't run Startup.terminate's cleanup).
+#
+# To restart afterwards:
+#   - in a terminal:      ./polyglot_watcher_v2   (from the project you want watched)
+#   - or from Claude:     reconnect MCP (/mcp), then call the start_watcher tool
+# Claude Code respawns its own proxy per session — nothing to restart there.
+
+# cwd of a pid: /proc on Linux, lsof on macOS
+pid_cwd() {
+  readlink "/proc/$1/cwd" 2>/dev/null && return
+  lsof -p "$1" -a -d cwd -Fn 2>/dev/null | sed -n 's/^n//p'
+}
+
+# --- watchers ------------------------------------------------------------
+# Matches the release path embedded in every watcher beam's command line,
+# e.g. _build/prod/rel/polyglot_watcher_v2/... ("rel/" so the repo path
+# src/polyglot_watcher_v2 in proxy command lines doesn't match).
+watcher_pids=$(pgrep -f 'rel/polyglot_watcher_v2')
+
+if [ -z "$watcher_pids" ]; then
+  echo "no watcher instances running"
+else
+  cwds=""
+  for pid in $watcher_pids; do
+    cwd=$(pid_cwd "$pid")
+    echo "killing watcher pid $pid (watching ${cwd:-unknown})"
+    cwds="$cwds $cwd"
+    kill "$pid" 2>/dev/null
+  done
+
+  # Give graceful shutdown up to 5s, then force-kill any survivors
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    survivors=""
+    for pid in $watcher_pids; do
+      kill -0 "$pid" 2>/dev/null && survivors="$survivors $pid"
+    done
+    [ -z "$survivors" ] && break
+    sleep 0.5
+  done
+  for pid in $survivors; do
+    echo "watcher pid $pid survived SIGTERM — sending SIGKILL"
+    kill -9 "$pid" 2>/dev/null
+  done
+
+  # Remove the stale config.json each killed instance leaves behind
+  for cwd in $cwds; do
+    config="$cwd/.polyglot_watcher_v2/config.json"
+    if [ -f "$config" ]; then
+      echo "removing stale $config"
+      rm -f "$config"
+    fi
+  done
+fi
+
+# --- proxies -------------------------------------------------------------
+# fswatch/inotifywait children die with their beam (via priv/zombie_killer),
+# so proxies are the only other thing to sweep.
+# (pgrep -c is Linux-only, so count with wc)
+proxy_count=$(pgrep -f mcp_stdio_proxy | wc -l | tr -d ' ')
+if [ "$proxy_count" -eq 0 ]; then
+  echo "no mcp_stdio_proxy processes running"
+else
+  echo "killing $proxy_count mcp_stdio_proxy process(es)"
+  pkill -f mcp_stdio_proxy
+fi
+
+echo "done — restart with ./polyglot_watcher_v2 (terminal) or the start_watcher MCP tool"
