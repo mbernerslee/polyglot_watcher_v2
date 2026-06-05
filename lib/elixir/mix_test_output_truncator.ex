@@ -54,9 +54,18 @@ defmodule PolyglotWatcherV2.Elixir.MixTestOutputTruncator do
 
   defp failure_block?(block), do: Regex.match?(~r/^\s+\d+\) test /, block)
 
+  # Elixir <= 1.19 summary: "366 tests, 62 failures"
+  # Elixir >= 1.20 summary: "Result: 446/455 passed (...)\nFailed: 8 tests, 1 property"
   defp parse_failure_count(block) do
     case Regex.run(~r/(\d+) failures?/, block) do
       [_, count] -> String.to_integer(count)
+      _ -> parse_failure_count_from_result_line(block)
+    end
+  end
+
+  defp parse_failure_count_from_result_line(block) do
+    case Regex.run(~r|Result: (\d+)/(\d+) passed|, block) do
+      [_, passed, total] -> String.to_integer(total) - String.to_integer(passed)
       _ -> nil
     end
   end

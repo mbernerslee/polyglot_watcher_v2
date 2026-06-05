@@ -821,6 +821,34 @@ defmodule PolyglotWatcherV2.Elixir.MixTestOutputTruncatorTest do
       assert result =~ "... (5 tests failed, showing 3 failure outputs) ..."
     end
 
+    test "includes failure count message when failures are detected (Elixir 1.20 summary format)" do
+      first = "Running ExUnit"
+      last = "Result: 446/455 passed (53/54 doctests, 393/401 tests)\nFailed: 8 tests, 1 property"
+
+      failures =
+        for i <- 1..5 do
+          lines = for j <- 1..25, do: "  line #{j} of failure #{i}"
+
+          "  #{i}) test thing #{i} (Mod)\n" <> Enum.join(lines, "\n")
+        end
+
+      text = Enum.join([first] ++ failures ++ [last], "\n\n")
+      result = OutputTruncator.truncate(text)
+
+      assert result =~ "... (9 tests failed, showing 3 failure outputs) ..."
+    end
+
+    test "uses generic omitted message when all tests passed (Elixir 1.20 summary format)" do
+      first = "Running ExUnit"
+      last = "Result: 455 passed (70 tests, 14 properties)"
+      blocks = for i <- 1..20, do: String.duplicate("line #{i}\n", 10)
+
+      text = Enum.join([first] ++ blocks ++ [last], "\n\n")
+      result = OutputTruncator.truncate(text)
+
+      assert result =~ "... (12 blocks omitted) ..."
+    end
+
     test "uses generic omitted message when no failure count found" do
       first = "Compiling 5 files"
       last = "done"
