@@ -40,6 +40,47 @@ defmodule PolyglotWatcherV2.Elixir.Cache.FixedTestsTest do
       assert FixedTests.determine(%MixTestArgs{path: :all}, 0) == :all
     end
 
+    test "with extra_args containing a safe flag, behaves as if no extra_args" do
+      assert FixedTests.determine(
+               %MixTestArgs{path: "test/a_test.exs", extra_args: ["--slowest", "5"]},
+               0
+             ) == {"test/a_test.exs", :all}
+
+      assert FixedTests.determine(
+               %MixTestArgs{path: {"test/a_test.exs", 10}, extra_args: ["--trace"]},
+               0
+             ) == {"test/a_test.exs", 10}
+
+      assert FixedTests.determine(
+               %MixTestArgs{path: :all, extra_args: ["--seed", "42"]},
+               0
+             ) == :all
+    end
+
+    test "with extra_args containing a paranoid flag, returns nil regardless of path" do
+      assert FixedTests.determine(
+               %MixTestArgs{path: "test/a_test.exs", extra_args: ["--only", "integration"]},
+               0
+             ) == nil
+
+      assert FixedTests.determine(
+               %MixTestArgs{path: {"test/a_test.exs", 10}, extra_args: ["--failed"]},
+               0
+             ) == nil
+
+      assert FixedTests.determine(
+               %MixTestArgs{path: :all, extra_args: ["--stale"]},
+               0
+             ) == nil
+    end
+
+    test "with extra_args containing an unknown flag, returns nil" do
+      assert FixedTests.determine(
+               %MixTestArgs{path: "test/a_test.exs", extra_args: ["--made-up-flag"]},
+               0
+             ) == nil
+    end
+
     test "with a non-zero exit code always return nil" do
       assert FixedTests.determine(%MixTestArgs{path: "test/a_test.exs"}, 1) == nil
       assert FixedTests.determine(%MixTestArgs{path: "test/b_test.exs"}, 1) == nil

@@ -23,6 +23,15 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
           "type" => "integer",
           "description" =>
             "Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."
+        },
+        "extra_args" => %{
+          "type" => "array",
+          "items" => %{"type" => "string"},
+          "description" =>
+            "Optional extra flags to pass to `mix test`, e.g. [\"--slowest\", \"5\"]. " <>
+              "Only use for ad-hoc diagnostics — when present, the watcher does NOT serve a " <>
+              "cached result or de-dup against an in-flight run (failures are still recorded), " <>
+              "and unrecognized flags are treated as worst-case for cache safety."
         }
       }
     }
@@ -43,7 +52,13 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
     })
   end
 
-  defp build_args(%{"test_path" => test_path, "line_number" => line})
+  defp build_args(arguments) do
+    arguments
+    |> base_args()
+    |> Map.put(:extra_args, extra_args(arguments))
+  end
+
+  defp base_args(%{"test_path" => test_path, "line_number" => line})
        when is_binary(test_path) and test_path != "" and is_integer(line) do
     file =
       case MixTestArgs.to_path(test_path) do
@@ -55,7 +70,7 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
     %MixTestArgs{path: {file, line}}
   end
 
-  defp build_args(%{"test_path" => test_path})
+  defp base_args(%{"test_path" => test_path})
        when is_binary(test_path) and test_path != "" do
     case MixTestArgs.to_path(test_path) do
       {:ok, parsed} -> %MixTestArgs{path: parsed}
@@ -63,7 +78,10 @@ defmodule PolyglotWatcherV2.MCP.Tools.RunTests do
     end
   end
 
-  defp build_args(_), do: %MixTestArgs{path: :all}
+  defp base_args(_), do: %MixTestArgs{path: :all}
+
+  defp extra_args(%{"extra_args" => extra}) when is_list(extra), do: extra
+  defp extra_args(_), do: []
 
   defp strip_ansi(text), do: String.replace(text, ~r/\e\[[0-9;]*m/, "")
 

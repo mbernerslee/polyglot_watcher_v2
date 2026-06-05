@@ -490,6 +490,70 @@ defmodule PolyglotWatcherV2.Elixir.Cache.UpdateTest do
                Update.run(old_cache, mix_test_args, mix_test_output, exit_code)
     end
 
+    test "with paranoid extra_args and exit 0, the cache entry is NOT cleared" do
+      mix_test_output = """
+      Finished in 0.1 seconds (0.1s async, 0.00s sync)
+      3 tests, 0 failures
+
+      Randomized with seed 373936
+      """
+
+      exit_code = 0
+
+      cache = %{
+        "test/fib_test.exs" => %CacheItem{
+          test_path: "test/fib_test.exs",
+          failed_line_numbers: [6, 7, 8],
+          lib_path: "lib/fib.ex",
+          mix_test_output: "y",
+          rank: 1
+        }
+      }
+
+      mix_test_args = %MixTestArgs{
+        path: "test/fib_test.exs",
+        extra_args: ["--only", "integration"]
+      }
+
+      assert cache == Update.run(cache, mix_test_args, mix_test_output, exit_code)
+    end
+
+    test "with paranoid extra_args, failures in the output are still recorded" do
+      mix_test_output = """
+        1) test update/2 parses mix test output, adding failures to the list (PolyglotWatcherV2.FailuresTest)
+           test/elixir_lang_mix_test_test.exs:6
+           ** (UndefinedFunctionError) function PolyglotWatcherV2.Failures.update/2 is undefined (module PolyglotWatcherV2.Failures is not available)
+           code: Failures.update([], "hi")
+           stacktrace:
+             PolyglotWatcherV2.Failures.update([], "hi")
+             test/elixir_lang_mix_test_test.exs:7: (test)
+
+
+
+      Finished in 0.03 seconds (0.03s async, 0.00s sync)
+      1 test, 1 failure
+
+      Randomized with seed 529126
+      """
+
+      exit_code = 1
+
+      mix_test_args = %MixTestArgs{
+        path: {"test/elixir_lang_mix_test_test.exs", 6},
+        extra_args: ["--only", "integration"]
+      }
+
+      assert %{
+               "test/elixir_lang_mix_test_test.exs" => %CacheItem{
+                 test_path: "test/elixir_lang_mix_test_test.exs",
+                 failed_line_numbers: [6],
+                 lib_path: "lib/elixir_lang_mix_test.ex",
+                 mix_test_output: mix_test_output,
+                 rank: 1
+               }
+             } == Update.run(%{}, mix_test_args, mix_test_output, exit_code)
+    end
+
     test "when a specific test file & line has been fixed but doesn't exist in state, the cache_item should not be deleted" do
       mix_test_output = """
       Finished in 0.1 seconds (0.1s async, 0.00s sync)

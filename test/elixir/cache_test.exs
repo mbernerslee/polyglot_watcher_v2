@@ -151,6 +151,16 @@ defmodule PolyglotWatcherV2.Elixir.CacheTest do
       assert state.last_run_results == %{}
     end
 
+    test "does not store run result when extra_args is non-empty" do
+      assert {:ok, pid} = Cache.start_link([])
+
+      args = %MixTestArgs{path: "test/cool_test.exs", extra_args: ["--slowest", "5"]}
+      Cache.update(pid, args, "1 test, 0 failures", 0)
+
+      state = :sys.get_state(pid)
+      assert state.last_run_results == %{}
+    end
+
     test "epoch on stored result reflects the change_epoch at time of update" do
       assert {:ok, pid} = Cache.start_link([])
 
