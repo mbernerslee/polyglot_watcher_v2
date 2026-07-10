@@ -2,7 +2,12 @@
   "mcpServers": {
     "polyglot-watcher": {
       "command": "bash",
-      "args": ["-c", "$HOME/src/polyglot_watcher_v2/mcp_stdio_proxy"]
+      "args": ["-c", "$HOME/src/polyglot_watcher_v2/mcp_stdio_proxy"],
+      "env": {
+        "POLYGLOT_WATCHER_SPAWN_CMD": "${POLYGLOT_WATCHER_SPAWN_CMD:-}",
+        "TMUX": "${TMUX:-}",
+        "TMUX_PANE": "${TMUX_PANE:-}"
+      }
     }
   }
 }

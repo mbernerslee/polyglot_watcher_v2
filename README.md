@@ -109,6 +109,69 @@ This is safe to do even if the watcher isn't always running — the `mcp_stdio_p
 | Tool | Description |
 | ---- | ----------- |
 | `mix_test` | Runs `mix test` with optional `test_path` and `line_number` parameters. Returns JSON with `exit_code`, `output`, and `test_path`. |
+| `mix_test_known_failures` | Returns failing tests from the watcher's in-memory cache of prior runs. Empty until tests have actually run in this watcher session. |
+| `start_watcher` | Starts the watcher for the current project as a background process, so subsequent `mix_test` calls deduplicate with file-save test runs. NoOp (`already_running`) if a watcher is already up. Handled entirely by the proxy — see below for how it spawns. |
+
+### Making AI-started watchers visible: `POLYGLOT_WATCHER_SPAWN_CMD`
+
+By default, `start_watcher` spawns the watcher **detached**, with output going to
+`.polyglot_watcher_v2/watcher.log`. That works, but throws away half the point of
+the watcher: a human watching tests run in real time.
+
+If the `POLYGLOT_WATCHER_SPAWN_CMD` environment variable is set (in the proxy's
+environment), the proxy starts the watcher through it instead. The contract:
+
+- The value is a **command prefix**, `eval`'d with the watcher launcher path
+  appended as a single shell-quoted argument:
+  `$POLYGLOT_WATCHER_SPAWN_CMD /path/to/polyglot_watcher_v2`
+- Exit `0` means "spawned" — the proxy then polls for readiness as usual.
+- Non-zero exit means "couldn't" (e.g. not inside tmux) — the proxy falls back
+  to the detached spawn, so this can never break test running.
+
+This only affects the MCP `start_watcher` path. Running `polyglot_watcher_v2`
+from the command line is completely unchanged.
+
+A typical wrapper opens a tmux split beside the pane the AI is working in, so
+the watcher runs in the foreground there — visible, still interactive (you can
+click in and switch modes), and killed automatically when the window closes:
+
+```bash
+#!/usr/bin/env bash
+# tmux-split-run: run "$@" in a vertical split (right third of the screen).
+# -c "$PWD" keeps the caller's cwd (the project dir) — the watcher must run
+# there, not in whatever directory the split pane would inherit.
+[ -n "$TMUX" ] || exit 1
+cmd=$(printf '%q ' "$@")
+if [ -n "$TMUX_PANE" ]; then
+  exec tmux split-window -d -h -l '33%' -c "$PWD" -t "$TMUX_PANE" "$cmd"
+else
+  exec tmux split-window -d -h -l '33%' -c "$PWD" "$cmd"
+fi
+```
+
+**Important env-forwarding caveat for Claude Code:** stdio MCP servers do *not*
+inherit your shell environment — they get a scrubbed env plus whatever is in the
+server's `env` block. Forward the variables you need with `${VAR:-}` expansion
+(which resolves against Claude Code's own environment) in `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "polyglot-watcher": {
+      "type": "stdio",
+      "command": "/path/to/polyglot_watcher_v2/mcp_stdio_proxy",
+      "env": {
+        "POLYGLOT_WATCHER_SPAWN_CMD": "${POLYGLOT_WATCHER_SPAWN_CMD:-}",
+        "TMUX": "${TMUX:-}",
+        "TMUX_PANE": "${TMUX_PANE:-}"
+      }
+    }
+  }
+}
+```
+
+`TMUX` and `TMUX_PANE` are only needed because the tmux-split wrapper above uses
+them; a different spawn command needs whatever *it* needs forwarded.
 
 ## Elixir AI Replace Mode
 

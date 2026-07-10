@@ -63,7 +63,7 @@ EOJSON
 fallback_tools_list() {
   local id="$1"
   cat <<EOJSON
-{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running \`mix test\` via the shell. Never run \`mix test\` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."},"extra_args":{"type":"array","items":{"type":"string"},"description":"Optional extra flags to pass to \`mix test\`, e.g. [\"--slowest\", \"5\"]. Only use for ad-hoc diagnostics — when present, the watcher does NOT serve a cached result or de-dup against an in-flight run (failures are still recorded), and unrecognized flags are treated as worst-case for cache safety."}}}},{"name":"mix_test_known_failures","description":"Returns failing tests captured in the watcher's in-memory cache from prior \`mix_test\` runs. Does NOT scan the project — tests that haven't been executed in this session won't appear. If the cache is empty, run \`mix_test\` first to populate it.","inputSchema":{"type":"object","properties":{}}},{"name":"start_watcher","description":"Starts the polyglot watcher for this project as a detached background process, so that subsequent \`mix_test\` calls deduplicate with the watcher's own file-save test runs. Only one watcher instance can run per project — calling this when the watcher is already running is a NoOp returning status \"already_running\". Watcher output is logged to .polyglot_watcher_v2/watcher.log.","inputSchema":{"type":"object","properties":{}}}]}}
+{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running \`mix test\` via the shell. Never run \`mix test\` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."},"extra_args":{"type":"array","items":{"type":"string"},"description":"Optional extra flags to pass to \`mix test\`, e.g. [\"--slowest\", \"5\"]. Only use for ad-hoc diagnostics — when present, the watcher does NOT serve a cached result or de-dup against an in-flight run (failures are still recorded), and unrecognized flags are treated as worst-case for cache safety."}}}},{"name":"mix_test_known_failures","description":"Returns failing tests captured in the watcher's in-memory cache from prior \`mix_test\` runs. Does NOT scan the project — tests that haven't been executed in this session won't appear. If the cache is empty, run \`mix_test\` first to populate it.","inputSchema":{"type":"object","properties":{}}},{"name":"start_watcher","description":"Starts the polyglot watcher for this project as a background process, so that subsequent \`mix_test\` calls deduplicate with the watcher's own file-save test runs. Call it when you are about to run tests repeatedly. If the POLYGLOT_WATCHER_SPAWN_CMD env var is set (e.g. opening a tmux split), the watcher starts through it so a human can watch the tests run live; otherwise it is spawned detached, logging to .polyglot_watcher_v2/watcher.log. Only one watcher instance can run per project — calling this when the watcher is already running is a NoOp returning status \"already_running\".","inputSchema":{"type":"object","properties":{}}}]}}
 EOJSON
 }
 
@@ -74,7 +74,7 @@ fallback_ping() {
 
 fallback_error() {
   local id="$1"
-  echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"error\":{\"code\":-32000,\"message\":\"Watcher is not running. Start it and try again.\"}}"
+  echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"error\":{\"code\":-32000,\"message\":\"Watcher is not running. Call the start_watcher tool to start it, then try again.\"}}"
 }
 
 # Extract tool arguments from a tools/call request using python3 (jq-free)
@@ -146,7 +146,7 @@ print(json.dumps({
     'exit_code': int(sys.argv[1]),
     'output': sys.argv[2],
     'test_path': sys.argv[3],
-    'warning': 'Watcher is not running — ran mix test directly. Test deduplication is not active. Start the watcher to avoid concurrent test runs.'
+    'warning': 'Watcher is not running — ran mix test directly. Test deduplication and failure caching are not active. Call the start_watcher tool to start it for subsequent runs.'
 }))
 " "$exit_code" "$clean_output" "$display_path" "$cmd")
 
@@ -257,11 +257,28 @@ handle_start_watcher() {
 
   # Single-start guard: mkdir is atomic. If the lock is held, another session
   # is mid-start — don't spawn a second watcher, just wait for theirs.
-  local spawned_pid=""
+  local spawned_pid="" spawned=false spawned_visibly=false
   if mkdir "$START_LOCK" 2>/dev/null; then
-    echo "START_WATCHER: spawning $launcher" >> "$LOG"
-    spawned_pid=$(spawn_watcher_detached "$launcher")
-    echo "START_WATCHER: spawned pid=$spawned_pid" >> "$LOG"
+    # POLYGLOT_WATCHER_SPAWN_CMD (affects this MCP path only — never the CLI):
+    # a command prefix that receives the launcher path as its final argument,
+    # e.g. a script that opens a tmux split, so a human can watch the tests
+    # run live. Non-zero exit (not inside tmux, etc.) falls back to the
+    # detached spawn below.
+    if [ -n "${POLYGLOT_WATCHER_SPAWN_CMD:-}" ]; then
+      echo "START_WATCHER: spawning via POLYGLOT_WATCHER_SPAWN_CMD ($POLYGLOT_WATCHER_SPAWN_CMD)" >> "$LOG"
+      if eval "$POLYGLOT_WATCHER_SPAWN_CMD $(printf '%q' "$launcher")" >> "$LOG" 2>&1; then
+        spawned=true
+        spawned_visibly=true
+      else
+        echo "START_WATCHER: spawn cmd failed — falling back to detached spawn" >> "$LOG"
+      fi
+    fi
+    if [ "$spawned" = false ]; then
+      echo "START_WATCHER: spawning $launcher (detached)" >> "$LOG"
+      spawned_pid=$(spawn_watcher_detached "$launcher")
+      spawned=true
+      echo "START_WATCHER: spawned pid=$spawned_pid" >> "$LOG"
+    fi
   else
     echo "START_WATCHER: lock held — waiting for another session's start" >> "$LOG"
   fi
@@ -282,15 +299,19 @@ handle_start_watcher() {
     sleep 0.25
   done
 
-  [ -n "$spawned_pid" ] && rmdir "$START_LOCK" 2>/dev/null
+  [ "$spawned" = true ] && rmdir "$START_LOCK" 2>/dev/null
 
   if [ "$ready" = true ]; then
     local port pid status note
     port=$(jq -r '.mcp_tcp_port // empty' "$CONFIG_FILE" 2>/dev/null)
     pid=$(jq -r '.pid // empty' "$CONFIG_FILE" 2>/dev/null)
-    if [ -n "$spawned_pid" ]; then
+    if [ "$spawned" = true ]; then
       status="started"
-      note="Watcher started. Subsequent mix_test calls now go through the watcher and deduplicate with file-save test runs."
+      if [ "$spawned_visibly" = true ]; then
+        note="Watcher started in a visible terminal split (via POLYGLOT_WATCHER_SPAWN_CMD). Subsequent mix_test calls now go through the watcher and deduplicate with file-save test runs."
+      else
+        note="Watcher started. Subsequent mix_test calls now go through the watcher and deduplicate with file-save test runs."
+      fi
     else
       status="already_running"
       note="Watcher was started by another session and is now ready — nothing started here."
