@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+# E2E tests for mcp_stdio_proxy: auto-starting the watcher on tool calls,
+# restarting it after it dies, and idle shutdown of detached watchers.
+#
+# Runs against a throwaway mix project in a temp dir (so it never collides
+# with a watcher already running for this repo) and needs the prod release
+# built (MIX_ENV=prod mix release --overwrite).
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROXY="$SCRIPT_DIR/mcp_stdio_proxy"
+# physical path: kill_watchers matches it against lsof's view of a watcher's cwd
+WORK_DIR="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/proxy_e2e.XXXXXX")" && pwd -P)"
+PROJ="$WORK_DIR/proj"
+CONFIG="$PROJ/.polyglot_watcher_v2/config.json"
+WATCHER_LOG="$PROJ/.polyglot_watcher_v2/watcher.log"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+pass() { echo -e "${GREEN}PASS${NC}: $1"; }
+fail() { echo -e "${RED}FAIL${NC}: $1"; exit 1; }
+info() { echo -e "${YELLOW}INFO${NC}: $1"; }
+
+watcher_pid() { jq -r '.pid // empty' "$CONFIG" 2>/dev/null; }
+
+kill_watchers() {
+  # every watcher whose cwd is our temp project
+  for pid in $(pgrep -f 'rel/polyglot_watcher_v2'); do
+    if lsof -p "$pid" -a -d cwd -Fn 2>/dev/null | grep -q "^n$PROJ\$"; then
+      kill -9 "$pid" 2>/dev/null
+    fi
+  done
+  rm -f "$CONFIG"  # kill -9 skips the watcher's own cleanup
+}
+
+cleanup() {
+  kill_watchers
+  rm -rf "$WORK_DIR"
+}
+trap cleanup EXIT
+
+# Send one JSON-RPC line to a fresh proxy process (from the project dir) and
+# print its response. The user's spawn cmd is unset so the watcher is detached.
+# Usage: rpc '<json>' [proxy_path] [extra env assignments...]
+rpc() {
+  local req="$1" proxy="${2:-$PROXY}"
+  shift 2 2>/dev/null || shift 1
+  (cd "$PROJ" && printf '%s\n' "$req" |
+    env -u POLYGLOT_WATCHER_SPAWN_CMD -u TMUX -u TMUX_PANE "$@" bash "$proxy" 2>/dev/null)
+}
+
+tool_call() {
+  local id="$1" name="$2" args="${3:-{\}}"
+  echo "{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"$name\",\"arguments\":$args}}"
+}
+
+# The tool's JSON payload (result.content[0].text), parsed
+inner() { python3 -c "import sys,json; print(json.load(sys.stdin)['result']['content'][0]['text'])"; }
+
+# --- Setup: throwaway mix project ---
+info "Creating throwaway mix project in $PROJ"
+(cd "$WORK_DIR" && mix new proj > /dev/null) || fail "mix new failed"
+(cd "$PROJ" && mix compile > /dev/null 2>&1) || fail "mix compile failed"
+
+# --- Test 1: tools/list with no watcher doesn't start one ---
+info "Test 1: tools/list with no watcher running"
+RESP=$(rpc '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+echo "$RESP" | grep -q '"mix_test"' && pass "lists mix_test" || fail "tools/list: $RESP"
+echo "$RESP" | grep -q '"mix_test_known_failures"' && pass "lists mix_test_known_failures" || fail "tools/list: $RESP"
+echo "$RESP" | grep -q 'start_watcher' && fail "tools/list still lists start_watcher: $RESP" || pass "no start_watcher tool"
+[ -f "$CONFIG" ] && fail "tools/list started a watcher" || pass "tools/list did not start a watcher"
+
+# --- Test 2: initialize/ping with no watcher don't start one ---
+info "Test 2: initialize + ping with no watcher running"
+RESP=$(rpc '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{}}')
+echo "$RESP" | grep -q '"polyglot-watcher"' && pass "initialize answered offline" || fail "initialize: $RESP"
+RESP=$(rpc '{"jsonrpc":"2.0","id":3,"method":"ping"}')
+echo "$RESP" | grep -q '"result":{}' && pass "ping answered offline" || fail "ping: $RESP"
+[ -f "$CONFIG" ] && fail "initialize/ping started a watcher" || pass "initialize/ping did not start a watcher"
+
+# --- Test 3: a tool call auto-starts the watcher ---
+info "Test 3: mix_test_known_failures auto-starts the watcher"
+RESP=$(rpc "$(tool_call 4 mix_test_known_failures)")
+INNER=$(echo "$RESP" | inner) || fail "unparseable response: $RESP"
+echo "$INNER" | grep -q '"known_failures"' && pass "served by the watcher" || fail "known_failures: $RESP"
+echo "$INNER" | grep -q 'started automatically' && pass "notes the watcher was just started" || fail "missing auto-start note: $INNER"
+PID=$(watcher_pid)
+[ -n "$PID" ] && kill -0 "$PID" 2>/dev/null && pass "watcher running (pid $PID)" || fail "no watcher running after auto-start"
+grep -q '\[idle-shutdown\] enabled' "$WATCHER_LOG" && pass "detached watcher has idle shutdown enabled" || fail "idle shutdown not enabled; log: $(tail -5 "$WATCHER_LOG")"
+grep -q 'after 30 min' "$WATCHER_LOG" && pass "default idle timeout is 30 min" || fail "unexpected idle timeout; log: $(grep idle-shutdown "$WATCHER_LOG")"
+
+# --- Test 4: next call goes straight to the running watcher ---
+info "Test 4: mix_test against the running watcher"
+RESP=$(rpc "$(tool_call 5 mix_test '{"test_path":"test/proj_test.exs"}')")
+INNER=$(echo "$RESP" | inner) || fail "unparseable response: $RESP"
+echo "$INNER" | grep -q '"exit_code": *0' && pass "mix_test ran and passed" || fail "mix_test: $INNER"
+echo "$INNER" | grep -q 'started automatically' && fail "claimed a restart when the watcher was already up" || pass "no auto-start note"
+[ "$(watcher_pid)" = "$PID" ] && pass "same watcher served it" || fail "watcher changed: $(watcher_pid) vs $PID"
+
+# --- Test 5: a dead watcher (stale config.json) is restarted ---
+info "Test 5: watcher killed -> next call restarts it"
+kill -9 "$PID"
+while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
+[ -f "$CONFIG" ] && info "stale config.json left behind (as with a crash)"
+RESP=$(rpc "$(tool_call 6 mix_test '{"test_path":"test/proj_test.exs"}')")
+INNER=$(echo "$RESP" | inner) || fail "unparseable response: $RESP"
+echo "$INNER" | grep -q '"exit_code": *0' && pass "mix_test served after restart" || fail "mix_test after restart: $INNER"
+echo "$INNER" | grep -q 'started automatically' && pass "notes the restart" || fail "missing auto-start note: $INNER"
+NEW_PID=$(watcher_pid)
+[ -n "$NEW_PID" ] && [ "$NEW_PID" != "$PID" ] && pass "new watcher (pid $NEW_PID)" || fail "no new watcher"
+kill_watchers
+sleep 0.5
+
+# --- Test 6: idle shutdown, then auto-restart ---
+info "Test 6: detached watcher shuts down when idle, next call restarts it"
+RESP=$(rpc "$(tool_call 7 mix_test_known_failures)" "$PROXY" POLYGLOT_WATCHER_IDLE_SHUTDOWN_MINUTES=0.05)
+echo "$RESP" | inner | grep -q 'started automatically' || fail "idle test: watcher didn't start: $RESP"
+PID=$(watcher_pid)
+for _ in $(seq 1 100); do kill -0 "$PID" 2>/dev/null || break; sleep 0.1; done
+kill -0 "$PID" 2>/dev/null && fail "watcher still running 10s after a 3s idle timeout"
+pass "idle watcher exited"
+grep -q '\[idle-shutdown\] no MCP tool calls or file changes for 0.05 min — shutting down' "$WATCHER_LOG" &&
+  pass "idle shutdown logged clearly" || fail "no idle shutdown log line; log: $(tail -5 "$WATCHER_LOG")"
+[ -f "$CONFIG" ] && fail "config.json left behind by idle shutdown" || pass "config.json cleaned up"
+RESP=$(rpc "$(tool_call 8 mix_test_known_failures)")
+echo "$RESP" | inner | grep -q 'started automatically' && pass "next call restarted it" || fail "no restart after idle shutdown: $RESP"
+kill_watchers
+sleep 0.5
+
+# --- Test 7: a watcher that can't be started is an error (no direct mix test) ---
+info "Test 7: unstartable watcher -> tool error, never a direct mix test run"
+BROKEN_DIR="$WORK_DIR/broken"
+mkdir -p "$BROKEN_DIR"
+cp "$PROXY" "$BROKEN_DIR/mcp_stdio_proxy"   # no launcher/release next to it
+RESP=$(rpc "$(tool_call 9 mix_test '{"test_path":"test/proj_test.exs"}')" "$BROKEN_DIR/mcp_stdio_proxy")
+echo "$RESP" | grep -q '"isError": *true' && pass "returns a tool error" || fail "expected isError: $RESP"
+echo "$RESP" | grep -q 'not found' && pass "explains why" || fail "unhelpful error: $RESP"
+echo "$RESP" | grep -q 'exit_code' && fail "ran mix test directly: $RESP" || pass "did not run mix test directly"
+
+# --- Test 8: not an Elixir project -> tool error, nothing spawned ---
+info "Test 8: no mix.exs -> tool error"
+mv "$PROJ/mix.exs" "$PROJ/mix.exs.bak"
+RESP=$(rpc "$(tool_call 10 mix_test)")
+mv "$PROJ/mix.exs.bak" "$PROJ/mix.exs"
+echo "$RESP" | grep -q '"isError": *true' && pass "returns a tool error" || fail "expected isError: $RESP"
+echo "$RESP" | grep -q 'mix.exs' && pass "explains why" || fail "unhelpful error: $RESP"
+[ -f "$CONFIG" ] && fail "started a watcher without mix.exs" || pass "nothing spawned"
+
+echo ""
+echo -e "${GREEN}All MCP proxy e2e tests passed!${NC}"

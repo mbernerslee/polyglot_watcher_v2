@@ -6,7 +6,7 @@
 #
 # To restart afterwards:
 #   - in a terminal:      ./polyglot_watcher_v2   (from the project you want watched)
-#   - or from Claude:     reconnect MCP (/mcp), then call the start_watcher tool
+#   - or from Claude:     nothing to do — the next MCP tool call starts one
 # Claude Code respawns its own proxy per session — nothing to restart there.
 
 # cwd of a pid: /proc on Linux, lsof on macOS
@@ -68,4 +68,4 @@ else
   pkill -f mcp_stdio_proxy
 fi
 
-echo "done — restart with ./polyglot_watcher_v2 (terminal) or the start_watcher MCP tool"
+echo "done — restart with ./polyglot_watcher_v2 (terminal), or let the next MCP tool call start one"

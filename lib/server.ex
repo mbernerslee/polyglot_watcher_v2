@@ -6,6 +6,7 @@ defmodule PolyglotWatcherV2.Server do
     TraverseActionsTree,
     ConfigFile,
     Determine,
+    IdleShutdown,
     UserInput,
     Puts,
     OSWrapper,
@@ -117,12 +118,14 @@ defmodule PolyglotWatcherV2.Server do
     set_ignore_file_changes(true)
 
     state =
-      std_out
-      |> to_string()
-      |> state.watcher.parse_std_out(state.starting_dir)
-      |> tap(&maybe_bump_cache_epoch/1)
-      |> Determine.actions(state)
-      |> TraverseActionsTree.execute_all()
+      IdleShutdown.track(fn ->
+        std_out
+        |> to_string()
+        |> state.watcher.parse_std_out(state.starting_dir)
+        |> tap(&maybe_bump_cache_epoch/1)
+        |> Determine.actions(state)
+        |> TraverseActionsTree.execute_all()
+      end)
 
     set_ignore_file_changes(state.ignore_file_changes)
 
@@ -131,6 +134,7 @@ defmodule PolyglotWatcherV2.Server do
 
   def handle_info({_port, {:data, std_out}}, %{ignore_file_changes: true} = state) do
     Logger.debug("#{__MODULE__} inotify IGNORED (busy): #{inspect(std_out)}")
+    IdleShutdown.touch()
 
     std_out
     |> to_string()

@@ -64,4 +64,5 @@ tasks:
     desc: "Run MCP e2e tests"
     cmds:
       - ./test_e2e_mcp
+      - ./test_e2e_mcp_proxy
     deps: [mix_release]

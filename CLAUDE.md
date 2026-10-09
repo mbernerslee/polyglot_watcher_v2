@@ -72,7 +72,7 @@ Production vs test behavior is controlled via Application config:
 
 ## Testing
 
-**Prefer the `mix_test` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. Fall back to `mix test` if the tool is unavailable.
+**Prefer the `mix_test` MCP tool over running `mix test` directly.** If the polyglot-watcher MCP server is connected, use the tool — it deduplicates with the watcher's own test runs so the same test doesn't run twice. If the watcher isn't running, the first tool call starts it automatically. Fall back to `mix test` only if the MCP server itself isn't connected.
 
 Tests use ExUnit with Mimic for mocking. Test config (`config/test.exs`) swaps real modules for fakes.
 

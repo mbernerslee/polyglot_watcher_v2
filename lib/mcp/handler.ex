@@ -1,4 +1,5 @@
 defmodule PolyglotWatcherV2.MCP.Handler do
+  alias PolyglotWatcherV2.IdleShutdown
   alias PolyglotWatcherV2.MCP.Tools.{MixTestKnownFailures, RunTests}
 
   require Logger
@@ -44,7 +45,7 @@ defmodule PolyglotWatcherV2.MCP.Handler do
     arguments = Map.get(params, "arguments", %{})
     Logger.debug("MCP tools/call: #{tool_name} args=#{inspect(arguments)}")
 
-    case call_tool(tool_name, arguments) do
+    case IdleShutdown.track(fn -> call_tool(tool_name, arguments) end) do
       {:ok, text} ->
         {:ok,
          json_rpc_result(id, %{

@@ -76,7 +76,7 @@ Add a `.mcp.json` to your project root (or use `~/.claude/.mcp.json` for global 
 }
 ```
 
-The `mcp_stdio_proxy` script bridges Claude Code's stdio-based MCP transport to the watcher's HTTP endpoint. If the watcher isn't running, the proxy falls back to running `mix test` directly (with a warning in the response) so tests still work. Claude Code will see the MCP server as connected either way.
+The `mcp_stdio_proxy` script bridges Claude Code's stdio-based MCP transport to the watcher's HTTP endpoint. If the watcher isn't running, the first tool call **starts it automatically** (see [Auto-starting the watcher](#auto-starting-the-watcher)), so you never need to start it by hand for Claude. Claude Code sees the MCP server as connected either way.
 
 Add the following to `~/.claude/projects/<your-project-path>/CLAUDE.md` (the private, per-user project instruction file — not the repo's own `CLAUDE.md`):
 
@@ -100,7 +100,7 @@ Add a deny rule to your project's `.claude/settings.local.json`:
 
 Merge this with any existing settings in that file. This blocks Claude from running any `mix test` command via Bash.
 
-This is safe to do even if the watcher isn't always running — the `mcp_stdio_proxy` falls back to running `mix test` directly when the watcher is unreachable, so tests still work either way. The deny rule only blocks Claude from bypassing the MCP tool; it doesn't block tests from running.
+This is safe to do even if the watcher isn't always running — the `mcp_stdio_proxy` starts the watcher on the first tool call. If the watcher *can't* be started (e.g. the release isn't built), tool calls fail with an error explaining why; tests are never run around the watcher. In that case fix the watcher or disable the MCP.
 
 **Important:** Check that `Bash(mix test:*)` is not also in your `allow` list (it can accumulate there from past approvals). If it appears in both `allow` and `deny`, remove it from `allow`.
 
@@ -110,11 +110,45 @@ This is safe to do even if the watcher isn't always running — the `mcp_stdio_p
 | ---- | ----------- |
 | `mix_test` | Runs `mix test` with optional `test_path` and `line_number` parameters. Returns JSON with `exit_code`, `output`, and `test_path`. |
 | `mix_test_known_failures` | Returns failing tests from the watcher's in-memory cache of prior runs. Empty until tests have actually run in this watcher session. |
-| `start_watcher` | Starts the watcher for the current project as a background process, so subsequent `mix_test` calls deduplicate with file-save test runs. NoOp (`already_running`) if a watcher is already up. Handled entirely by the proxy — see below for how it spawns. |
+
+### Auto-starting the watcher
+
+When a tool call arrives and no watcher is answering for the project, the proxy
+starts one, waits for it to be ready (up to 30s), then forwards the call. The
+response then carries a `watcher_note` saying so — the watcher's in-memory
+failure cache starts empty after a (re)start.
+
+- Only **tool calls** start a watcher. `initialize` / `ping` / `tools/list` are
+  answered by the proxy itself, because Claude Code spawns the proxy for every
+  session, Elixir project or not.
+- No `mix.exs` in the working directory, a missing release, or a watcher that
+  doesn't become ready → the tool call returns an error (with the tail of
+  `.polyglot_watcher_v2/watcher.log`). Nothing falls back to running tests
+  around the watcher.
+- Concurrent sessions in the same project share one watcher (an atomic start
+  lock stops two sessions spawning one each).
+
+#### Idle shutdown of detached watchers
+
+A watcher the proxy spawns **detached** (see below) shuts itself down after
+**30 minutes** with no MCP tool calls and no file changes, so auto-started
+watchers don't pile up across projects and worktrees. It never shuts down
+mid-way through a test run, and the next tool call simply starts a new one.
+Both events are logged to `.polyglot_watcher_v2/watcher.log`:
+
+```
+[idle-shutdown] enabled — this watcher will exit after 30 min with no MCP tool calls or file changes ...
+[idle-shutdown] no MCP tool calls or file changes for 30 min — shutting down ...
+```
+
+Change the timeout with `POLYGLOT_WATCHER_IDLE_SHUTDOWN_MINUTES` in the proxy's
+environment (forward it in `.mcp.json` like the variables below; fractions are
+fine). Watchers started from the command line, or through
+`POLYGLOT_WATCHER_SPAWN_CMD`, never idle-shutdown.
 
 ### Making AI-started watchers visible: `POLYGLOT_WATCHER_SPAWN_CMD`
 
-By default, `start_watcher` spawns the watcher **detached**, with output going to
+By default, the proxy spawns the watcher **detached**, with output going to
 `.polyglot_watcher_v2/watcher.log`. That works, but throws away half the point of
 the watcher: a human watching tests run in real time.
 
@@ -128,7 +162,7 @@ environment), the proxy starts the watcher through it instead. The contract:
 - Non-zero exit means "couldn't" (e.g. not inside tmux) — the proxy falls back
   to the detached spawn, so this can never break test running.
 
-This only affects the MCP `start_watcher` path. Running `polyglot_watcher_v2`
+This only affects watchers the proxy auto-starts. Running `polyglot_watcher_v2`
 from the command line is completely unchanged.
 
 A typical wrapper opens a tmux split beside the pane the AI is working in, so

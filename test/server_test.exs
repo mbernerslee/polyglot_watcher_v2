@@ -109,6 +109,38 @@ defmodule PolyglotWatcherV2.ServerTest do
       assert new_server_state == server_state
     end
 
+    test "counts as idle-shutdown activity, whether or not file changes are being ignored" do
+      {:ok, clock} = Agent.start_link(fn -> 0 end)
+      Mimic.stub(Puts, :on_new_line, fn _, _ -> :ok end)
+      Mimic.reject(SystemWrapper, :stop, 1)
+
+      idle_shutdown =
+        start_supervised!(
+          {PolyglotWatcherV2.IdleShutdown,
+           name: PolyglotWatcherV2.IdleShutdown,
+           timeout_ms: 30 * 60_000,
+           check_interval_ms: :manual,
+           now: fn -> Agent.get(clock, & &1) end}
+        )
+
+      for ignore? <- [false, true] do
+        Agent.update(clock, &(&1 + 20 * 60_000))
+
+        server_state =
+          ServerStateBuilder.build()
+          |> ServerStateBuilder.with_ignore_file_changes(ignore?)
+
+        Server.handle_info(
+          {:port, {:data, ~c"./test/ CLOSE_WRITE,CLOSE server_test.exs\n"}},
+          server_state
+        )
+
+        Agent.update(clock, &(&1 + 20 * 60_000))
+        send(idle_shutdown, :check)
+        :sys.get_state(idle_shutdown)
+      end
+    end
+
     test "when ignore_file_changes is true, still bumps the cache epoch" do
       server_state =
         ServerStateBuilder.build()

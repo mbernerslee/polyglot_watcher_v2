@@ -4,10 +4,13 @@
 # Claude Code spawns this, sends JSON-RPC on stdin, gets responses on stdout.
 # Forwards everything to the running watcher's MCP HTTP endpoint.
 #
-# If the watcher isn't running, the proxy stays alive and:
-#   - Responds to initialize/tools/list itself (so Claude considers the MCP connected)
-#   - Runs mix test directly for mix_test calls (streaming output to stderr)
-# As soon as the watcher starts, everything works automatically.
+# If the watcher isn't running:
+#   - initialize/ping/tools/list are answered by the proxy itself (so Claude
+#     considers the MCP connected) — these never start a watcher, since Claude
+#     Code spawns this proxy for every session, Elixir project or not.
+#   - tools/call starts the watcher first (see ensure_watcher), then forwards.
+#     If it can't be started, the call fails with a tool error — tests are never
+#     run around the watcher. A broken watcher means: fix it or disable the MCP.
 
 CONFIG_FILE=".polyglot_watcher_v2/config.json"
 
@@ -54,16 +57,12 @@ EOJSON
 }
 
 # Keep this list in sync with PolyglotWatcherV2.MCP.Handler's tools/list response.
-# Each tool here must either be servable by a fallback_* handler below, or return
-# fallback_error for tools/call (e.g. mix_test_known_failures, whose data lives
-# in the watcher's in-memory cache and can't be served offline).
-# Exception: start_watcher is deliberately proxy-only — it only appears in this
-# offline fallback list (when the watcher is running, the watcher serves
-# tools/list without it), and tools/call for it is always handled by the proxy.
+# Calls to these tools start the watcher on demand, so offline they behave the
+# same as online (just slower on the first call).
 fallback_tools_list() {
   local id="$1"
   cat <<EOJSON
-{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running \`mix test\` via the shell. Never run \`mix test\` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."},"extra_args":{"type":"array","items":{"type":"string"},"description":"Optional extra flags to pass to \`mix test\`, e.g. [\"--slowest\", \"5\"]. Only use for ad-hoc diagnostics — when present, the watcher does NOT serve a cached result or de-dup against an in-flight run (failures are still recorded), and unrecognized flags are treated as worst-case for cache safety."}}}},{"name":"mix_test_known_failures","description":"Returns failing tests captured in the watcher's in-memory cache from prior \`mix_test\` runs. Does NOT scan the project — tests that haven't been executed in this session won't appear. If the cache is empty, run \`mix_test\` first to populate it.","inputSchema":{"type":"object","properties":{}}},{"name":"start_watcher","description":"Starts the polyglot watcher for this project as a background process, so that subsequent \`mix_test\` calls deduplicate with the watcher's own file-save test runs. Call it when you are about to run tests repeatedly. If the POLYGLOT_WATCHER_SPAWN_CMD env var is set (e.g. opening a tmux split), the watcher starts through it so a human can watch the tests run live; otherwise it is spawned detached, logging to .polyglot_watcher_v2/watcher.log. Only one watcher instance can run per project — calling this when the watcher is already running is a NoOp returning status \"already_running\".","inputSchema":{"type":"object","properties":{}}}]}}
+{"jsonrpc":"2.0","id":${id},"result":{"tools":[{"name":"mix_test","description":"MANDATORY: You MUST use this tool instead of running \`mix test\` via the shell. Never run \`mix test\` directly — always call this tool. Runs the specified Elixir test(s) and returns the output. If the same test is already running (e.g. triggered by a file save), waits for that run to finish and returns its result instead of running again.","inputSchema":{"type":"object","properties":{"test_path":{"type":"string","description":"Test file path to run, e.g. \"test/my_test.exs\". Omit to run all tests."},"line_number":{"type":"integer","description":"Optional line number to run a specific test, e.g. 42 for test/my_test.exs:42."},"extra_args":{"type":"array","items":{"type":"string"},"description":"Optional extra flags to pass to \`mix test\`, e.g. [\"--slowest\", \"5\"]. Only use for ad-hoc diagnostics — when present, the watcher does NOT serve a cached result or de-dup against an in-flight run (failures are still recorded), and unrecognized flags are treated as worst-case for cache safety."}}}},{"name":"mix_test_known_failures","description":"Returns failing tests captured in the watcher's in-memory cache from prior \`mix_test\` runs. Does NOT scan the project — tests that haven't been executed in this session won't appear. If the cache is empty, run \`mix_test\` first to populate it.","inputSchema":{"type":"object","properties":{}}}]}}
 EOJSON
 }
 
@@ -74,101 +73,48 @@ fallback_ping() {
 
 fallback_error() {
   local id="$1"
-  echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"error\":{\"code\":-32000,\"message\":\"Watcher is not running. Call the start_watcher tool to start it, then try again.\"}}"
+  echo "{\"jsonrpc\":\"2.0\",\"id\":${id},\"error\":{\"code\":-32000,\"message\":\"Watcher is not running.\"}}"
 }
 
-# Extract tool arguments from a tools/call request using python3 (jq-free)
+# A tools/call result flagged isError, so Claude sees the message.
+# $1=id $2=message
+tool_error_response() {
+  python3 -c "
+import json, sys
+print(json.dumps({'jsonrpc': '2.0', 'id': int(sys.argv[1]),
+                  'result': {'content': [{'type': 'text', 'text': sys.argv[2]}], 'isError': True}}))
+" "$1" "$2"
+}
+
+# Add a watcher_note to a forwarded tools/call response's JSON payload
+# (result.content[0].text). Leaves the response untouched if it isn't shaped
+# that way. $1=response $2=note
+add_watcher_note() {
+  python3 -c "
+import json, sys
+response, note = sys.argv[1], sys.argv[2]
+try:
+    msg = json.loads(response)
+    content = msg['result']['content'][0]
+    payload = json.loads(content['text'])
+    payload['watcher_note'] = note
+    content['text'] = json.dumps(payload)
+    print(json.dumps(msg))
+except Exception:
+    print(response)
+" "$1" "$2"
+}
+
 extract_tool_name() {
   echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('params',{}).get('name',''))" 2>/dev/null
 }
 
-extract_test_path() {
-  echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('params',{}).get('arguments',{}).get('test_path',''))" 2>/dev/null
-}
-
-extract_line_number() {
-  echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('params',{}).get('arguments',{}).get('line_number',''))" 2>/dev/null
-}
-
-extract_extra_args() {
-  echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(' '.join(d.get('params',{}).get('arguments',{}).get('extra_args',[])))" 2>/dev/null
-}
-
-# Run mix test directly, streaming to stderr and capturing output.
-# Returns a JSON-RPC result matching the watcher's format.
-fallback_run_tests() {
-  local id="$1"
-  local test_path="$2"
-  local line_number="$3"
-  local extra_args="$4"
-
-  # Build the mix test command
-  local cmd="mix test --color"
-  local display_path="all"
-  if [ -n "$test_path" ]; then
-    if [ -n "$line_number" ]; then
-      cmd="$cmd ${test_path}:${line_number}"
-      display_path="${test_path}:${line_number}"
-    else
-      cmd="$cmd $test_path"
-      display_path="$test_path"
-    fi
-  fi
-  if [ -n "$extra_args" ]; then
-    cmd="$cmd $extra_args"
-  fi
-
-  echo "FALLBACK_RUN: $cmd" >> "$LOG"
-  echo -e "\033[36m[mcp proxy] watcher not running — running directly: $cmd\033[0m" >&2
-
-  # Run mix test: tee to stderr for real-time streaming, capture full output
-  local tmpfile
-  tmpfile=$(mktemp)
-  $cmd 2>&1 | tee "$tmpfile" >&2
-  local exit_code=${PIPESTATUS[0]}
-
-  local raw_output
-  raw_output=$(cat "$tmpfile")
-  rm -f "$tmpfile"
-
-  # Strip ANSI codes for the JSON response
-  local clean_output
-  clean_output=$(echo "$raw_output" | sed 's/\x1b\[[0-9;]*m//g')
-
-  echo "FALLBACK_RUN: exit_code=$exit_code" >> "$LOG"
-
-  # Build the inner JSON payload (matches RunTests.call format, with warning)
-  local inner_json
-  inner_json=$(python3 -c "
-import json, sys
-print(json.dumps({
-    'command': sys.argv[4],
-    'exit_code': int(sys.argv[1]),
-    'output': sys.argv[2],
-    'test_path': sys.argv[3],
-    'warning': 'Watcher is not running — ran mix test directly. Test deduplication and failure caching are not active. Call the start_watcher tool to start it for subsequent runs.'
-}))
-" "$exit_code" "$clean_output" "$display_path" "$cmd")
-
-  # Wrap in MCP tools/call result format
-  local result
-  result=$(python3 -c "
-import json, sys
-inner = sys.argv[1]
-print(json.dumps({
-    'jsonrpc': '2.0',
-    'id': int(sys.argv[2]),
-    'result': {
-        'content': [{'type': 'text', 'text': inner}]
-    }
-}))
-" "$inner_json" "$id")
-
-  echo "$result"
-}
-
 WATCHER_LOG=".polyglot_watcher_v2/watcher.log"
 START_LOCK=".polyglot_watcher_v2/start_watcher.lock"
+# Minutes of inactivity after which a watcher this proxy spawned detached shuts
+# itself down. Only detached spawns get it — a watcher in a visible split (or
+# started from the CLI) never idle-shuts-down.
+IDLE_SHUTDOWN_MINUTES="${POLYGLOT_WATCHER_IDLE_SHUTDOWN_MINUTES:-30}"
 
 # POST an MCP ping to the given URL; succeeds iff the watcher answers.
 ping_watcher() {
@@ -177,20 +123,19 @@ ping_watcher() {
     -d '{"jsonrpc":"2.0","id":0,"method":"ping"}' 2>/dev/null | grep -q '"result"'
 }
 
-# Build a tools/call JSON-RPC response for start_watcher.
-# $1=id $2=status $3=port $4=pid $5=note $6=is_error ("true"/"false")
-start_watcher_response() {
-  python3 -c "
-import json, sys
-id, status, port, pid, note, is_error = sys.argv[1:7]
-inner = {'status': status, 'note': note}
-if port: inner['port'] = int(port)
-if pid: inner['pid'] = int(pid)
-inner['log'] = '.polyglot_watcher_v2/watcher.log'
-result = {'content': [{'type': 'text', 'text': json.dumps(inner)}]}
-if is_error == 'true': result['isError'] = True
-print(json.dumps({'jsonrpc': '2.0', 'id': int(id), 'result': result}))
-" "$1" "$2" "$3" "$4" "$5" "$6"
+# Forward a request to MCP_URL. Echoes the response; fails if the watcher
+# couldn't be reached or gave an empty reply (e.g. it died mid-request).
+# tools/call gets no overall time limit: test runs can take minutes, and
+# timing out would make us treat a busy watcher as a dead one.
+forward() {
+  local line="$1" max_time="$2" response
+  [ -n "$MCP_URL" ] || return 1
+  response=$(curl -s --connect-timeout 2 ${max_time:+--max-time "$max_time"} -X POST "$MCP_URL" \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json' \
+    -d "$line" 2>/dev/null) || return 1
+  [ -n "$response" ] || return 1
+  echo "$response"
 }
 
 # Spawn the launcher fully detached: new session (survives proxy death and
@@ -198,7 +143,7 @@ print(json.dumps({'jsonrpc': '2.0', 'id': int(id), 'result': result}))
 # listening for user commands), output appended to WATCHER_LOG so the proxy's
 # MCP stdout stays clean. Echoes the spawned OS pid.
 spawn_watcher_detached() {
-  python3 -c "
+  POLYGLOT_WATCHER_IDLE_SHUTDOWN_MINUTES="$IDLE_SHUTDOWN_MINUTES" python3 -c "
 import subprocess, sys
 with open(sys.argv[2], 'ab') as log:
     p = subprocess.Popen([sys.argv[1]], stdin=subprocess.DEVNULL, stdout=log,
@@ -207,25 +152,25 @@ print(p.pid)
 " "$1" "$WATCHER_LOG"
 }
 
-# Handle a start_watcher tools/call. Echoes the JSON-RPC response.
-# NOTE: must be called directly (not via $(...)) so its MCP_URL update
-# persists in the main loop's shell.
-handle_start_watcher() {
-  local id="$1"
-  local url response
+# Make sure a watcher is up for this project, starting one if needed.
+# Sets ENSURE_STARTED=true if this call started (or waited for another
+# session's start of) a watcher, and ENSURE_ERROR to a message on failure.
+# NOTE: must be called directly (not via $(...)) so its variable updates
+# persist in the main loop's shell.
+ensure_watcher() {
+  ENSURE_STARTED=false
+  ENSURE_ERROR=""
+  local url
 
-  # NoOp if a watcher is already up
   if url=$(read_mcp_url) && ping_watcher "$url"; then
     MCP_URL="$url"
-    local port pid
-    port=$(jq -r '.mcp_tcp_port // empty' "$CONFIG_FILE" 2>/dev/null)
-    pid=$(jq -r '.pid // empty' "$CONFIG_FILE" 2>/dev/null)
-    echo "START_WATCHER: already running (pid=$pid port=$port)" >> "$LOG"
-    response=$(start_watcher_response "$id" "already_running" "$port" "$pid" \
-      "Watcher already running — nothing started. Only one instance runs per project." "false")
-    echo "SEND: $response" >> "$LOG"
-    echo "$response"
-    return
+    return 0
+  fi
+
+  if [ ! -f mix.exs ]; then
+    ENSURE_ERROR="Cannot start the polyglot watcher: no mix.exs in $(pwd) — run from an Elixir project root."
+    echo "ENSURE: $ENSURE_ERROR" >> "$LOG"
+    return 1
   fi
 
   # Locate the launcher script (sibling of this proxy script) and its release
@@ -234,12 +179,9 @@ handle_start_watcher() {
   launcher="$proxy_dir/polyglot_watcher_v2"
   release_bin="$proxy_dir/_build/prod/rel/polyglot_watcher_v2/bin/polyglot_watcher_v2"
   if [ ! -x "$launcher" ] || [ ! -x "$release_bin" ]; then
-    echo "START_WATCHER: launcher/release missing at $proxy_dir" >> "$LOG"
-    response=$(start_watcher_response "$id" "error" "" "" \
-      "Cannot start watcher: launcher or release binary not found. Run ./build in $proxy_dir first." "true")
-    echo "SEND: $response" >> "$LOG"
-    echo "$response"
-    return
+    ENSURE_ERROR="Cannot start the polyglot watcher: launcher or release binary not found in $proxy_dir. Run ./build there first, or disable the polyglot-watcher MCP."
+    echo "ENSURE: $ENSURE_ERROR" >> "$LOG"
+    return 1
   fi
 
   mkdir -p .polyglot_watcher_v2
@@ -250,37 +192,37 @@ handle_start_watcher() {
     now=$(date +%s)
     lock_mtime=$(stat -f %m "$START_LOCK" 2>/dev/null || stat -c %Y "$START_LOCK" 2>/dev/null || echo 0)
     if [ $((now - lock_mtime)) -gt 60 ]; then
-      echo "START_WATCHER: removing stale lock" >> "$LOG"
+      echo "ENSURE: removing stale lock" >> "$LOG"
       rmdir "$START_LOCK" 2>/dev/null
     fi
   fi
 
   # Single-start guard: mkdir is atomic. If the lock is held, another session
   # is mid-start — don't spawn a second watcher, just wait for theirs.
-  local spawned_pid="" spawned=false spawned_visibly=false
+  local spawned_pid="" spawned=false
   if mkdir "$START_LOCK" 2>/dev/null; then
     # POLYGLOT_WATCHER_SPAWN_CMD (affects this MCP path only — never the CLI):
     # a command prefix that receives the launcher path as its final argument,
     # e.g. a script that opens a tmux split, so a human can watch the tests
     # run live. Non-zero exit (not inside tmux, etc.) falls back to the
-    # detached spawn below.
+    # detached spawn below. Visible watchers never idle-shutdown.
     if [ -n "${POLYGLOT_WATCHER_SPAWN_CMD:-}" ]; then
-      echo "START_WATCHER: spawning via POLYGLOT_WATCHER_SPAWN_CMD ($POLYGLOT_WATCHER_SPAWN_CMD)" >> "$LOG"
-      if eval "$POLYGLOT_WATCHER_SPAWN_CMD $(printf '%q' "$launcher")" >> "$LOG" 2>&1; then
+      echo "ENSURE: spawning via POLYGLOT_WATCHER_SPAWN_CMD ($POLYGLOT_WATCHER_SPAWN_CMD)" >> "$LOG"
+      if (unset POLYGLOT_WATCHER_IDLE_SHUTDOWN_MINUTES
+          eval "$POLYGLOT_WATCHER_SPAWN_CMD $(printf '%q' "$launcher")") >> "$LOG" 2>&1; then
         spawned=true
-        spawned_visibly=true
       else
-        echo "START_WATCHER: spawn cmd failed — falling back to detached spawn" >> "$LOG"
+        echo "ENSURE: spawn cmd failed — falling back to detached spawn" >> "$LOG"
       fi
     fi
     if [ "$spawned" = false ]; then
-      echo "START_WATCHER: spawning $launcher (detached)" >> "$LOG"
+      echo "ENSURE: spawning $launcher (detached, idle shutdown after ${IDLE_SHUTDOWN_MINUTES} min)" >> "$LOG"
       spawned_pid=$(spawn_watcher_detached "$launcher")
       spawned=true
-      echo "START_WATCHER: spawned pid=$spawned_pid" >> "$LOG"
+      echo "ENSURE: spawned pid=$spawned_pid" >> "$LOG"
     fi
   else
-    echo "START_WATCHER: lock held — waiting for another session's start" >> "$LOG"
+    echo "ENSURE: lock held — waiting for another session's start" >> "$LOG"
   fi
 
   # Poll for readiness: up to 30s (120 * 0.25s)
@@ -293,7 +235,7 @@ handle_start_watcher() {
     fi
     # Fail fast if the process we spawned died before becoming ready
     if [ -n "$spawned_pid" ] && ! kill -0 "$spawned_pid" 2>/dev/null; then
-      echo "START_WATCHER: spawned pid $spawned_pid died before ready" >> "$LOG"
+      echo "ENSURE: spawned pid $spawned_pid died before ready" >> "$LOG"
       break
     fi
     sleep 0.25
@@ -302,32 +244,49 @@ handle_start_watcher() {
   [ "$spawned" = true ] && rmdir "$START_LOCK" 2>/dev/null
 
   if [ "$ready" = true ]; then
-    local port pid status note
-    port=$(jq -r '.mcp_tcp_port // empty' "$CONFIG_FILE" 2>/dev/null)
-    pid=$(jq -r '.pid // empty' "$CONFIG_FILE" 2>/dev/null)
-    if [ "$spawned" = true ]; then
-      status="started"
-      if [ "$spawned_visibly" = true ]; then
-        note="Watcher started in a visible terminal split (via POLYGLOT_WATCHER_SPAWN_CMD). Subsequent mix_test calls now go through the watcher and deduplicate with file-save test runs."
-      else
-        note="Watcher started. Subsequent mix_test calls now go through the watcher and deduplicate with file-save test runs."
-      fi
-    else
-      status="already_running"
-      note="Watcher was started by another session and is now ready — nothing started here."
-    fi
-    echo "START_WATCHER: ready (pid=$pid port=$port status=$status)" >> "$LOG"
-    response=$(start_watcher_response "$id" "$status" "$port" "$pid" "$note" "false")
-  else
-    local log_tail
-    log_tail=$(tail -n 30 "$WATCHER_LOG" 2>/dev/null)
-    echo "START_WATCHER: failed to become ready" >> "$LOG"
-    response=$(start_watcher_response "$id" "error" "" "" \
-      "Watcher did not become ready within 30s. Last log lines from $WATCHER_LOG: ${log_tail}" "true")
+    ENSURE_STARTED=true
+    echo "ENSURE: ready ($MCP_URL)" >> "$LOG"
+    return 0
   fi
 
-  echo "SEND: $response" >> "$LOG"
-  echo "$response"
+  ENSURE_ERROR="The polyglot watcher did not become ready within 30s. Fix it, or disable the polyglot-watcher MCP. Last lines of $(pwd)/$WATCHER_LOG:
+$(tail -n 30 "$WATCHER_LOG" 2>/dev/null)"
+  echo "ENSURE: failed to become ready" >> "$LOG"
+  return 1
+}
+
+# Handle a tools/call: make sure the watcher is up (starting it if needed),
+# then forward. Sets TOOL_RESPONSE to the JSON-RPC response.
+# NOTE: must be called directly (not via $(...)) so MCP_URL updates persist.
+handle_tool_call() {
+  local line="$1" id="$2" started=false
+
+  if ! ensure_watcher; then
+    TOOL_RESPONSE=$(tool_error_response "$id" "$ENSURE_ERROR")
+    return
+  fi
+  [ "$ENSURE_STARTED" = true ] && started=true
+
+  if ! TOOL_RESPONSE=$(forward "$line" ""); then
+    # The watcher went away between the readiness check and the request (e.g.
+    # it was idle-shutting-down at that moment) — start it again and retry once.
+    echo "TOOL_CALL: forward failed — re-ensuring watcher and retrying" >> "$LOG"
+    if ! ensure_watcher; then
+      TOOL_RESPONSE=$(tool_error_response "$id" "$ENSURE_ERROR")
+      return
+    fi
+    [ "$ENSURE_STARTED" = true ] && started=true
+    if ! TOOL_RESPONSE=$(forward "$line" ""); then
+      TOOL_RESPONSE=$(tool_error_response "$id" \
+        "The polyglot watcher is running but the request to it failed. See $(pwd)/$WATCHER_LOG.")
+      return
+    fi
+  fi
+
+  if [ "$started" = true ]; then
+    TOOL_RESPONSE=$(add_watcher_note "$TOOL_RESPONSE" \
+      "The watcher wasn't running, so it was started automatically for this call. Its in-memory failure cache starts empty.")
+  fi
 }
 
 while IFS= read -r line; do
@@ -355,86 +314,41 @@ while IFS= read -r line; do
     continue
   fi
 
-  # start_watcher is handled by the proxy itself, never forwarded: the watcher
-  # doesn't know this tool, and calling it while the watcher is already running
-  # must be a NoOp rather than an "Unknown tool" error.
-  if [ "$(extract_method "$line")" = "tools/call" ] && \
-     [ "$(extract_tool_name "$line")" = "start_watcher" ]; then
-    handle_start_watcher "$(extract_id "$line")"
+  req_id=$(extract_id "$line")
+  method=$(extract_method "$line")
+
+  if [ "$method" = "tools/call" ]; then
+    handle_tool_call "$line" "$req_id"
+    echo "SEND: $TOOL_RESPONSE" >> "$LOG"
+    echo "$TOOL_RESPONSE"
     continue
   fi
 
-  # It's a request - try to forward to the watcher
+  # Anything else - forward to the watcher if it's up
   sent=false
-  if [ -n "$MCP_URL" ]; then
-    response=$(curl -s --max-time 30 -X POST "$MCP_URL" \
-      -H 'Content-Type: application/json' \
-      -H 'Accept: application/json' \
-      -d "$line" 2>/dev/null)
-
-    if [ $? -eq 0 ] && [ -n "$response" ]; then
-      echo "SEND: $response" >> "$LOG"
-      echo "$response"
-      sent=true
-    fi
+  if response=$(forward "$line" 30); then
+    sent=true
+  elif new_url=$(read_mcp_url) && [ "$new_url" != "$MCP_URL" ]; then
+    # Watcher restarted on a new port
+    MCP_URL="$new_url"
+    echo "RETRY: new URL=$MCP_URL" >> "$LOG"
+    response=$(forward "$line" 30) && sent=true
   fi
 
-  # On failure, re-read config and retry (handles watcher restart with new port)
+  # Watcher is not reachable - answer what we can ourselves (never starts one)
   if [ "$sent" = false ]; then
-    if new_url=$(read_mcp_url); then
-      if [ "$new_url" != "$MCP_URL" ]; then
-        MCP_URL="$new_url"
-        echo "RETRY: new URL=$MCP_URL" >> "$LOG"
-        response=$(curl -s --max-time 30 -X POST "$MCP_URL" \
-          -H 'Content-Type: application/json' \
-          -H 'Accept: application/json' \
-          -d "$line" 2>/dev/null)
-
-        if [ $? -eq 0 ] && [ -n "$response" ]; then
-          echo "SEND: $response" >> "$LOG"
-          echo "$response"
-          sent=true
-        fi
-      fi
-    fi
-  fi
-
-  # Watcher is not reachable - generate fallback response
-  if [ "$sent" = false ]; then
-    req_id=$(extract_id "$line")
-    method=$(extract_method "$line")
-
     echo "FALLBACK ($method): watcher unreachable" >> "$LOG"
 
     case "$method" in
-      initialize)
-        response=$(fallback_initialize "$req_id")
-        ;;
-      ping)
-        response=$(fallback_ping "$req_id")
-        ;;
-      tools/list)
-        response=$(fallback_tools_list "$req_id")
-        ;;
-      tools/call)
-        tool_name=$(extract_tool_name "$line")
-        if [ "$tool_name" = "mix_test" ]; then
-          test_path=$(extract_test_path "$line")
-          line_number=$(extract_line_number "$line")
-          extra_args=$(extract_extra_args "$line")
-          response=$(fallback_run_tests "$req_id" "$test_path" "$line_number" "$extra_args")
-        else
-          response=$(fallback_error "$req_id")
-        fi
-        ;;
-      *)
-        response=$(fallback_error "$req_id")
-        ;;
+      initialize) response=$(fallback_initialize "$req_id") ;;
+      ping) response=$(fallback_ping "$req_id") ;;
+      tools/list) response=$(fallback_tools_list "$req_id") ;;
+      *) response=$(fallback_error "$req_id") ;;
     esac
-
-    echo "SEND: $response" >> "$LOG"
-    echo "$response"
   fi
+
+  echo "SEND: $response" >> "$LOG"
+  echo "$response"
 done
 
 echo "--- proxy exited at $(date) ---" >> "$LOG"

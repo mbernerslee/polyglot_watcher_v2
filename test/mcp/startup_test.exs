@@ -84,5 +84,42 @@ defmodule PolyglotWatcherV2.MCP.StartupTest do
 
       assert :ok = Startup.terminate(:shutdown, %{})
     end
+
+    test "stops the HTTP listener so no new requests are accepted" do
+      Mimic.stub(FileWrapper, :rm_rf, fn _ -> {:ok, []} end)
+      {:ok, bandit_pid} = Agent.start(fn -> nil end)
+
+      assert :ok = Startup.terminate(:normal, %{bandit_pid: bandit_pid, port: 1234})
+
+      refute Process.alive?(bandit_pid)
+    end
+  end
+
+  describe "handle_info/2 - EXIT" do
+    test "stops when the HTTP listener exits" do
+      bandit_pid = spawn(fn -> :ok end)
+      state = %{bandit_pid: bandit_pid, port: 1234}
+
+      assert {:stop, :boom, ^state} = Startup.handle_info({:EXIT, bandit_pid, :boom}, state)
+    end
+
+    test "ignores exits from anything else, e.g. the port InstanceChecker's `kill -0` ran in" do
+      state = %{bandit_pid: spawn(fn -> :ok end), port: 1234}
+      other_port = Port.open({:spawn, "true"}, [])
+
+      assert {:noreply, ^state} = Startup.handle_info({:EXIT, other_port, :normal}, state)
+    end
+  end
+
+  describe "child_spec/1" do
+    test "is transient, so a deliberate stop (idle shutdown) isn't undone by a restart" do
+      assert %{restart: :transient} = Startup.child_spec([])
+    end
+  end
+
+  describe "stop/0" do
+    test "is a no-op when the MCP server isn't running" do
+      assert :ok = Startup.stop()
+    end
   end
 end

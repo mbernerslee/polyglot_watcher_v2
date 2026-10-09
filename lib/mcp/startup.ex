@@ -1,11 +1,20 @@
 defmodule PolyglotWatcherV2.MCP.Startup do
-  use GenServer
+  # transient: a deliberate stop (idle shutdown) must not be undone by a restart
+  use GenServer, restart: :transient
 
   alias PolyglotWatcherV2.MCP.{ConfigFile, InstanceChecker}
   alias PolyglotWatcherV2.Puts
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @doc "Stops the MCP server (deleting config.json and closing the listener). No-op if not running."
+  def stop do
+    case Process.whereis(__MODULE__) do
+      nil -> :ok
+      pid -> GenServer.stop(pid, :normal)
+    end
   end
 
   @impl GenServer
@@ -21,15 +30,30 @@ defmodule PolyglotWatcherV2.MCP.Startup do
   end
 
   @impl GenServer
-  def handle_info({:EXIT, _pid, reason}, state) do
+  def handle_info({:EXIT, bandit_pid, reason}, %{bandit_pid: bandit_pid} = state) do
     {:stop, reason, state}
   end
 
+  # Other linked things exiting (e.g. the port InstanceChecker's `kill -0` ran
+  # in) are no reason to stop. This used to be masked by a :permanent restart.
+  def handle_info({:EXIT, _other, _reason}, state) do
+    {:noreply, state}
+  end
+
   @impl GenServer
-  def terminate(_reason, _state) do
+  def terminate(_reason, state) do
     ConfigFile.delete()
+    stop_listener(state)
     :ok
   end
+
+  defp stop_listener(%{bandit_pid: bandit_pid}) do
+    GenServer.stop(bandit_pid, :normal)
+  catch
+    :exit, _ -> :ok
+  end
+
+  defp stop_listener(_state), do: :ok
 
   defp check_and_start do
     case ConfigFile.read() do
