@@ -152,14 +152,38 @@ print(p.pid)
 " "$1" "$WATCHER_LOG"
 }
 
+# Seconds a watcher started via POLYGLOT_WATCHER_SPAWN_CMD gets to answer
+# before the proxy gives up on it and spawns a detached one instead.
+SPAWN_CMD_GRACE_SECONDS="${POLYGLOT_WATCHER_SPAWN_CMD_GRACE_SECONDS:-15}"
+
+# Poll until the project's watcher answers a ping. $1=seconds to wait,
+# $2=pid we spawned (optional; stop early if it dies). Sets MCP_URL on success.
+wait_for_watcher() {
+  local seconds="$1" pid="$2" url i
+  for i in $(seq 1 $((seconds * 4))); do
+    if url=$(read_mcp_url) && ping_watcher "$url"; then
+      MCP_URL="$url"
+      return 0
+    fi
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+      echo "ENSURE: spawned pid $pid died before ready" >> "$LOG"
+      return 1
+    fi
+    sleep 0.25
+  done
+  return 1
+}
+
 # Make sure a watcher is up for this project, starting one if needed.
 # Sets ENSURE_STARTED=true if this call started (or waited for another
-# session's start of) a watcher, and ENSURE_ERROR to a message on failure.
+# session's start of) a watcher, ENSURE_ERROR to a message on failure, and
+# ENSURE_NOTE to anything the caller should be told even on success.
 # NOTE: must be called directly (not via $(...)) so its variable updates
 # persist in the main loop's shell.
 ensure_watcher() {
   ENSURE_STARTED=false
   ENSURE_ERROR=""
+  ENSURE_NOTE=""
   local url
 
   if url=$(read_mcp_url) && ping_watcher "$url"; then
@@ -199,7 +223,7 @@ ensure_watcher() {
 
   # Single-start guard: mkdir is atomic. If the lock is held, another session
   # is mid-start — don't spawn a second watcher, just wait for theirs.
-  local spawned_pid="" spawned=false
+  local spawned_pid="" spawned=false via_spawn_cmd=false ready=false
   if mkdir "$START_LOCK" 2>/dev/null; then
     # POLYGLOT_WATCHER_SPAWN_CMD (affects this MCP path only — never the CLI):
     # a command prefix that receives the launcher path as its final argument,
@@ -211,11 +235,23 @@ ensure_watcher() {
       if (unset POLYGLOT_WATCHER_IDLE_SHUTDOWN_MINUTES
           eval "$POLYGLOT_WATCHER_SPAWN_CMD $(printf '%q' "$launcher")") >> "$LOG" 2>&1; then
         spawned=true
+        via_spawn_cmd=true
       else
         echo "ENSURE: spawn cmd failed — falling back to detached spawn" >> "$LOG"
       fi
     fi
-    if [ "$spawned" = false ]; then
+    # A spawn cmd exiting 0 only means it *thinks* it started the watcher (it
+    # may have typed the command into a pane that wasn't really a shell). Give
+    # it a grace period, then stop trusting it and spawn detached ourselves.
+    if [ "$via_spawn_cmd" = true ]; then
+      if wait_for_watcher "$SPAWN_CMD_GRACE_SECONDS" ""; then
+        ready=true
+      else
+        ENSURE_NOTE="POLYGLOT_WATCHER_SPAWN_CMD ($POLYGLOT_WATCHER_SPAWN_CMD) exited 0 but no watcher appeared within ${SPAWN_CMD_GRACE_SECONDS}s, so the watcher was spawned detached instead (output in $(pwd)/$WATCHER_LOG). The spawn command is misbehaving — tell the user."
+        echo "ENSURE: spawn cmd exited 0 but no watcher after ${SPAWN_CMD_GRACE_SECONDS}s — falling back to detached spawn" >> "$LOG"
+      fi
+    fi
+    if [ "$ready" = false ]; then
       echo "ENSURE: spawning $launcher (detached, idle shutdown after ${IDLE_SHUTDOWN_MINUTES} min)" >> "$LOG"
       spawned_pid=$(spawn_watcher_detached "$launcher")
       spawned=true
@@ -225,21 +261,9 @@ ensure_watcher() {
     echo "ENSURE: lock held — waiting for another session's start" >> "$LOG"
   fi
 
-  # Poll for readiness: up to 30s (120 * 0.25s)
-  local ready=false i
-  for i in $(seq 1 120); do
-    if url=$(read_mcp_url) && ping_watcher "$url"; then
-      MCP_URL="$url"
-      ready=true
-      break
-    fi
-    # Fail fast if the process we spawned died before becoming ready
-    if [ -n "$spawned_pid" ] && ! kill -0 "$spawned_pid" 2>/dev/null; then
-      echo "ENSURE: spawned pid $spawned_pid died before ready" >> "$LOG"
-      break
-    fi
-    sleep 0.25
-  done
+  if [ "$ready" = false ] && wait_for_watcher 30 "$spawned_pid"; then
+    ready=true
+  fi
 
   [ "$spawned" = true ] && rmdir "$START_LOCK" 2>/dev/null
 
@@ -249,8 +273,20 @@ ensure_watcher() {
     return 0
   fi
 
-  ENSURE_ERROR="The polyglot watcher did not become ready within 30s. Fix it, or disable the polyglot-watcher MCP. Last lines of $(pwd)/$WATCHER_LOG:
-$(tail -n 30 "$WATCHER_LOG" 2>/dev/null)"
+  # Say what was actually attempted, so the error is actionable.
+  local how
+  if [ "$spawned" = false ]; then
+    how="Another session held the start lock ($(pwd)/$START_LOCK), so this call only waited for that session's watcher — which never answered."
+  elif [ -n "$spawned_pid" ] && ! kill -0 "$spawned_pid" 2>/dev/null; then
+    how="It was spawned detached (pid $spawned_pid) but exited before becoming ready."
+  else
+    how="It was spawned detached (pid $spawned_pid) and is still running, but isn't answering MCP pings."
+  fi
+  ENSURE_ERROR="The polyglot watcher did not become ready within 30s. Fix it, or disable the polyglot-watcher MCP.
+${ENSURE_NOTE:+$ENSURE_NOTE
+}$how
+Last lines of $(pwd)/$WATCHER_LOG:
+$(tail -n 30 "$WATCHER_LOG" 2>/dev/null || echo "(no such file)")"
   echo "ENSURE: failed to become ready" >> "$LOG"
   return 1
 }
@@ -259,13 +295,14 @@ $(tail -n 30 "$WATCHER_LOG" 2>/dev/null)"
 # then forward. Sets TOOL_RESPONSE to the JSON-RPC response.
 # NOTE: must be called directly (not via $(...)) so MCP_URL updates persist.
 handle_tool_call() {
-  local line="$1" id="$2" started=false
+  local line="$1" id="$2" started=false note=""
 
   if ! ensure_watcher; then
     TOOL_RESPONSE=$(tool_error_response "$id" "$ENSURE_ERROR")
     return
   fi
   [ "$ENSURE_STARTED" = true ] && started=true
+  note="$ENSURE_NOTE"
 
   if ! TOOL_RESPONSE=$(forward "$line" ""); then
     # The watcher went away between the readiness check and the request (e.g.
@@ -276,6 +313,7 @@ handle_tool_call() {
       return
     fi
     [ "$ENSURE_STARTED" = true ] && started=true
+    [ -n "$ENSURE_NOTE" ] && note="$ENSURE_NOTE"
     if ! TOOL_RESPONSE=$(forward "$line" ""); then
       TOOL_RESPONSE=$(tool_error_response "$id" \
         "The polyglot watcher is running but the request to it failed. See $(pwd)/$WATCHER_LOG.")
@@ -285,7 +323,7 @@ handle_tool_call() {
 
   if [ "$started" = true ]; then
     TOOL_RESPONSE=$(add_watcher_note "$TOOL_RESPONSE" \
-      "The watcher wasn't running, so it was started automatically for this call. Its in-memory failure cache starts empty.")
+      "The watcher wasn't running, so it was started automatically for this call. Its in-memory failure cache starts empty.${note:+ $note}")
   fi
 }
 

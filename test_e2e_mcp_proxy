@@ -151,5 +151,23 @@ echo "$RESP" | grep -q '"isError": *true' && pass "returns a tool error" || fail
 echo "$RESP" | grep -q 'mix.exs' && pass "explains why" || fail "unhelpful error: $RESP"
 [ -f "$CONFIG" ] && fail "started a watcher without mix.exs" || pass "nothing spawned"
 
+# --- Test 9: spawn cmd exits 0 but starts nothing -> detached fallback ---
+# (e.g. a tmux-split script that typed the command into a pane that wasn't
+# really sitting at a shell prompt)
+info "Test 9: spawn cmd that 'succeeds' without starting a watcher -> detached fallback"
+kill_watchers
+rm -f "$WATCHER_LOG"
+RESP=$(rpc "$(tool_call 11 mix_test_known_failures)" "$PROXY" \
+  POLYGLOT_WATCHER_SPAWN_CMD=true POLYGLOT_WATCHER_SPAWN_CMD_GRACE_SECONDS=1)
+INNER=$(echo "$RESP" | inner) || fail "unparseable response: $RESP"
+echo "$INNER" | grep -q '"known_failures"' && pass "served by a watcher anyway" || fail "no fallback: $RESP"
+echo "$INNER" | grep -q 'POLYGLOT_WATCHER_SPAWN_CMD (true) exited 0 but no watcher appeared' &&
+  pass "note flags the misbehaving spawn cmd" || fail "missing spawn-cmd note: $INNER"
+PID=$(watcher_pid)
+[ -n "$PID" ] && kill -0 "$PID" 2>/dev/null && pass "fallback watcher running (pid $PID)" || fail "no watcher running after fallback"
+grep -q '\[idle-shutdown\] enabled' "$WATCHER_LOG" && pass "fallback watcher is detached (idle shutdown enabled)" || fail "fallback watcher not detached; log: $(tail -5 "$WATCHER_LOG" 2>/dev/null)"
+kill_watchers
+sleep 0.5
+
 echo ""
 echo -e "${GREEN}All MCP proxy e2e tests passed!${NC}"

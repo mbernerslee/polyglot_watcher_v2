@@ -122,9 +122,9 @@ failure cache starts empty after a (re)start.
   answered by the proxy itself, because Claude Code spawns the proxy for every
   session, Elixir project or not.
 - No `mix.exs` in the working directory, a missing release, or a watcher that
-  doesn't become ready → the tool call returns an error (with the tail of
-  `.polyglot_watcher_v2/watcher.log`). Nothing falls back to running tests
-  around the watcher.
+  doesn't become ready → the tool call returns an error saying how the start
+  was attempted (with the tail of `.polyglot_watcher_v2/watcher.log`). Nothing
+  falls back to running tests around the watcher.
 - Concurrent sessions in the same project share one watcher (an atomic start
   lock stops two sessions spawning one each).
 
@@ -158,7 +158,10 @@ environment), the proxy starts the watcher through it instead. The contract:
 - The value is a **command prefix**, `eval`'d with the watcher launcher path
   appended as a single shell-quoted argument:
   `$POLYGLOT_WATCHER_SPAWN_CMD /path/to/polyglot_watcher_v2`
-- Exit `0` means "spawned" — the proxy then polls for readiness as usual.
+- Exit `0` means "spawned" — the proxy then polls for readiness. If no watcher
+  answers within 15s (`POLYGLOT_WATCHER_SPAWN_CMD_GRACE_SECONDS`), the proxy
+  stops trusting the command, spawns detached instead, and says so in the
+  response's `watcher_note` so the AI can tell you the spawn command is broken.
 - Non-zero exit means "couldn't" (e.g. not inside tmux) — the proxy falls back
   to the detached spawn, so this can never break test running.
 
